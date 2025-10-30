@@ -203,6 +203,10 @@ class UserORM(Base):
         nullable=False,
     )
 
+    # Composite unique constraint: email must be unique within organization
+    # Note: Super Admin (organization_id=None) emails are not constrained by this
+    __table_args__ = (Index("idx_users_org_email", "organization_id", "email", unique=True),)
+
     def __repr__(self) -> str:
         return f"<User(id='{self.id}', username='{self.username}', role='{self.role}')>"
 

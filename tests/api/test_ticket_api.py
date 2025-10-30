@@ -159,8 +159,10 @@ class TestCreateTicket:
         project_response = client.post("/api/projects", json={"name": "Project"}, headers=headers)
         project_id = project_response.json()["id"]
 
-        # Create assignee via helper
-        assignee_id, _ = create_write_user(client, super_admin_token, org_id, username="assignee")
+        # Create assignee via helper with unique email
+        assignee_id, _ = create_write_user(
+            client, super_admin_token, org_id, username="assignee", email="assignee@example.com"
+        )
 
         # Create ticket with assignee
         response = client.post(
@@ -390,8 +392,10 @@ class TestListTickets:
         project_response = client.post("/api/projects", json={"name": "Project"}, headers=headers)
         project_id = project_response.json()["id"]
 
-        # Create assignee via helper
-        assignee_id, _ = create_write_user(client, super_admin_token, org_id, username="assignee")
+        # Create assignee via helper with unique email
+        assignee_id, _ = create_write_user(
+            client, super_admin_token, org_id, username="assignee", email="assignee@example.com"
+        )
 
         # Create tickets
         client.post(
@@ -421,8 +425,10 @@ class TestListTickets:
         project_response = client.post("/api/projects", json={"name": "Project"}, headers=headers)
         project_id = project_response.json()["id"]
 
-        # Create assignee via helper
-        assignee_id, _ = create_write_user(client, super_admin_token, org_id, username="assignee")
+        # Create assignee via helper with unique email
+        assignee_id, _ = create_write_user(
+            client, super_admin_token, org_id, username="assignee", email="assignee@example.com"
+        )
 
         # Create matching ticket
         match_response = client.post(
@@ -743,8 +749,10 @@ class TestAssignTicket:
         create_response = client.post(f"/api/tickets?project_id={project_id}", json={"title": "Test"}, headers=headers)
         ticket_id = create_response.json()["id"]
 
-        # Create assignee via helper
-        assignee_id, _ = create_write_user(client, super_admin_token, org_id, username="assignee")
+        # Create assignee via helper with unique email
+        assignee_id, _ = create_write_user(
+            client, super_admin_token, org_id, username="assignee", email="assignee@example.com"
+        )
 
         # Assign ticket
         response = client.put(f"/api/tickets/{ticket_id}/assignee", json={"assignee_id": assignee_id}, headers=headers)
@@ -763,8 +771,10 @@ class TestAssignTicket:
         project_response = client.post("/api/projects", json={"name": "Project"}, headers=headers)
         project_id = project_response.json()["id"]
 
-        # Create assignee via helper
-        assignee_id, _ = create_write_user(client, super_admin_token, org_id, username="assignee")
+        # Create assignee via helper with unique email
+        assignee_id, _ = create_write_user(
+            client, super_admin_token, org_id, username="assignee", email="assignee@example.com"
+        )
 
         # Create ticket with assignee
         create_response = client.post(
@@ -802,8 +812,10 @@ class TestAssignTicket:
         )
         ticket_id = create_response.json()["id"]
 
-        # Create assignee via helper
-        assignee_id, _ = create_write_user(client, super_admin_token, org_id, username="assignee")
+        # Create assignee via helper with unique email
+        assignee_id, _ = create_write_user(
+            client, super_admin_token, org_id, username="assignee", email="assignee@example.com"
+        )
 
         # Attempt to assign
         response = client.put(
@@ -910,8 +922,10 @@ class TestTicketWorkflows:
         project2_response = client.post("/api/projects", json={"name": "Frontend"}, headers=headers)
         project2_id = project2_response.json()["id"]
 
-        # Create assignee via helper
-        assignee_id, _ = create_write_user(client, super_admin_token, org_id, username="assignee")
+        # Create assignee via helper with unique email
+        assignee_id, _ = create_write_user(
+            client, super_admin_token, org_id, username="assignee", email="assignee@example.com"
+        )
 
         # 1. Create ticket
         create_response = client.post(

@@ -330,11 +330,13 @@ class TestListUsers:
         """Test filtering users by active status."""
         org_id = create_test_org(client, super_admin_token)
 
-        # Create active user
-        create_admin_user(client, super_admin_token, org_id, username="active")
+        # Create active user with unique email
+        create_admin_user(client, super_admin_token, org_id, username="active", email="active@example.com")
 
-        # Create and deactivate user via API
-        inactive_user_id, _password = create_admin_user(client, super_admin_token, org_id, username="inactive")
+        # Create and deactivate user via API with unique email
+        inactive_user_id, _password = create_admin_user(
+            client, super_admin_token, org_id, username="inactive", email="inactive@example.com"
+        )
         client.put(f"/api/users/{inactive_user_id}", json={"is_active": False}, headers=auth_headers(super_admin_token))
 
         # Filter for active users
@@ -508,8 +510,10 @@ class TestUpdateUser:
         """Test regular user cannot update users."""
         token, org_id = write_user_token
 
-        # Create another user
-        user_id, _password = create_write_user(client, super_admin_token, org_id, username="writer2")
+        # Create another user with unique email
+        user_id, _password = create_write_user(
+            client, super_admin_token, org_id, username="writer2", email="writer2@example.com"
+        )
 
         response = client.put(
             f"/api/users/{user_id}",
@@ -518,6 +522,44 @@ class TestUpdateUser:
         )
 
         assert response.status_code == 403
+
+    def test_duplicate_email_within_organization_fails(self, client: TestClient, super_admin_token: str) -> None:
+        """Test that duplicate emails are rejected within same organization.
+
+        Regression test for bug discovered by property-based stateful testing.
+
+        Bug Discovery:
+        - Original test: tests/property_based/stateful/test_user_api.py::test_user_api_state_machine
+        - Rule: attempt_duplicate_email_update
+        - Issue: Email uniqueness constraint was missing from database schema (UserORM model)
+        - Fix: Added composite unique index on (organization_id, email) in UserORM.__table_args__
+
+        This test ensures the bug doesn't regress by testing the specific scenario:
+        updating a user's email to match another user's email in the same organization.
+        """
+        org_id = create_test_org(client, super_admin_token)
+
+        # Create first user with email "user1@example.com"
+        create_admin_user(client, super_admin_token, org_id, username="user1", email="user1@example.com")
+
+        # Create second user with different email
+        user2_id, _ = create_admin_user(client, super_admin_token, org_id, username="user2", email="user2@example.com")
+
+        # Attempt to update second user's email to duplicate first user's email
+        response = client.put(
+            f"/api/users/{user2_id}",
+            json={"email": "user1@example.com"},
+            headers=auth_headers(super_admin_token),
+        )
+
+        # Should fail with 400
+        assert response.status_code == 400
+        assert "email" in response.json()["detail"].lower()
+
+        # Verify user2's email was not changed
+        get_response = client.get(f"/api/users/{user2_id}", headers=auth_headers(super_admin_token))
+        assert get_response.status_code == 200
+        assert get_response.json()["email"] == "user2@example.com"
 
 
 class TestDeleteUser:
