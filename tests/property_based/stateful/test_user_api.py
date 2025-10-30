@@ -23,6 +23,9 @@ class UserAPIStateMachine(RuleBasedStateMachine):
 
     users = Bundle("users")
 
+    # Define immutable fields once for reuse across all checks
+    IMMUTABLE_FIELDS = ["username", "organization_id"]
+
     def __init__(self, client: TestClient, super_admin_token: str) -> None:
         import uuid
 
@@ -41,8 +44,24 @@ class UserAPIStateMachine(RuleBasedStateMachine):
         # Shadow state for user data
         self.user_data: dict[str, dict[str, str | bool]] = {}  # user_id -> {email, full_name, role, is_active}
 
+        # Track immutable fields (username, organization_id) for invariant checking
+        self.immutable_fields: dict[str, dict[str, str]] = {}  # user_id -> {username, organization_id}
+
         # Track emails in use (for uniqueness testing)
         self.emails_in_use: set[str] = set()
+
+    def _verify_immutable_fields(self, user_id: str, user_obj: dict) -> None:
+        """Helper to verify immutable fields haven't changed.
+
+        Args:
+            user_id: ID of the user to check
+            user_obj: User object from API response
+        """
+        if user_id in self.immutable_fields:
+            for field in self.IMMUTABLE_FIELDS:
+                expected = self.immutable_fields[user_id][field]
+                actual = user_obj[field]
+                assert actual == expected, f"{field} changed for user {user_id}: expected {expected}, got {actual}"
 
     @rule(target=users)
     def create_user_via_api(self) -> str:
@@ -79,6 +98,11 @@ class UserAPIStateMachine(RuleBasedStateMachine):
             "full_name": full_name,
             "role": "read_access",
             "is_active": True,
+        }
+        # Track immutable fields
+        self.immutable_fields[user_id] = {
+            "username": username,
+            "organization_id": self.organization_id,
         }
         self.emails_in_use.add(email)
 
@@ -122,6 +146,9 @@ class UserAPIStateMachine(RuleBasedStateMachine):
                 assert user_obj["full_name"] == shadow["full_name"], f"Full name mismatch for user {user_id}"
                 assert user_obj["role"] == shadow["role"], f"Role mismatch for user {user_id}"
                 assert user_obj["is_active"] == shadow["is_active"], f"is_active mismatch for user {user_id}"
+
+            # Invariant: Immutable fields never change
+            self._verify_immutable_fields(user_id, user_obj)
         else:
             assert response.status_code == 404, f"Deleted user should return 404, got {response.status_code}"
 
@@ -187,6 +214,9 @@ class UserAPIStateMachine(RuleBasedStateMachine):
             assert user_obj["role"] == shadow["role"], "Role should not change"
             assert user_obj["is_active"] == shadow["is_active"], "is_active should not change"
 
+        # Invariant: Immutable fields never change
+        self._verify_immutable_fields(user_id, user_obj)
+
         # Update shadow state
         if user_id in self.user_data:
             self.user_data[user_id]["full_name"] = new_full_name
@@ -224,9 +254,67 @@ class UserAPIStateMachine(RuleBasedStateMachine):
         # Invariant: Updated field changed
         assert user_obj["role"] == new_role, f"Role should be updated to {new_role}"
 
+        # Invariant: Immutable fields never change
+        self._verify_immutable_fields(user_id, user_obj)
+
         # Update shadow state
         if user_id in self.user_data:
             self.user_data[user_id]["role"] = new_role
+
+    @rule(
+        user_id=users,
+        new_full_name=st.text(min_size=1, max_size=50),
+        new_role=st.sampled_from(["read_access", "write_access", "project_manager", "admin"]),
+    )
+    def update_multiple_fields(self, user_id: str, new_full_name: str, new_role: str) -> None:
+        """Update multiple user fields simultaneously via API."""
+        import uuid
+
+        # Skip if deleted
+        if user_id in self.deleted_user_ids:
+            return
+
+        # Generate unique email for multi-field update
+        new_email = f"multi{uuid.uuid4().hex[:10]}@example.com"
+
+        # Get old email for cleanup
+        old_email = self.user_data.get(user_id, {}).get("email")
+
+        # Update multiple fields
+        response = self.client.put(
+            f"/api/users/{user_id}",
+            json={"email": new_email, "full_name": new_full_name, "role": new_role},
+            headers={"Authorization": f"Bearer {self.super_admin_token}"},
+        )
+
+        # Invariant: Update should return 200
+        assert response.status_code == 200, f"Multi-field update should return 200, got {response.status_code}"
+
+        user_obj = response.json()
+
+        # Invariant: All updated fields changed
+        assert user_obj["email"] == new_email, "Email should be updated"
+        assert user_obj["full_name"] == new_full_name, "Full name should be updated"
+        assert user_obj["role"] == new_role, "Role should be updated"
+
+        # Invariant: Unchanged fields remain unchanged
+        if user_id in self.user_data:
+            shadow = self.user_data[user_id]
+            assert user_obj["is_active"] == shadow["is_active"], "is_active should not change"
+
+        # Invariant: Immutable fields never change
+        self._verify_immutable_fields(user_id, user_obj)
+
+        # Update shadow state
+        if user_id in self.user_data:
+            self.user_data[user_id]["email"] = new_email
+            self.user_data[user_id]["full_name"] = new_full_name
+            self.user_data[user_id]["role"] = new_role
+
+        # Update email tracking
+        if old_email and old_email in self.emails_in_use:
+            self.emails_in_use.remove(old_email)
+        self.emails_in_use.add(new_email)
 
     @rule(user_id=users)
     def deactivate_user(self, user_id: str) -> None:
@@ -262,6 +350,42 @@ class UserAPIStateMachine(RuleBasedStateMachine):
             headers={"Authorization": f"Bearer {self.super_admin_token}"},
         )
         assert get_response.status_code == 200, "Inactive user should still return 200"
+
+    @rule(user_id=users)
+    def reactivate_user(self, user_id: str) -> None:
+        """Reactivate an inactive user via API."""
+        # Skip if deleted or already active
+        if user_id in self.deleted_user_ids:
+            return
+        if user_id in self.user_data and self.user_data[user_id]["is_active"]:
+            return
+
+        # Reactivate user
+        response = self.client.put(
+            f"/api/users/{user_id}",
+            json={"is_active": True},
+            headers={"Authorization": f"Bearer {self.super_admin_token}"},
+        )
+
+        # Invariant: Update should return 200
+        assert response.status_code == 200, f"Reactivate should return 200, got {response.status_code}"
+
+        user_obj = response.json()
+
+        # Invariant: User is now active
+        assert user_obj["is_active"] is True, "User should be active"
+
+        # Update shadow state
+        if user_id in self.user_data:
+            self.user_data[user_id]["is_active"] = True
+
+        # Invariant: Reactivated user is retrievable
+        get_response = self.client.get(
+            f"/api/users/{user_id}",
+            headers={"Authorization": f"Bearer {self.super_admin_token}"},
+        )
+        assert get_response.status_code == 200, "Reactivated user should return 200"
+        assert get_response.json()["is_active"] is True, "GET should show user as active"
 
     @rule()
     def list_users_verify_count(self) -> None:
@@ -305,6 +429,68 @@ class UserAPIStateMachine(RuleBasedStateMachine):
                 assert user["full_name"] == shadow["full_name"], f"Full name mismatch in list for user {user_id}"
                 assert user["role"] == shadow["role"], f"Role mismatch in list for user {user_id}"
                 assert user["is_active"] == shadow["is_active"], f"is_active mismatch in list for user {user_id}"
+
+    @rule(filter_role=st.sampled_from(["read_access", "write_access", "project_manager", "admin"]))
+    def list_with_role_filter(self, filter_role: str) -> None:
+        """List users filtered by role and verify only matching users are returned."""
+        response = self.client.get(
+            f"/api/users?organization_id={self.organization_id}&role={filter_role}",
+            headers={"Authorization": f"Bearer {self.super_admin_token}"},
+        )
+
+        # Invariant: List should return 200
+        assert response.status_code == 200, f"List with role filter should return 200, got {response.status_code}"
+
+        users_list = response.json()
+        assert isinstance(users_list, list), "List endpoint should return a list"
+
+        # Invariant: All returned users have the filtered role
+        for user in users_list:
+            assert user["role"] == filter_role, f"User {user['id']} has role {user['role']}, expected {filter_role}"
+
+        # Invariant: Count matches expected users with this role
+        expected_user_ids = {
+            user_id
+            for user_id in self.user_data
+            if user_id not in self.deleted_user_ids and self.user_data[user_id].get("role") == filter_role
+        }
+        returned_user_ids = {user["id"] for user in users_list}
+        assert returned_user_ids == expected_user_ids, (
+            f"Role filter mismatch. Expected {len(expected_user_ids)} users with role {filter_role}, "
+            f"got {len(returned_user_ids)}"
+        )
+
+    @rule(filter_is_active=st.booleans())
+    def list_with_is_active_filter(self, filter_is_active: bool) -> None:
+        """List users filtered by is_active status and verify only matching users are returned."""
+        response = self.client.get(
+            f"/api/users?organization_id={self.organization_id}&is_active={str(filter_is_active).lower()}",
+            headers={"Authorization": f"Bearer {self.super_admin_token}"},
+        )
+
+        # Invariant: List should return 200
+        assert response.status_code == 200, f"List with is_active filter should return 200, got {response.status_code}"
+
+        users_list = response.json()
+        assert isinstance(users_list, list), "List endpoint should return a list"
+
+        # Invariant: All returned users have the filtered is_active status
+        for user in users_list:
+            assert user["is_active"] == filter_is_active, (
+                f"User {user['id']} has is_active={user['is_active']}, expected {filter_is_active}"
+            )
+
+        # Invariant: Count matches expected users with this is_active status
+        expected_user_ids = {
+            user_id
+            for user_id in self.user_data
+            if user_id not in self.deleted_user_ids and self.user_data[user_id].get("is_active") == filter_is_active
+        }
+        returned_user_ids = {user["id"] for user in users_list}
+        assert returned_user_ids == expected_user_ids, (
+            f"is_active filter mismatch. Expected {len(expected_user_ids)} users with is_active={filter_is_active}, "
+            f"got {len(returned_user_ids)}"
+        )
 
     @rule(user_id=users)
     def update_email_to_unique(self, user_id: str) -> None:
@@ -381,6 +567,34 @@ class UserAPIStateMachine(RuleBasedStateMachine):
             user_obj = get_response.json()
             original_email = self.user_data.get(user_id, {}).get("email")
             assert user_obj["email"] == original_email, "Email should not change after failed update"
+
+    @rule(user_id=users)
+    def verify_timestamp_ordering(self, user_id: str) -> None:
+        """Verify that timestamps follow correct ordering (updated_at >= created_at)."""
+        # Skip if deleted
+        if user_id in self.deleted_user_ids:
+            return
+
+        response = self.client.get(
+            f"/api/users/{user_id}",
+            headers={"Authorization": f"Bearer {self.super_admin_token}"},
+        )
+
+        if response.status_code == 200:
+            user_obj = response.json()
+
+            # Invariant: Timestamps exist and are valid ISO format
+            assert "created_at" in user_obj, "User should have created_at timestamp"
+            assert "updated_at" in user_obj, "User should have updated_at timestamp"
+
+            created_at = user_obj["created_at"]
+            updated_at = user_obj["updated_at"]
+
+            # Invariant: updated_at >= created_at (updated_at should never be before created_at)
+            # Comparing ISO 8601 strings works lexicographically
+            assert updated_at >= created_at, (
+                f"updated_at ({updated_at}) should be >= created_at ({created_at}) for user {user_id}"
+            )
 
 
 # Test function that pytest will discover
