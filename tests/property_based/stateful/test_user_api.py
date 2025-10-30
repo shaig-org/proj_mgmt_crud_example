@@ -23,6 +23,7 @@ class UserAPIStateMachine(RuleBasedStateMachine):
     """
 
     users = Bundle("users")
+    organizations = Bundle("organizations")
 
     # Define immutable fields once for reuse across all checks
     IMMUTABLE_FIELDS = ["username", "organization_id"]
@@ -33,23 +34,28 @@ class UserAPIStateMachine(RuleBasedStateMachine):
         super().__init__()
         self.client = client
         self.super_admin_token = super_admin_token
-        # Create organization for all users with unique name
+        # Create initial organization for all users with unique name
         org_name = f"Test Org {uuid.uuid4().hex[:8]}"
         org_id = create_test_org(client, super_admin_token, name=org_name)
         self.organization_id = org_id
+
+        # Track organizations for multi-org testing
+        self.created_org_ids: set[str] = {org_id}  # Start with initial org
 
         # Track user IDs
         self.created_user_ids: set[str] = set()
         self.deleted_user_ids: set[str] = set()
 
-        # Shadow state for user data
-        self.user_data: dict[str, dict[str, str | bool]] = {}  # user_id -> {email, full_name, role, is_active}
+        # Shadow state for user data (now includes organization_id)
+        self.user_data: dict[
+            str, dict[str, str | bool]
+        ] = {}  # user_id -> {email, full_name, role, is_active, organization_id}
 
         # Track immutable fields (username, organization_id) for invariant checking
         self.immutable_fields: dict[str, dict[str, str]] = {}  # user_id -> {username, organization_id}
 
-        # Track emails in use (for uniqueness testing)
-        self.emails_in_use: set[str] = set()
+        # Track emails in use per organization (for uniqueness testing within org)
+        self.emails_in_use_per_org: dict[str, set[str]] = {}  # org_id -> set of emails
 
     def _verify_immutable_fields(self, user_id: str, user_obj: dict) -> None:
         """Helper to verify immutable fields haven't changed.
@@ -99,13 +105,17 @@ class UserAPIStateMachine(RuleBasedStateMachine):
             "full_name": full_name,
             "role": "read_access",
             "is_active": True,
+            "organization_id": self.organization_id,
         }
         # Track immutable fields
         self.immutable_fields[user_id] = {
             "username": username,
             "organization_id": self.organization_id,
         }
-        self.emails_in_use.add(email)
+        # Track email in use for this organization
+        if self.organization_id not in self.emails_in_use_per_org:
+            self.emails_in_use_per_org[self.organization_id] = set()
+        self.emails_in_use_per_org[self.organization_id].add(email)
 
         # Invariant: Response has correct structure (validated by Pydantic automatically)
         assert create_response.generated_password is not None, "Create response should have generated_password"
@@ -179,9 +189,12 @@ class UserAPIStateMachine(RuleBasedStateMachine):
         # Track deletion and clean up shadow state
         self.deleted_user_ids.add(user_id)
         if user_id in self.user_data:
+            user_org_id = str(self.user_data[user_id].get("organization_id", ""))
             del self.user_data[user_id]
-        if user_email and user_email in self.emails_in_use:
-            self.emails_in_use.remove(user_email)
+            # Remove email from organization's email set
+            if user_email and user_org_id and user_org_id in self.emails_in_use_per_org:
+                if user_email in self.emails_in_use_per_org[user_org_id]:
+                    self.emails_in_use_per_org[user_org_id].remove(user_email)
 
         # Invariant: Deleted user should return 404
         get_response = self.client.get(
@@ -317,14 +330,18 @@ class UserAPIStateMachine(RuleBasedStateMachine):
 
         # Update shadow state
         if user_id in self.user_data:
+            user_org_id = str(self.user_data[user_id].get("organization_id", ""))
             self.user_data[user_id]["email"] = new_email
             self.user_data[user_id]["full_name"] = new_full_name
             self.user_data[user_id]["role"] = new_role
 
-        # Update email tracking
-        if old_email and old_email in self.emails_in_use:
-            self.emails_in_use.remove(old_email)
-        self.emails_in_use.add(new_email)
+            # Update email tracking for this organization
+            if user_org_id:
+                if user_org_id not in self.emails_in_use_per_org:
+                    self.emails_in_use_per_org[user_org_id] = set()
+                if old_email and old_email in self.emails_in_use_per_org[user_org_id]:
+                    self.emails_in_use_per_org[user_org_id].remove(old_email)
+                self.emails_in_use_per_org[user_org_id].add(new_email)
 
     @rule(user_id=users)
     def deactivate_user(self, user_id: str) -> None:
@@ -416,16 +433,22 @@ class UserAPIStateMachine(RuleBasedStateMachine):
         # Invariant: Should return a list (validated by Pydantic)
         assert isinstance(users_list, list), "List endpoint should return a list"
 
-        # Invariant: Count matches (created - deleted)
-        expected_count = len(self.created_user_ids - self.deleted_user_ids)
+        # Invariant: Count matches users in this organization (created - deleted)
+        expected_user_ids = {
+            user_id
+            for user_id in self.created_user_ids
+            if user_id not in self.deleted_user_ids
+            and user_id in self.user_data
+            and str(self.user_data[user_id].get("organization_id", "")) == self.organization_id
+        }
+        expected_count = len(expected_user_ids)
         actual_count = len(users_list)
         assert actual_count == expected_count, f"User count mismatch: expected {expected_count}, got {actual_count}"
 
-        # Invariant: All non-deleted users appear in list
+        # Invariant: All non-deleted users from this org appear in list
         returned_user_ids = {user.id for user in users_list}
-        active_user_ids = self.created_user_ids - self.deleted_user_ids
-        assert returned_user_ids == active_user_ids, (
-            f"User IDs mismatch. Expected: {active_user_ids}, got: {returned_user_ids}"
+        assert returned_user_ids == expected_user_ids, (
+            f"User IDs mismatch. Expected: {expected_user_ids}, got: {returned_user_ids}"
         )
 
         # Invariant: No deleted users appear in list
@@ -461,11 +484,13 @@ class UserAPIStateMachine(RuleBasedStateMachine):
         for user in users_list:
             assert user.role == filter_role, f"User {user.id} has role {user.role}, expected {filter_role}"
 
-        # Invariant: Count matches expected users with this role
+        # Invariant: Count matches expected users with this role in this organization
         expected_user_ids = {
             user_id
             for user_id in self.user_data
-            if user_id not in self.deleted_user_ids and self.user_data[user_id].get("role") == filter_role
+            if user_id not in self.deleted_user_ids
+            and self.user_data[user_id].get("role") == filter_role
+            and str(self.user_data[user_id].get("organization_id", "")) == self.organization_id
         }
         returned_user_ids = {user.id for user in users_list}
         assert returned_user_ids == expected_user_ids, (
@@ -494,11 +519,13 @@ class UserAPIStateMachine(RuleBasedStateMachine):
                 f"User {user.id} has is_active={user.is_active}, expected {filter_is_active}"
             )
 
-        # Invariant: Count matches expected users with this is_active status
+        # Invariant: Count matches expected users with this is_active status in this organization
         expected_user_ids = {
             user_id
             for user_id in self.user_data
-            if user_id not in self.deleted_user_ids and self.user_data[user_id].get("is_active") == filter_is_active
+            if user_id not in self.deleted_user_ids
+            and self.user_data[user_id].get("is_active") == filter_is_active
+            and str(self.user_data[user_id].get("organization_id", "")) == self.organization_id
         }
         returned_user_ids = {user.id for user in users_list}
         assert returned_user_ids == expected_user_ids, (
@@ -536,40 +563,55 @@ class UserAPIStateMachine(RuleBasedStateMachine):
 
         # Update shadow state and email tracking
         if user_id in self.user_data:
+            user_org_id = str(self.user_data[user_id].get("organization_id", ""))
             self.user_data[user_id]["email"] = new_email
-        if old_email and old_email in self.emails_in_use:
-            self.emails_in_use.remove(old_email)
-        self.emails_in_use.add(new_email)
+            # Update email tracking for this organization
+            if user_org_id:
+                if user_org_id not in self.emails_in_use_per_org:
+                    self.emails_in_use_per_org[user_org_id] = set()
+                if old_email and old_email in self.emails_in_use_per_org[user_org_id]:
+                    self.emails_in_use_per_org[user_org_id].remove(old_email)
+                self.emails_in_use_per_org[user_org_id].add(new_email)
 
     @rule(user_id=users)
     def attempt_duplicate_email_update(self, user_id: str) -> None:
-        """Attempt to update a user's email to a duplicate value (should fail)."""
+        """Attempt to update a user's email to a duplicate value within same org (should fail)."""
         # Skip if deleted
         if user_id in self.deleted_user_ids:
             return
 
-        # Find another non-deleted user with a different email
+        # Get this user's organization
+        if user_id not in self.user_data:
+            return
+        user_org_id = str(self.user_data[user_id].get("organization_id", ""))
+
+        # Find another non-deleted user IN THE SAME ORG with a different email
         duplicate_email = None
         for other_id in self.user_data:
             if other_id != user_id and other_id not in self.deleted_user_ids:
-                other_email = self.user_data[other_id].get("email")
-                my_email = self.user_data[user_id].get("email")
-                if other_email and other_email != my_email:
-                    duplicate_email = other_email
-                    break
+                other_org_id = str(self.user_data[other_id].get("organization_id", ""))
+                # Only test duplicate within same organization
+                if other_org_id == user_org_id:
+                    other_email = self.user_data[other_id].get("email")
+                    my_email = self.user_data[user_id].get("email")
+                    if other_email and other_email != my_email:
+                        duplicate_email = other_email
+                        break
 
         if not duplicate_email:
-            return  # No other user to test with
+            return  # No other user in same org to test with
 
-        # Attempt to update to duplicate email
+        # Attempt to update to duplicate email within same org
         response = self.client.put(
             f"/api/users/{user_id}",
             json={"email": duplicate_email},
             headers={"Authorization": f"Bearer {self.super_admin_token}"},
         )
 
-        # Invariant: Update should fail with 400 for duplicate email
-        assert response.status_code == 400, f"Duplicate email should return 400, got {response.status_code}"
+        # Invariant: Update should fail with 400 for duplicate email within same org
+        assert response.status_code == 400, (
+            f"Duplicate email within same org should return 400, got {response.status_code}"
+        )
         assert "email" in response.json()["detail"].lower(), "Error message should mention email"
 
         # Invariant: User's email should remain unchanged
@@ -609,6 +651,144 @@ class UserAPIStateMachine(RuleBasedStateMachine):
             assert updated_at >= created_at, (
                 f"updated_at ({updated_at}) should be >= created_at ({created_at}) for user {user_id}"
             )
+
+    @rule(target=organizations)
+    def create_additional_organization(self) -> str:
+        """Create an additional organization for multi-org testing."""
+        import uuid
+
+        org_name = f"Test Org {uuid.uuid4().hex[:8]}"
+        org_id = create_test_org(self.client, self.super_admin_token, name=org_name)
+
+        # Track the new organization
+        self.created_org_ids.add(org_id)
+
+        return org_id
+
+    @rule(target=users, org_id=organizations)
+    def create_user_in_specific_org(self, org_id: str) -> str:
+        """Create a new user in a specific organization."""
+        import uuid
+
+        # Generate unique username and email
+        username = f"apiuser{uuid.uuid4().hex[:10]}"
+        email = f"{username}@example.com"
+        full_name = f"API User {username}"
+
+        # Create Pydantic model for request
+        user_data = UserData(username=username, email=email, full_name=full_name)
+
+        # Create user in specified organization
+        response = self.client.post(
+            f"/api/users?organization_id={org_id}&role=read_access",
+            json=user_data.model_dump(mode="json"),
+            headers={"Authorization": f"Bearer {self.super_admin_token}"},
+        )
+
+        # Invariant: Create should return 201
+        assert response.status_code == 201, f"Create should return 201, got {response.status_code}"
+
+        # Deserialize response
+        create_response = UserCreateResponse.model_validate(response.json())
+        user_id = create_response.user.id
+        user_obj = create_response.user
+
+        # Track in shadow state
+        self.created_user_ids.add(user_id)
+        self.user_data[user_id] = {
+            "email": email,
+            "full_name": full_name,
+            "role": "read_access",
+            "is_active": True,
+            "organization_id": org_id,
+        }
+        # Track immutable fields
+        self.immutable_fields[user_id] = {
+            "username": username,
+            "organization_id": org_id,
+        }
+        # Track email in use for this organization
+        if org_id not in self.emails_in_use_per_org:
+            self.emails_in_use_per_org[org_id] = set()
+        self.emails_in_use_per_org[org_id].add(email)
+
+        # Invariant: organization_id matches what we sent
+        assert user_obj.organization_id == org_id, f"User should be in org {org_id}"
+
+        return user_id
+
+    @rule(user_id=users)
+    def verify_org_isolation_on_get(self, user_id: str) -> None:
+        """Verify that we cannot access users from a different organization (org isolation)."""
+        # Skip if deleted
+        if user_id in self.deleted_user_ids:
+            return
+
+        # Get the user's org from shadow state
+        if user_id not in self.user_data:
+            return
+
+        user_org_id = str(self.user_data[user_id].get("organization_id", ""))
+
+        # Invariant: Super admin can access users from any organization
+        response = self.client.get(
+            f"/api/users/{user_id}",
+            headers={"Authorization": f"Bearer {self.super_admin_token}"},
+        )
+        assert response.status_code == 200, "Super admin should access user from any org"
+
+        # Verify organization_id is correct
+        user_obj = User.model_validate(response.json())
+        assert user_obj.organization_id == user_org_id, "User should have correct organization_id"
+
+    @rule()
+    def verify_list_respects_org_boundaries(self) -> None:
+        """Verify that list endpoint respects organization boundaries for super admin."""
+        # Super admin should see all users when not filtering by organization
+        response = self.client.get(
+            "/api/users",
+            headers={"Authorization": f"Bearer {self.super_admin_token}"},
+        )
+
+        assert response.status_code == 200, "List should return 200"
+        users_list = [User.model_validate(u) for u in response.json()]
+
+        # Invariant: When listing without org filter, super admin sees users from all orgs
+        all_user_ids = {user_id for user_id in self.user_data if user_id not in self.deleted_user_ids}
+        returned_user_ids = {user.id for user in users_list}
+
+        # Super admin sees all non-deleted users (across all orgs)
+        assert returned_user_ids >= all_user_ids, (
+            f"Super admin should see all users. Expected at least {len(all_user_ids)} users, got {len(returned_user_ids)}"
+        )
+
+    @rule(org_id=organizations)
+    def verify_list_filtered_by_org(self, org_id: str) -> None:
+        """Verify that list endpoint correctly filters by organization."""
+        response = self.client.get(
+            f"/api/users?organization_id={org_id}",
+            headers={"Authorization": f"Bearer {self.super_admin_token}"},
+        )
+
+        assert response.status_code == 200, "List with org filter should return 200"
+        users_list = [User.model_validate(u) for u in response.json()]
+
+        # Invariant: All returned users belong to the specified organization
+        for user in users_list:
+            assert user.organization_id == org_id, f"User {user.id} should be in org {org_id}"
+
+        # Invariant: Count matches expected users in this organization
+        expected_user_ids = {
+            user_id
+            for user_id in self.user_data
+            if user_id not in self.deleted_user_ids
+            and str(self.user_data[user_id].get("organization_id", "")) == org_id
+        }
+        returned_user_ids = {user.id for user in users_list}
+
+        assert returned_user_ids == expected_user_ids, (
+            f"Org filter mismatch. Expected {len(expected_user_ids)} users in org {org_id}, got {len(returned_user_ids)}"
+        )
 
 
 # Test function that pytest will discover
