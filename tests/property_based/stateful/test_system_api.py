@@ -20,6 +20,7 @@ from project_management_crud_example.domain_models import (
 from tests.conftest import client  # noqa: F401
 from tests.fixtures.auth_fixtures import super_admin_token  # noqa: F401
 from tests.helpers import create_admin_user, create_test_org, create_test_project
+from tests.sdk.test_sdk import APITestSDK
 
 
 class SystemAPIStateMachine(RuleBasedStateMachine):
@@ -82,6 +83,10 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         # Login as admin to get token
         login_response = client.post("/auth/login", json={"username": admin_username, "password": admin_password})
         self.admin_token = login_response.json()["access_token"]
+
+        # Create SDK instances for different auth contexts
+        base_sdk = APITestSDK(client)
+        self.sdk = base_sdk.with_auth(super_admin_token)  # Super admin SDK for most operations
 
         # Track organizations for multi-org testing
         self.created_org_ids: set[str] = {self.organization_id}  # Start with initial org
@@ -358,31 +363,20 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         if user_id in self.user_data and not self.user_data[user_id]["is_active"]:
             return
 
-        # Deactivate user
-        response = self.client.put(
-            f"/api/users/{user_id}",
-            json={"is_active": False},
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-
-        # Invariant: Update should return 200
-        assert response.status_code == 200, f"Deactivate should return 200, got {response.status_code}"
-
-        user_obj = User.model_validate(response.json())
+        # Deactivate user using SDK
+        # Invariant: Update should succeed
+        user = self.sdk.users.deactivate(user_id).assert_ok()
 
         # Invariant: User is now inactive
-        assert user_obj.is_active is False, "User should be inactive"
+        assert user.is_active is False, "User should be inactive"
 
         # Update shadow state
         if user_id in self.user_data:
             self.user_data[user_id]["is_active"] = False
 
         # Invariant: Inactive user still exists (not deleted)
-        get_response = self.client.get(
-            f"/api/users/{user_id}",
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-        assert get_response.status_code == 200, "Inactive user should still return 200"
+        get_result = self.sdk.users.get(user_id)
+        assert get_result.ok, "Inactive user should still be retrievable"
 
     @rule()
     def list_users_verify_count(self) -> None:
