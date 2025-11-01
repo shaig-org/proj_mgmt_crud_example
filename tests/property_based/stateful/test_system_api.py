@@ -840,6 +840,127 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         for ticket in tickets_list:
             assert ticket.project_id == project_id, f"Ticket {ticket.id} should be in project {project_id}"
 
+    # ========================================================================
+    # VALIDATION TESTING RULES (Testing that invalid operations fail correctly)
+    # ========================================================================
+
+    @rule(ticket_id=tickets, assignee_id=users)
+    def attempt_assign_to_inactive_user(self, ticket_id: str, assignee_id: str) -> None:
+        """Test that assigning ticket to inactive user returns 400.
+
+        This rule tests VALIDATION - it intentionally attempts an invalid operation
+        and verifies the API rejects it correctly.
+        """
+        # Precondition: Only run if user IS inactive (opposite of assign_ticket_to_user)
+        if assignee_id not in self.user_data:
+            return
+        if self.user_data[assignee_id].get("is_active", True):
+            return  # Skip if user is active
+
+        # Precondition: Skip if ticket or user is deleted
+        if ticket_id in self.deleted_ticket_ids:
+            return
+        if assignee_id in self.deleted_user_ids:
+            return
+
+        # Attempt to assign ticket to inactive user
+        response = self.client.put(
+            f"/api/tickets/{ticket_id}/assignee",
+            json={"assignee_id": assignee_id},
+            headers={"Authorization": f"Bearer {self.super_admin_token}"},
+        )
+
+        # Invariant: Assignment to inactive user should return 400
+        assert response.status_code == 400, f"Assigning to inactive user should return 400, got {response.status_code}"
+
+        # Invariant: Error message should mention "inactive"
+        error_detail = response.json().get("detail", "").lower()
+        assert "inactive" in error_detail, f"Error message should mention inactive user, got: {error_detail}"
+
+    @rule(ticket_id=tickets, assignee_id=users)
+    def attempt_assign_to_deleted_user(self, ticket_id: str, assignee_id: str) -> None:
+        """Test that assigning ticket to deleted user returns 404.
+
+        This rule tests VALIDATION - it intentionally attempts an invalid operation
+        and verifies the API rejects it correctly.
+        """
+        # Precondition: Only run if user IS deleted (opposite of assign_ticket_to_user)
+        if assignee_id not in self.deleted_user_ids:
+            return  # Skip if user is not deleted
+
+        # Precondition: Skip if ticket is deleted
+        if ticket_id in self.deleted_ticket_ids:
+            return
+
+        # Attempt to assign ticket to deleted user
+        response = self.client.put(
+            f"/api/tickets/{ticket_id}/assignee",
+            json={"assignee_id": assignee_id},
+            headers={"Authorization": f"Bearer {self.super_admin_token}"},
+        )
+
+        # Invariant: Assignment to deleted user should return 404
+        assert response.status_code == 404, f"Assigning to deleted user should return 404, got {response.status_code}"
+
+        # Invariant: Error message should mention user not found
+        error_detail = response.json().get("detail", "").lower()
+        assert "not found" in error_detail or "user" in error_detail, (
+            f"Error message should mention user not found, got: {error_detail}"
+        )
+
+    @rule(ticket_id=tickets)
+    def attempt_invalid_status_transition(self, ticket_id: str) -> None:
+        """Test that setting an invalid status returns 422.
+
+        This rule tests VALIDATION - it intentionally attempts an invalid operation
+        and verifies the API rejects it correctly.
+        """
+        # Precondition: Skip if ticket is deleted
+        if ticket_id in self.deleted_ticket_ids:
+            return
+
+        # Precondition: Get ticket's project to know valid statuses
+        if ticket_id not in self.ticket_data:
+            return
+
+        project_id = self.ticket_data[ticket_id]["project_id"]
+
+        # Get valid statuses for this project
+        if project_id not in self.project_statuses:
+            return
+
+        valid_statuses = self.project_statuses[project_id]
+        if not valid_statuses:
+            return
+
+        # Use an invalid status that is definitely not in the workflow
+        # Common workflow statuses are TODO, IN_PROGRESS, DONE, etc.
+        # We'll use something that should never be valid
+        invalid_status = "DEFINITELY_NOT_A_VALID_STATUS_XYZ123"
+
+        # Make sure this isn't somehow valid
+        if invalid_status in valid_statuses:
+            return  # Skip if by some chance this status is valid
+
+        # Attempt to set invalid status
+        response = self.client.put(
+            f"/api/tickets/{ticket_id}/status",
+            json={"status": invalid_status},
+            headers={"Authorization": f"Bearer {self.super_admin_token}"},
+        )
+
+        # Invariant: Invalid status should return 422 (validation error) or 400 (business logic error)
+        # Both are acceptable as different layers may catch the validation
+        assert response.status_code in [400, 422], (
+            f"Invalid status should return 400 or 422, got {response.status_code}"
+        )
+
+        # Invariant: Error message should mention status or workflow
+        error_detail = response.json().get("detail", "").lower()
+        assert any(keyword in error_detail for keyword in ["status", "workflow", "invalid", "valid"]), (
+            f"Error message should mention status validation, got: {error_detail}"
+        )
+
 
 # Test function that pytest will discover
 def test_system_api_state_machine(client: TestClient, super_admin_token: str) -> None:
