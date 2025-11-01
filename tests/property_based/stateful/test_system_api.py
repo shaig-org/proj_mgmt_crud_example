@@ -15,7 +15,6 @@ from project_management_crud_example.domain_models import (
     User,
     UserCreateResponse,
     UserData,
-    UserUpdateCommand,
 )
 from tests.conftest import client  # noqa: F401
 from tests.fixtures.auth_fixtures import super_admin_token  # noqa: F401
@@ -150,21 +149,12 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         email = f"{username}@example.com"
         full_name = f"API User {username}"
 
-        # Create Pydantic model for request
-        user_data = UserData(username=username, email=email, full_name=full_name)
+        # Create user via SDK
+        # Invariant: Create should succeed
+        create_response = self.sdk.users.create(
+            self.organization_id, username, email, full_name, role="read_access"
+        ).assert_ok()
 
-        # Create user via API (serialize Pydantic model to JSON)
-        response = self.client.post(
-            f"/api/users?organization_id={self.organization_id}&role=read_access",
-            json=user_data.model_dump(mode="json"),
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-
-        # Invariant: Create should return 201
-        assert response.status_code == 201, f"Create should return 201, got {response.status_code}"
-
-        # Deserialize response to Pydantic model (validates structure)
-        create_response = UserCreateResponse.model_validate(response.json())
         user_id = create_response.user.id
         user_obj = create_response.user
 
@@ -197,12 +187,7 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         assert user_obj.role == "read_access"
 
         # Invariant: Just-created user should be retrievable
-        get_response = self.client.get(
-            f"/api/users/{user_id}",
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-        assert get_response.status_code == 200, "Just-created user should return 200 on GET"
-        retrieved_user = User.model_validate(get_response.json())
+        retrieved_user = self.sdk.users.get(user_id).assert_ok()
         assert retrieved_user.id == user_id
 
         return user_id
@@ -210,17 +195,13 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
     @rule(user_id=users)
     def get_user_via_api(self, user_id: str) -> None:
         """Retrieve a user by ID via API."""
-        response = self.client.get(
-            f"/api/users/{user_id}",
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
+        result = self.sdk.users.get(user_id)
 
         # Invariant: Status code matches deletion state
         if user_id not in self.deleted_user_ids:
-            assert response.status_code == 200, f"Non-deleted user should return 200, got {response.status_code}"
-
-            # Deserialize to Pydantic model (validates structure)
-            user_obj = User.model_validate(response.json())
+            # Invariant: Should succeed
+            assert result.ok, f"Non-deleted user should return 200, got {result.status_code}"
+            user_obj = result.data
             assert user_obj.id == user_id
 
             # Invariant: Retrieved data matches shadow state
@@ -235,7 +216,8 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
             # Convert Pydantic model to dict for the helper
             self._verify_immutable_fields(user_id, user_obj.model_dump())
         else:
-            assert response.status_code == 404, f"Deleted user should return 404, got {response.status_code}"
+            # Invariant: Deleted user returns 404
+            assert result.status_code == 404, f"Deleted user should return 404, got {result.status_code}"
 
     @rule(user_id=users)
     def delete_user_via_api(self, user_id: str) -> None:
@@ -247,14 +229,9 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         # Get user data before deletion for cleanup
         user_email = self.user_data.get(user_id, {}).get("email")
 
-        # Delete user
-        response = self.client.delete(
-            f"/api/users/{user_id}",
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-
-        # Invariant: Delete should return 204
-        assert response.status_code == 204, f"Delete should return 204, got {response.status_code}"
+        # Delete user via SDK
+        # Invariant: Delete should succeed
+        self.sdk.users.delete(user_id).assert_ok()
 
         # Track deletion and clean up shadow state
         self.deleted_user_ids.add(user_id)
@@ -267,11 +244,8 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
                     self.emails_in_use_per_org[user_org_id].remove(user_email)
 
         # Invariant: Deleted user should return 404
-        get_response = self.client.get(
-            f"/api/users/{user_id}",
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-        assert get_response.status_code == 404, "Deleted user should return 404"
+        get_result = self.sdk.users.get(user_id)
+        assert get_result.status_code == 404, "Deleted user should return 404"
 
     @rule(user_id=users, new_full_name=st.text(min_size=1, max_size=50))
     def update_user_full_name(self, user_id: str, new_full_name: str) -> None:
@@ -280,21 +254,9 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         if user_id in self.deleted_user_ids:
             return
 
-        # Create Pydantic update command
-        update_cmd = UserUpdateCommand(full_name=new_full_name)
-
-        # Update user (serialize to JSON)
-        response = self.client.put(
-            f"/api/users/{user_id}",
-            json=update_cmd.model_dump(mode="json", exclude_unset=True),
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-
-        # Invariant: Update should return 200
-        assert response.status_code == 200, f"Update should return 200, got {response.status_code}"
-
-        # Deserialize response
-        user_obj = User.model_validate(response.json())
+        # Update user via SDK
+        # Invariant: Update should succeed
+        user_obj = self.sdk.users.update(user_id, full_name=new_full_name).assert_ok()
 
         # Invariant: Updated field changed
         assert user_obj.full_name == new_full_name, "Full name should be updated"
@@ -314,12 +276,7 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
             self.user_data[user_id]["full_name"] = new_full_name
 
         # Invariant: GET reflects the update
-        get_response = self.client.get(
-            f"/api/users/{user_id}",
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-        assert get_response.status_code == 200
-        updated_user = User.model_validate(get_response.json())
+        updated_user = self.sdk.users.get(user_id).assert_ok()
         assert updated_user.full_name == new_full_name
 
     @rule(
@@ -332,17 +289,9 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         if user_id in self.deleted_user_ids:
             return
 
-        # Update user
-        response = self.client.put(
-            f"/api/users/{user_id}",
-            json={"role": new_role},
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-
-        # Invariant: Update should return 200
-        assert response.status_code == 200, f"Update should return 200, got {response.status_code}"
-
-        user_obj = User.model_validate(response.json())
+        # Update user via SDK
+        # Invariant: Update should succeed
+        user_obj = self.sdk.users.update(user_id, role=new_role).assert_ok()
 
         # Invariant: Updated field changed
         assert user_obj.role == new_role, f"Role should be updated to {new_role}"

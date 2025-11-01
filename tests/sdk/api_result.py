@@ -50,18 +50,21 @@ class APIResult(Generic[T]):
         """Assert success and return data, or raise AssertionError.
 
         Returns:
-            Parsed data (Pydantic model)
+            Parsed data (Pydantic model), or None for 204 No Content responses
 
         Raises:
             AssertionError: If status code is not 2xx
 
         Example:
             user = sdk.users.get(user_id).assert_ok()
+            sdk.users.delete(user_id).assert_ok()  # Returns None for 204
         """
         if not self.ok:
             raise AssertionError(f"Expected 2xx status, got {self.status_code}: {self.error}")
-        assert self.data is not None, "Success response should have data"
-        return self.data
+        # Allow None data for 204 No Content responses
+        if self.status_code != 204 and self.data is None:
+            raise AssertionError("Success response should have data")
+        return self.data  # type: ignore
 
     def assert_status(self, expected_status: int) -> "APIResult[T]":
         """Assert specific status code.

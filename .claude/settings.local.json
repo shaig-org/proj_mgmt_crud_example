@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(./devtools/run_all_agent_validations.sh:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": [],

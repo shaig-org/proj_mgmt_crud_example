@@ -20,7 +20,7 @@ Usage:
 
 from fastapi.testclient import TestClient
 
-from project_management_crud_example.domain_models import User
+from project_management_crud_example.domain_models import User, UserCreateResponse
 from tests.sdk.api_result import APIResult
 
 
@@ -197,6 +197,75 @@ class UserOperations:
 
         return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
 
+    def create(
+        self, organization_id: str, username: str, email: str, full_name: str, role: str = "read_access"
+    ) -> APIResult[UserCreateResponse]:
+        """Create a new user.
+
+        Args:
+            organization_id: Organization ID for the user
+            username: Username
+            email: Email address
+            full_name: Full name
+            role: User role (default: "read_access")
+
+        Returns:
+            APIResult containing UserCreateResponse on success (201) or error details
+
+        Example:
+            # Happy path
+            result = sdk.users.create(org_id, "testuser", "test@example.com", "Test User")
+            user_response = result.assert_ok()
+            user_id = user_response.user.id
+            password = user_response.generated_password
+        """
+        response = self._auth.client.post(
+            f"/api/users?organization_id={organization_id}&role={role}",
+            json={"username": username, "email": email, "full_name": full_name},
+            headers=self._auth.headers(),
+        )
+
+        # Parse data if success
+        data = None
+        if response.status_code == 201:
+            data = UserCreateResponse.model_validate(response.json())
+
+        # Extract error if failure
+        error = None
+        if not (200 <= response.status_code < 300):
+            error = response.json().get("detail", "Unknown error")
+
+        return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
+
+    def update(self, user_id: str, **fields: str | bool) -> APIResult[User]:
+        """Update user fields.
+
+        Args:
+            user_id: User ID to update
+            **fields: Fields to update (full_name, email, role, is_active, etc.)
+
+        Returns:
+            APIResult containing updated User model on success (200) or error details
+
+        Example:
+            # Happy path
+            user = sdk.users.update(user_id, full_name="New Name").assert_ok()
+            assert user.full_name == "New Name"
+        """
+        response = self._auth.client.put(f"/api/users/{user_id}", json=fields, headers=self._auth.headers())
+
+        # Parse data if success
+        data = None
+        if response.status_code == 200:
+            data = User.model_validate(response.json())
+
+        # Extract error if failure
+        error = None
+        if not (200 <= response.status_code < 300):
+            error = response.json().get("detail", "Unknown error")
+
+        return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
+
     def deactivate(self, user_id: str) -> APIResult[User]:
         """Deactivate a user.
 
@@ -223,6 +292,35 @@ class UserOperations:
         data = None
         if response.status_code == 200:
             data = User.model_validate(response.json())
+
+        # Extract error if failure
+        error = None
+        if not (200 <= response.status_code < 300):
+            error = response.json().get("detail", "Unknown error")
+
+        return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
+
+    def delete(self, user_id: str) -> APIResult[None]:
+        """Delete a user.
+
+        Args:
+            user_id: User ID to delete
+
+        Returns:
+            APIResult with no data on success (204) or error details
+
+        Example:
+            # Happy path
+            sdk.users.delete(user_id).assert_ok()
+
+            # Validation testing
+            result = sdk.users.delete(user_id)
+            assert result.status_code == 404  # Already deleted
+        """
+        response = self._auth.client.delete(f"/api/users/{user_id}", headers=self._auth.headers())
+
+        # No data for 204 response
+        data = None
 
         # Extract error if failure
         error = None
