@@ -845,6 +845,37 @@ class TestAssignTicket:
 
         assert response.status_code == 404
 
+    def test_assign_to_inactive_user_fails(self, client: TestClient, shared_org_admin_token: tuple[str, str]) -> None:
+        """Test assigning to inactive user fails with 400."""
+        token, org_id = shared_org_admin_token
+        headers = auth_headers(token)
+
+        # Create project and ticket
+        project_response = client.post("/api/projects", json={"name": "Project"}, headers=headers)
+        project_id = project_response.json()["id"]
+
+        create_response = client.post(f"/api/tickets?project_id={project_id}", json={"title": "Test"}, headers=headers)
+        ticket_id = create_response.json()["id"]
+
+        # Create a user and deactivate them
+        from tests.helpers import create_test_user
+
+        user_id, _ = create_test_user(client, token, org_id, username="inactive_user")
+
+        # Deactivate the user
+        deactivate_response = client.put(f"/api/users/{user_id}", json={"is_active": False}, headers=headers)
+        assert deactivate_response.status_code == 200
+
+        # Attempt to assign ticket to inactive user
+        response = client.put(
+            f"/api/tickets/{ticket_id}/assignee",
+            json={"assignee_id": user_id},
+            headers=headers,
+        )
+
+        assert response.status_code == 400
+        assert "inactive" in response.json()["detail"].lower()
+
 
 class TestDeleteTicket:
     """Test DELETE /api/tickets/{id} endpoint."""
