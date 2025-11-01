@@ -20,7 +20,14 @@ Usage:
 
 from fastapi.testclient import TestClient
 
-from project_management_crud_example.domain_models import User, UserCreateResponse
+from project_management_crud_example.domain_models import (
+    Organization,
+    Project,
+    Ticket,
+    User,
+    UserCreateResponse,
+    Workflow,
+)
 from tests.sdk.api_result import APIResult
 
 
@@ -117,6 +124,10 @@ class APITestSDK:
 
         # Initialize entity operation namespaces, passing auth context
         self.users = UserOperations(auth_ctx)
+        self.organizations = OrganizationOperations(auth_ctx)
+        self.projects = ProjectOperations(auth_ctx)
+        self.workflows = WorkflowOperations(auth_ctx)
+        self.tickets = TicketOperations(auth_ctx)
 
     def with_auth(self, token: str) -> "APITestSDK":
         """Create a new SDK instance with authentication token.
@@ -323,6 +334,350 @@ class UserOperations:
         data = None
 
         # Extract error if failure
+        error = None
+        if not (200 <= response.status_code < 300):
+            error = response.json().get("detail", "Unknown error")
+
+        return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
+
+    def list(self, organization_id: str | None = None) -> APIResult[list[User]]:
+        """List all users, optionally filtered by organization.
+
+        Args:
+            organization_id: Optional organization ID to filter by
+
+        Returns:
+            APIResult containing list of User models on success (200) or error details
+
+        Example:
+            # List all users in an organization
+            users = sdk.users.list(organization_id=org_id).assert_ok()
+            assert len(users) == expected_count
+        """
+        params = {"organization_id": organization_id} if organization_id else {}
+        response = self._auth.client.get("/api/users", params=params, headers=self._auth.headers())
+
+        # Parse data if success
+        data = None
+        if response.status_code == 200:
+            data = [User.model_validate(u) for u in response.json()]
+
+        # Extract error if failure
+        error = None
+        if not (200 <= response.status_code < 300):
+            error = response.json().get("detail", "Unknown error")
+
+        return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
+
+
+class OrganizationOperations:
+    """High-level organization API operations.
+
+    This class provides methods for all organization-related API operations.
+    All methods return APIResult[T] for type-safe response handling.
+
+    The class uses AuthContext for authentication and headers, avoiding
+    circular dependencies with the SDK.
+    """
+
+    def __init__(self, auth_ctx: AuthContext) -> None:
+        """Initialize organization operations.
+
+        Args:
+            auth_ctx: AuthContext providing client, auth checking, and headers
+        """
+        self._auth = auth_ctx
+
+    def create(self, name: str, description: str | None = None) -> APIResult[Organization]:
+        """Create a new organization.
+
+        Args:
+            name: Organization name
+            description: Optional organization description
+
+        Returns:
+            APIResult containing Organization model on success (201) or error details
+
+        Example:
+            # Happy path
+            org = sdk.organizations.create("My Organization").assert_ok()
+            org_id = org.id
+        """
+        org_data = {"name": name}
+        if description is not None:
+            org_data["description"] = description
+
+        response = self._auth.client.post("/api/organizations", json=org_data, headers=self._auth.headers())
+
+        # Parse data if success
+        data = None
+        if response.status_code == 201:
+            data = Organization.model_validate(response.json())
+
+        # Extract error if failure
+        error = None
+        if not (200 <= response.status_code < 300):
+            error = response.json().get("detail", "Unknown error")
+
+        return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
+
+
+class ProjectOperations:
+    """High-level project API operations."""
+
+    def __init__(self, auth_ctx: AuthContext) -> None:
+        self._auth = auth_ctx
+
+    def create(self, name: str, description: str | None = None) -> APIResult[Project]:
+        """Create a new project.
+
+        Args:
+            name: Project name
+            description: Optional project description
+
+        Returns:
+            APIResult containing Project model on success (201) or error details
+        """
+        project_data = {"name": name}
+        if description is not None:
+            project_data["description"] = description
+
+        response = self._auth.client.post("/api/projects", json=project_data, headers=self._auth.headers())
+
+        data = None
+        if response.status_code == 201:
+            data = Project.model_validate(response.json())
+
+        error = None
+        if not (200 <= response.status_code < 300):
+            error = response.json().get("detail", "Unknown error")
+
+        return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
+
+    def get(self, project_id: str) -> APIResult[Project]:
+        """Get project by ID.
+
+        Args:
+            project_id: Project ID to retrieve
+
+        Returns:
+            APIResult containing Project model on success (200) or error details
+        """
+        response = self._auth.client.get(f"/api/projects/{project_id}", headers=self._auth.headers())
+
+        data = None
+        if response.status_code == 200:
+            data = Project.model_validate(response.json())
+
+        error = None
+        if not (200 <= response.status_code < 300):
+            error = response.json().get("detail", "Unknown error")
+
+        return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
+
+
+class WorkflowOperations:
+    """High-level workflow API operations."""
+
+    def __init__(self, auth_ctx: AuthContext) -> None:
+        self._auth = auth_ctx
+
+    def get(self, workflow_id: str) -> APIResult[Workflow]:
+        """Get workflow by ID.
+
+        Args:
+            workflow_id: Workflow ID to retrieve
+
+        Returns:
+            APIResult containing Workflow model on success (200) or error details
+        """
+        response = self._auth.client.get(f"/api/workflows/{workflow_id}", headers=self._auth.headers())
+
+        data = None
+        if response.status_code == 200:
+            data = Workflow.model_validate(response.json())
+
+        error = None
+        if not (200 <= response.status_code < 300):
+            error = response.json().get("detail", "Unknown error")
+
+        return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
+
+
+class TicketOperations:
+    """High-level ticket API operations."""
+
+    def __init__(self, auth_ctx: AuthContext) -> None:
+        self._auth = auth_ctx
+
+    def create(
+        self,
+        project_id: str,
+        title: str,
+        description: str | None = None,
+        priority: str | None = None,
+        assignee_id: str | None = None,
+    ) -> APIResult[Ticket]:
+        """Create a new ticket.
+
+        Args:
+            project_id: Project ID for the ticket
+            title: Ticket title
+            description: Optional ticket description
+            priority: Optional ticket priority (LOW, MEDIUM, HIGH, CRITICAL)
+            assignee_id: Optional user ID to assign the ticket to
+
+        Returns:
+            APIResult containing Ticket model on success (201) or error details
+        """
+        ticket_data = {"title": title}
+        if description is not None:
+            ticket_data["description"] = description
+        if priority is not None:
+            ticket_data["priority"] = priority
+        if assignee_id is not None:
+            ticket_data["assignee_id"] = assignee_id
+
+        response = self._auth.client.post(
+            f"/api/tickets?project_id={project_id}", json=ticket_data, headers=self._auth.headers()
+        )
+
+        data = None
+        if response.status_code == 201:
+            data = Ticket.model_validate(response.json())
+
+        error = None
+        if not (200 <= response.status_code < 300):
+            error = response.json().get("detail", "Unknown error")
+
+        return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
+
+    def get(self, ticket_id: str) -> APIResult[Ticket]:
+        """Get ticket by ID.
+
+        Args:
+            ticket_id: Ticket ID to retrieve
+
+        Returns:
+            APIResult containing Ticket model on success (200) or error details
+        """
+        response = self._auth.client.get(f"/api/tickets/{ticket_id}", headers=self._auth.headers())
+
+        data = None
+        if response.status_code == 200:
+            data = Ticket.model_validate(response.json())
+
+        error = None
+        if not (200 <= response.status_code < 300):
+            error = response.json().get("detail", "Unknown error")
+
+        return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
+
+    def update(self, ticket_id: str, **fields: str | None) -> APIResult[Ticket]:
+        """Update ticket fields.
+
+        Args:
+            ticket_id: Ticket ID to update
+            **fields: Fields to update (title, description, priority, etc.)
+
+        Returns:
+            APIResult containing updated Ticket model on success (200) or error details
+        """
+        response = self._auth.client.put(f"/api/tickets/{ticket_id}", json=fields, headers=self._auth.headers())
+
+        data = None
+        if response.status_code == 200:
+            data = Ticket.model_validate(response.json())
+
+        error = None
+        if not (200 <= response.status_code < 300):
+            error = response.json().get("detail", "Unknown error")
+
+        return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
+
+    def delete(self, ticket_id: str) -> APIResult[None]:
+        """Delete a ticket.
+
+        Args:
+            ticket_id: Ticket ID to delete
+
+        Returns:
+            APIResult with no data on success (204) or error details
+        """
+        response = self._auth.client.delete(f"/api/tickets/{ticket_id}", headers=self._auth.headers())
+
+        data = None
+
+        error = None
+        if not (200 <= response.status_code < 300):
+            error = response.json().get("detail", "Unknown error")
+
+        return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
+
+    def update_status(self, ticket_id: str, status: str) -> APIResult[Ticket]:
+        """Update ticket status.
+
+        Args:
+            ticket_id: Ticket ID to update
+            status: New status (must be valid in project's workflow)
+
+        Returns:
+            APIResult containing updated Ticket model on success (200) or error details
+        """
+        response = self._auth.client.put(
+            f"/api/tickets/{ticket_id}/status", json={"status": status}, headers=self._auth.headers()
+        )
+
+        data = None
+        if response.status_code == 200:
+            data = Ticket.model_validate(response.json())
+
+        error = None
+        if not (200 <= response.status_code < 300):
+            error = response.json().get("detail", "Unknown error")
+
+        return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
+
+    def assign(self, ticket_id: str, assignee_id: str | None) -> APIResult[Ticket]:
+        """Assign or unassign a ticket.
+
+        Args:
+            ticket_id: Ticket ID to update
+            assignee_id: User ID to assign to (None to unassign)
+
+        Returns:
+            APIResult containing updated Ticket model on success (200) or error details
+        """
+        response = self._auth.client.put(
+            f"/api/tickets/{ticket_id}/assignee", json={"assignee_id": assignee_id}, headers=self._auth.headers()
+        )
+
+        data = None
+        if response.status_code == 200:
+            data = Ticket.model_validate(response.json())
+
+        error = None
+        if not (200 <= response.status_code < 300):
+            error = response.json().get("detail", "Unknown error")
+
+        return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
+
+    def list(self, project_id: str | None = None) -> APIResult[list[Ticket]]:
+        """List all tickets, optionally filtered by project.
+
+        Args:
+            project_id: Optional project ID to filter by
+
+        Returns:
+            APIResult containing list of Ticket models on success (200) or error details
+        """
+        params = {"project_id": project_id} if project_id else {}
+        response = self._auth.client.get("/api/tickets", params=params, headers=self._auth.headers())
+
+        data = None
+        if response.status_code == 200:
+            data = [Ticket.model_validate(t) for t in response.json()]
+
         error = None
         if not (200 <= response.status_code < 300):
             error = response.json().get("detail", "Unknown error")

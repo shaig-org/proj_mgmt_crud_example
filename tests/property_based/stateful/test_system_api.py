@@ -10,15 +10,11 @@ from hypothesis import strategies as st
 from hypothesis.stateful import Bundle, RuleBasedStateMachine, rule, run_state_machine_as_test
 
 from project_management_crud_example.domain_models import (
-    Ticket,
     TicketPriority,
-    User,
-    UserCreateResponse,
-    UserData,
 )
 from tests.conftest import client  # noqa: F401
 from tests.fixtures.auth_fixtures import super_admin_token  # noqa: F401
-from tests.helpers import create_admin_user, create_test_org, create_test_project
+from tests.helpers import create_admin_user, create_test_org
 from tests.sdk.test_sdk import APITestSDK
 
 
@@ -66,8 +62,6 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         import uuid
 
         super().__init__()
-        self.client = client
-        self.super_admin_token = super_admin_token
 
         # Create initial organization for this test run (each Hypothesis example gets its own)
         org_name = f"Test Org {uuid.uuid4().hex[:8]}"
@@ -86,6 +80,7 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         # Create SDK instances for different auth contexts
         base_sdk = APITestSDK(client)
         self.sdk = base_sdk.with_auth(super_admin_token)  # Super admin SDK for most operations
+        self.admin_sdk = base_sdk.with_auth(self.admin_token)  # Admin SDK for projects
 
         # Track organizations for multi-org testing
         self.created_org_ids: set[str] = {self.organization_id}  # Start with initial org
@@ -330,17 +325,8 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
     @rule()
     def list_users_verify_count(self) -> None:
         """List all users in our organization and verify count matches shadow state."""
-        # Filter by our organization since super admin sees all users
-        response = self.client.get(
-            f"/api/users?organization_id={self.organization_id}",
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-
-        # Invariant: List should return 200
-        assert response.status_code == 200, f"List should return 200, got {response.status_code}"
-
-        # Deserialize to list of User models (validates structure for each user)
-        users_list = [User.model_validate(u) for u in response.json()]
+        # List users via SDK, filtering by organization
+        users_list = self.sdk.users.list(organization_id=self.organization_id).assert_ok()
 
         # Invariant: Should return a list (validated by Pydantic)
         assert isinstance(users_list, list), "List endpoint should return a list"
@@ -387,7 +373,10 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         import uuid
 
         org_name = f"Test Org {uuid.uuid4().hex[:8]}"
-        org_id = create_test_org(self.client, self.super_admin_token, name=org_name)
+
+        # Create organization via SDK
+        org = self.sdk.organizations.create(org_name).assert_ok()
+        org_id = org.id
 
         # Track the new organization
         self.created_org_ids.add(org_id)
@@ -404,21 +393,8 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         email = f"{username}@example.com"
         full_name = f"API User {username}"
 
-        # Create Pydantic model for request
-        user_data = UserData(username=username, email=email, full_name=full_name)
-
-        # Create user in specified organization
-        response = self.client.post(
-            f"/api/users?organization_id={org_id}&role=read_access",
-            json=user_data.model_dump(mode="json"),
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-
-        # Invariant: Create should return 201
-        assert response.status_code == 201, f"Create should return 201, got {response.status_code}"
-
-        # Deserialize response
-        create_response = UserCreateResponse.model_validate(response.json())
+        # Create user in specified organization via SDK
+        create_response = self.sdk.users.create(org_id, username, email, full_name, role="read_access").assert_ok()
         user_id = create_response.user.id
         user_obj = create_response.user
 
@@ -457,35 +433,20 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
 
         project_name = f"Project {uuid.uuid4().hex[:8]}"
 
-        # Use helper to create project (using admin token, not super admin)
-        project_id = create_test_project(
-            self.client,
-            self.admin_token,
-            name=project_name,
-        )
+        # Create project via SDK (using admin SDK, not super admin)
+        project = self.admin_sdk.projects.create(project_name).assert_ok()
+        project_id = project.id
 
         # Track project
         self.created_project_ids.add(project_id)
 
-        # Get project to get workflow information
-        project_response = self.client.get(
-            f"/api/projects/{project_id}",
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-        assert project_response.status_code == 200
-
-        project = project_response.json()
-
         # Get workflow statuses for this project
-        workflow_id = project.get("workflow_id")
+        workflow_id = project.workflow_id
         if workflow_id:
-            workflow_response = self.client.get(
-                f"/api/workflows/{workflow_id}",
-                headers={"Authorization": f"Bearer {self.super_admin_token}"},
-            )
-            if workflow_response.status_code == 200:
-                workflow = workflow_response.json()
-                self.project_statuses[project_id] = workflow.get("statuses", ["TODO", "IN_PROGRESS", "DONE"])
+            workflow_result = self.sdk.workflows.get(workflow_id)
+            if workflow_result.ok:
+                workflow = workflow_result.data
+                self.project_statuses[project_id] = workflow.statuses
             else:
                 # Default statuses
                 self.project_statuses[project_id] = ["TODO", "IN_PROGRESS", "DONE"]
@@ -507,17 +468,8 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         description = f"Description for {title}"
         priority = "HIGH"
 
-        # Create ticket via API
-        response = self.client.post(
-            f"/api/tickets?project_id={project_id}",
-            json={"title": title, "description": description, "priority": priority},
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-
-        # Invariant: Create should return 201
-        assert response.status_code == 201, f"Create ticket should return 201, got {response.status_code}"
-
-        ticket = Ticket.model_validate(response.json())
+        # Create ticket via SDK
+        ticket = self.sdk.tickets.create(project_id, title, description, priority).assert_ok()
         ticket_id = ticket.id
 
         # Track in shadow state
@@ -539,27 +491,21 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         assert ticket.project_id == project_id
 
         # Invariant: Just-created ticket should be retrievable
-        get_response = self.client.get(
-            f"/api/tickets/{ticket_id}",
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-        assert get_response.status_code == 200, "Just-created ticket should return 200 on GET"
+        retrieved_ticket = self.sdk.tickets.get(ticket_id).assert_ok()
+        assert retrieved_ticket is not None, "Just-created ticket should be retrievable"
 
         return ticket_id
 
     @rule(ticket_id=tickets)
     def get_ticket_via_api(self, ticket_id: str) -> None:
         """Retrieve a ticket by ID via API."""
-        response = self.client.get(
-            f"/api/tickets/{ticket_id}",
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
+        result = self.sdk.tickets.get(ticket_id)
 
         # Invariant: Status code matches deletion state
         if ticket_id not in self.deleted_ticket_ids:
-            assert response.status_code == 200, f"Non-deleted ticket should return 200, got {response.status_code}"
+            assert result.ok, f"Non-deleted ticket should return 200, got {result.status_code}"
 
-            ticket = Ticket.model_validate(response.json())
+            ticket = result.data
             assert ticket.id == ticket_id
 
             # Invariant: Retrieved data matches shadow state
@@ -571,7 +517,7 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
                 assert ticket.status == shadow["status"], f"Status mismatch for ticket {ticket_id}"
                 assert ticket.project_id == shadow["project_id"], f"Project ID mismatch for ticket {ticket_id}"
         else:
-            assert response.status_code == 404, f"Deleted ticket should return 404, got {response.status_code}"
+            assert result.status_code == 404, f"Deleted ticket should return 404, got {result.status_code}"
 
     @rule(ticket_id=tickets)
     def delete_ticket_via_api(self, ticket_id: str) -> None:
@@ -580,14 +526,8 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         if ticket_id in self.deleted_ticket_ids:
             return
 
-        # Delete ticket
-        response = self.client.delete(
-            f"/api/tickets/{ticket_id}",
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-
-        # Invariant: Delete should return 204
-        assert response.status_code == 204, f"Delete should return 204, got {response.status_code}"
+        # Delete ticket via SDK
+        self.sdk.tickets.delete(ticket_id).assert_ok()
 
         # Track deletion and clean up shadow state
         self.deleted_ticket_ids.add(ticket_id)
@@ -595,11 +535,8 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
             del self.ticket_data[ticket_id]
 
         # Invariant: Deleted ticket should return 404
-        get_response = self.client.get(
-            f"/api/tickets/{ticket_id}",
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-        assert get_response.status_code == 404, "Deleted ticket should return 404"
+        result = self.sdk.tickets.get(ticket_id)
+        assert result.status_code == 404, "Deleted ticket should return 404"
 
     @rule(ticket_id=tickets, new_title=st.text(min_size=1, max_size=100))
     def update_ticket_title(self, ticket_id: str, new_title: str) -> None:
@@ -608,17 +545,8 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         if ticket_id in self.deleted_ticket_ids:
             return
 
-        # Update ticket
-        response = self.client.put(
-            f"/api/tickets/{ticket_id}",
-            json={"title": new_title},
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-
-        # Invariant: Update should return 200
-        assert response.status_code == 200, f"Update should return 200, got {response.status_code}"
-
-        ticket = Ticket.model_validate(response.json())
+        # Update ticket via SDK
+        ticket = self.sdk.tickets.update(ticket_id, title=new_title).assert_ok()
 
         # Invariant: Updated field changed
         assert ticket.title == new_title, "Title should be updated"
@@ -634,17 +562,8 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         if ticket_id in self.deleted_ticket_ids:
             return
 
-        # Update ticket
-        response = self.client.put(
-            f"/api/tickets/{ticket_id}",
-            json={"priority": new_priority},
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-
-        # Invariant: Update should return 200
-        assert response.status_code == 200, f"Update should return 200, got {response.status_code}"
-
-        ticket = Ticket.model_validate(response.json())
+        # Update ticket via SDK
+        ticket = self.sdk.tickets.update(ticket_id, priority=new_priority).assert_ok()
 
         # Invariant: Updated field changed
         assert ticket.priority.value == new_priority, "Priority should be updated"
@@ -677,17 +596,8 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         # Pick first valid status for simplicity
         new_status = valid_statuses[0]
 
-        # Update status via dedicated endpoint
-        response = self.client.put(
-            f"/api/tickets/{ticket_id}/status",
-            json={"status": new_status},
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-
-        # Invariant: Update should return 200 for valid status
-        assert response.status_code == 200, f"Update status should return 200, got {response.status_code}"
-
-        ticket = Ticket.model_validate(response.json())
+        # Update status via SDK
+        ticket = self.sdk.tickets.update_status(ticket_id, new_status).assert_ok()
 
         # Invariant: Status should be updated
         assert ticket.status == new_status, f"Status should be {new_status}, got {ticket.status}"
@@ -708,17 +618,8 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         if assignee_id in self.user_data and not self.user_data[assignee_id].get("is_active", True):
             return
 
-        # Assign ticket
-        response = self.client.put(
-            f"/api/tickets/{ticket_id}/assignee",
-            json={"assignee_id": assignee_id},
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-
-        # Invariant: Assignment should return 200
-        assert response.status_code == 200, f"Assignment should return 200, got {response.status_code}"
-
-        ticket = Ticket.model_validate(response.json())
+        # Assign ticket via SDK
+        ticket = self.sdk.tickets.assign(ticket_id, assignee_id).assert_ok()
 
         # Invariant: Assignee should be updated
         assert ticket.assignee_id == assignee_id, f"Assignee should be {assignee_id}"
@@ -734,17 +635,8 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         if ticket_id in self.deleted_ticket_ids:
             return
 
-        # Unassign ticket
-        response = self.client.put(
-            f"/api/tickets/{ticket_id}/assignee",
-            json={"assignee_id": None},
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
-
-        # Invariant: Unassignment should return 200
-        assert response.status_code == 200, f"Unassignment should return 200, got {response.status_code}"
-
-        ticket = Ticket.model_validate(response.json())
+        # Unassign ticket via SDK
+        ticket = self.sdk.tickets.assign(ticket_id, None).assert_ok()
 
         # Invariant: Assignee should be None
         assert ticket.assignee_id is None, "Assignee should be None"
@@ -756,15 +648,8 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
     @rule(project_id=projects)
     def list_tickets_by_project(self, project_id: str) -> None:
         """List all tickets for a project and verify count matches shadow state."""
-        response = self.client.get(
-            f"/api/tickets?project_id={project_id}",
-            headers={"Authorization": f"Bearer {self.admin_token}"},
-        )
-
-        # Invariant: List should return 200
-        assert response.status_code == 200, f"List should return 200, got {response.status_code}"
-
-        tickets_list = [Ticket.model_validate(t) for t in response.json()]
+        # List tickets via SDK (using admin SDK for list operation)
+        tickets_list = self.admin_sdk.tickets.list(project_id=project_id).assert_ok()
 
         # Invariant: Count matches expected tickets in this project
         expected_ticket_ids = {
@@ -806,19 +691,14 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         if assignee_id in self.deleted_user_ids:
             return
 
-        # Attempt to assign ticket to inactive user
-        response = self.client.put(
-            f"/api/tickets/{ticket_id}/assignee",
-            json={"assignee_id": assignee_id},
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
+        # Attempt to assign ticket to inactive user via SDK
+        result = self.sdk.tickets.assign(ticket_id, assignee_id)
 
         # Invariant: Assignment to inactive user should return 400
-        assert response.status_code == 400, f"Assigning to inactive user should return 400, got {response.status_code}"
+        result.assert_status(400)
 
         # Invariant: Error message should mention "inactive"
-        error_detail = response.json().get("detail", "").lower()
-        assert "inactive" in error_detail, f"Error message should mention inactive user, got: {error_detail}"
+        result.assert_error_contains("inactive")
 
     @rule(ticket_id=tickets, assignee_id=users)
     def attempt_assign_to_deleted_user(self, ticket_id: str, assignee_id: str) -> None:
@@ -835,20 +715,15 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         if ticket_id in self.deleted_ticket_ids:
             return
 
-        # Attempt to assign ticket to deleted user
-        response = self.client.put(
-            f"/api/tickets/{ticket_id}/assignee",
-            json={"assignee_id": assignee_id},
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
+        # Attempt to assign ticket to deleted user via SDK
+        result = self.sdk.tickets.assign(ticket_id, assignee_id)
 
         # Invariant: Assignment to deleted user should return 404
-        assert response.status_code == 404, f"Assigning to deleted user should return 404, got {response.status_code}"
+        result.assert_status(404)
 
         # Invariant: Error message should mention user not found
-        error_detail = response.json().get("detail", "").lower()
-        assert "not found" in error_detail or "user" in error_detail, (
-            f"Error message should mention user not found, got: {error_detail}"
+        assert "not found" in result.error.lower() or "user" in result.error.lower(), (
+            f"Error message should mention user not found, got: {result.error}"
         )
 
     @rule(ticket_id=tickets)
@@ -885,23 +760,16 @@ class SystemAPIStateMachine(RuleBasedStateMachine):
         if invalid_status in valid_statuses:
             return  # Skip if by some chance this status is valid
 
-        # Attempt to set invalid status
-        response = self.client.put(
-            f"/api/tickets/{ticket_id}/status",
-            json={"status": invalid_status},
-            headers={"Authorization": f"Bearer {self.super_admin_token}"},
-        )
+        # Attempt to set invalid status via SDK
+        result = self.sdk.tickets.update_status(ticket_id, invalid_status)
 
         # Invariant: Invalid status should return 422 (validation error) or 400 (business logic error)
         # Both are acceptable as different layers may catch the validation
-        assert response.status_code in [400, 422], (
-            f"Invalid status should return 400 or 422, got {response.status_code}"
-        )
+        assert result.status_code in [400, 422], f"Invalid status should return 400 or 422, got {result.status_code}"
 
         # Invariant: Error message should mention status or workflow
-        error_detail = response.json().get("detail", "").lower()
-        assert any(keyword in error_detail for keyword in ["status", "workflow", "invalid", "valid"]), (
-            f"Error message should mention status validation, got: {error_detail}"
+        assert any(keyword in result.error.lower() for keyword in ["status", "workflow", "invalid", "valid"]), (
+            f"Error message should mention status validation, got: {result.error}"
         )
 
 
