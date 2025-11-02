@@ -7,16 +7,12 @@ cross-entity interactions and workflows.
 The state machine is organized using mixins for better maintainability:
 - State tracking: StateTracker (state_tracker.py)
 - User rules: UserRulesMixin (user_rules.py)
-- Bundles: Central registry in bundles.py with explicit Bundles.users references
+- Bundles: Central registry (bundles.py) - see thread-safety note there
 """
 
 from fastapi.testclient import TestClient
-from hypothesis import strategies as st
-from hypothesis.stateful import RuleBasedStateMachine, rule, run_state_machine_as_test
+from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test
 
-from project_management_crud_example.domain_models import (
-    TicketPriority,
-)
 from tests.conftest import client  # noqa: F401
 from tests.fixtures.auth_fixtures import super_admin_token  # noqa: F401
 from tests.helpers import create_admin_user, create_test_org
@@ -24,51 +20,53 @@ from tests.sdk.test_sdk import APITestSDK
 
 # Import new modular components
 from .bundles import Bundles
+from .organization_rules import OrganizationRulesMixin
+from .project_rules import ProjectRulesMixin
 from .state_tracker import StateTracker
+from .ticket_rules import TicketRulesMixin
 from .user_rules import UserRulesMixin
+from .validation_rules import ValidationRulesMixin
 
 
 class SystemAPIStateMachine(
     UserRulesMixin,  # All user operation rules
+    OrganizationRulesMixin,  # Multi-organization testing rules
+    ProjectRulesMixin,  # Project operation rules
+    TicketRulesMixin,  # All ticket operation rules
+    ValidationRulesMixin,  # Validation testing rules (invalid operations)
     RuleBasedStateMachine,
 ):
     """Comprehensive stateful property-based tests for the entire system API.
 
-    This state machine composes rule mixins to test the system as a whole,
-    including cross-entity interactions and workflows.
+    This state machine uses a mixin architecture to compose rules from multiple
+    focused modules, testing the system as a whole including cross-entity
+    interactions and workflows.
 
-    Organization:
-    - State tracking: StateTracker (state_tracker.py)
-    - Bundles: Central registry (bundles.py) with explicit references
-    - User rules: UserRulesMixin (user_rules.py) - using Bundles.users
-    - TODO: Extract remaining rules to mixins (tickets, orgs, projects, validation)
+    Architecture:
+    - Bundles: Central registry (bundles.py) - see thread-safety note there
+    - State tracking: StateTracker (state_tracker.py) - manages shadow state
+    - User rules: UserRulesMixin (user_rules.py) - 7 user operations
+    - Organization rules: OrganizationRulesMixin (organization_rules.py) - multi-org testing
+    - Project rules: ProjectRulesMixin (project_rules.py) - project operations
+    - Ticket rules: TicketRulesMixin (ticket_rules.py) - 9 ticket operations
+    - Validation rules: ValidationRulesMixin (validation_rules.py) - error testing
 
-    USER OPERATIONS (from UserRulesMixin):
-    - Created users return 201 and can be retrieved with 200
-    - Deleted users return 404 on GET
-    - Updated users persist changes correctly
-    - List endpoint count matches created - deleted users
-    - HTTP responses are consistent with state
-    - Immutable fields (username, organization_id) never change
-    - Multi-organization isolation is enforced
+    Invariants Tested:
+    - CRUD operations: Created entities are retrievable, updates persist
+    - Deletion: Deleted entities return 404, not in lists
+    - Data consistency: Retrieved data matches shadow state
+    - Immutability: Fields like username, organization_id never change
+    - Multi-org isolation: Users/data isolated per organization
+    - Cross-entity: Tickets assigned to users in same organization
+    - Workflow: Status transitions follow project workflow rules
+    - Validation: Invalid operations fail with correct error codes
 
-    TICKET OPERATIONS (TODO: Extract to TicketRulesMixin):
-    - Created tickets return 201 and can be retrieved with 200
-    - Deleted tickets return 404 on GET
-    - Updated tickets persist changes correctly
-    - Status transitions follow workflow rules
-    - Assignments are tracked correctly
-    - List endpoint count matches created - deleted tickets
-    - Organization and project isolation is enforced
-
-    CROSS-ENTITY INVARIANTS:
-    - Tickets can be assigned to users in the same organization
-    - Users can be reporters and assignees for tickets
-    - Projects belong to organizations
-    - Tickets belong to projects which belong to organizations
+    This comprehensive test suite verifies the entire API maintains consistency
+    across all entity types and operations.
     """
 
-    # Map bundles from central registry to instance attributes
+    # Bundle references from central registry
+    # See bundles.py for thread-safety limitations
     users = Bundles.users
     organizations = Bundles.organizations
     projects = Bundles.projects
@@ -99,431 +97,8 @@ class SystemAPIStateMachine(
         self.admin_sdk = base_sdk.with_auth(admin_token)  # Admin SDK for projects
 
         # Initialize state tracker (manages all shadow state)
+        # All rules access state via self.state
         self.state = StateTracker(organization_id, admin_user_id)
-
-        # For backwards compatibility with inline rules (TODO: remove after full extraction)
-        # These aliases allow existing rules to work without changes
-        self.organization_id = self.state.organization_id
-        self.created_org_ids = self.state.created_org_ids
-        self.created_user_ids = self.state.created_user_ids
-        self.deleted_user_ids = self.state.deleted_user_ids
-        self.user_data = self.state.user_data
-        self.immutable_fields = self.state.immutable_fields
-        self.emails_in_use_per_org = self.state.emails_in_use_per_org
-        self.created_project_ids = self.state.created_project_ids
-        self.project_statuses = self.state.project_statuses
-        self.created_ticket_ids = self.state.created_ticket_ids
-        self.deleted_ticket_ids = self.state.deleted_ticket_ids
-        self.ticket_data = self.state.ticket_data
-
-    # ======================================================================================
-    # TEMPORARY: Rules not yet extracted to mixins (will be removed in next phase)
-    # ======================================================================================
-
-    @rule(target=organizations)
-    def create_additional_organization(self) -> str:
-        """Create an additional organization for multi-org testing."""
-        import uuid
-
-        org_name = f"Test Org {uuid.uuid4().hex[:8]}"
-
-        # Create organization via SDK
-        org = self.sdk.organizations.create(org_name).assert_ok()
-        org_id = org.id
-
-        # Track the new organization
-        self.created_org_ids.add(org_id)
-
-        return org_id
-
-    @rule(target=users, org_id=organizations)
-    def create_user_in_specific_org(self, org_id: str) -> str:
-        """Create a new user in a specific organization."""
-        import uuid
-
-        # Generate unique username and email
-        username = f"apiuser{uuid.uuid4().hex[:10]}"
-        email = f"{username}@example.com"
-        full_name = f"API User {username}"
-
-        # Create user in specified organization via SDK
-        create_response = self.sdk.users.create(org_id, username, email, full_name, role="read_access").assert_ok()
-        user_id = create_response.user.id
-        user_obj = create_response.user
-
-        # Track in shadow state
-        self.created_user_ids.add(user_id)
-        self.user_data[user_id] = {
-            "email": email,
-            "full_name": full_name,
-            "role": "read_access",
-            "is_active": True,
-            "organization_id": org_id,
-        }
-        # Track immutable fields
-        self.immutable_fields[user_id] = {
-            "username": username,
-            "organization_id": org_id,
-        }
-        # Track email in use for this organization
-        if org_id not in self.emails_in_use_per_org:
-            self.emails_in_use_per_org[org_id] = set()
-        self.emails_in_use_per_org[org_id].add(email)
-
-        # Invariant: organization_id matches what we sent
-        assert user_obj.organization_id == org_id, f"User should be in org {org_id}"
-
-        return user_id
-
-    # ========================================================================
-    # PROJECT RULES
-    # ========================================================================
-
-    @rule(target=projects)
-    def create_project_via_api(self) -> str:
-        """Create a new project via API and add to bundle."""
-        import uuid
-
-        project_name = f"Project {uuid.uuid4().hex[:8]}"
-
-        # Create project via SDK (using admin SDK, not super admin)
-        project = self.admin_sdk.projects.create(project_name).assert_ok()
-        project_id = project.id
-
-        # Track project
-        self.created_project_ids.add(project_id)
-
-        # Get workflow statuses for this project
-        workflow_id = project.workflow_id
-        if workflow_id:
-            workflow_result = self.sdk.workflows.get(workflow_id)
-            if workflow_result.ok:
-                workflow = workflow_result.data
-                self.project_statuses[project_id] = workflow.statuses
-            else:
-                # Default statuses
-                self.project_statuses[project_id] = ["TODO", "IN_PROGRESS", "DONE"]
-        else:
-            self.project_statuses[project_id] = ["TODO", "IN_PROGRESS", "DONE"]
-
-        return project_id
-
-    # ========================================================================
-    # TICKET RULES
-    # ========================================================================
-
-    @rule(target=tickets, project_id=projects, reporter_id=users)
-    def create_ticket_via_api(self, project_id: str, reporter_id: str) -> str:
-        """Create a new ticket via API and add to bundle."""
-        import uuid
-
-        title = f"Ticket {uuid.uuid4().hex[:8]}"
-        description = f"Description for {title}"
-        priority = "HIGH"
-
-        # Create ticket via SDK
-        ticket = self.sdk.tickets.create(project_id, title, description, priority).assert_ok()
-        ticket_id = ticket.id
-
-        # Track in shadow state
-        self.created_ticket_ids.add(ticket_id)
-        self.ticket_data[ticket_id] = {
-            "title": title,
-            "description": description,
-            "priority": priority,
-            "status": ticket.status,  # Use actual status from response
-            "assignee_id": None,
-            "reporter_id": reporter_id,
-            "project_id": project_id,
-        }
-
-        # Invariant: Ticket data matches what we sent
-        assert ticket.title == title
-        assert ticket.description == description
-        assert ticket.priority == TicketPriority.HIGH
-        assert ticket.project_id == project_id
-
-        # Invariant: Just-created ticket should be retrievable
-        retrieved_ticket = self.sdk.tickets.get(ticket_id).assert_ok()
-        assert retrieved_ticket is not None, "Just-created ticket should be retrievable"
-
-        return ticket_id
-
-    @rule(ticket_id=tickets)
-    def get_ticket_via_api(self, ticket_id: str) -> None:
-        """Retrieve a ticket by ID via API."""
-        result = self.sdk.tickets.get(ticket_id)
-
-        # Invariant: Status code matches deletion state
-        if ticket_id not in self.deleted_ticket_ids:
-            assert result.ok, f"Non-deleted ticket should return 200, got {result.status_code}"
-
-            ticket = result.data
-            assert ticket.id == ticket_id
-
-            # Invariant: Retrieved data matches shadow state
-            if ticket_id in self.ticket_data:
-                shadow = self.ticket_data[ticket_id]
-                assert ticket.title == shadow["title"], f"Title mismatch for ticket {ticket_id}"
-                assert ticket.description == shadow["description"], f"Description mismatch for ticket {ticket_id}"
-                assert ticket.priority.value == shadow["priority"], f"Priority mismatch for ticket {ticket_id}"
-                assert ticket.status == shadow["status"], f"Status mismatch for ticket {ticket_id}"
-                assert ticket.project_id == shadow["project_id"], f"Project ID mismatch for ticket {ticket_id}"
-        else:
-            assert result.status_code == 404, f"Deleted ticket should return 404, got {result.status_code}"
-
-    @rule(ticket_id=tickets)
-    def delete_ticket_via_api(self, ticket_id: str) -> None:
-        """Delete a ticket via API."""
-        # Skip if already deleted
-        if ticket_id in self.deleted_ticket_ids:
-            return
-
-        # Delete ticket via SDK
-        self.sdk.tickets.delete(ticket_id).assert_ok()
-
-        # Track deletion and clean up shadow state
-        self.deleted_ticket_ids.add(ticket_id)
-        if ticket_id in self.ticket_data:
-            del self.ticket_data[ticket_id]
-
-        # Invariant: Deleted ticket should return 404
-        result = self.sdk.tickets.get(ticket_id)
-        assert result.status_code == 404, "Deleted ticket should return 404"
-
-    @rule(ticket_id=tickets, new_title=st.text(min_size=1, max_size=100))
-    def update_ticket_title(self, ticket_id: str, new_title: str) -> None:
-        """Update a ticket's title via API."""
-        # Skip if deleted
-        if ticket_id in self.deleted_ticket_ids:
-            return
-
-        # Update ticket via SDK
-        ticket = self.sdk.tickets.update(ticket_id, title=new_title).assert_ok()
-
-        # Invariant: Updated field changed
-        assert ticket.title == new_title, "Title should be updated"
-
-        # Update shadow state
-        if ticket_id in self.ticket_data:
-            self.ticket_data[ticket_id]["title"] = new_title
-
-    @rule(ticket_id=tickets, new_priority=st.sampled_from(["LOW", "MEDIUM", "HIGH", "CRITICAL"]))
-    def update_ticket_priority(self, ticket_id: str, new_priority: str) -> None:
-        """Update a ticket's priority via API."""
-        # Skip if deleted
-        if ticket_id in self.deleted_ticket_ids:
-            return
-
-        # Update ticket via SDK
-        ticket = self.sdk.tickets.update(ticket_id, priority=new_priority).assert_ok()
-
-        # Invariant: Updated field changed
-        assert ticket.priority.value == new_priority, "Priority should be updated"
-
-        # Update shadow state
-        if ticket_id in self.ticket_data:
-            self.ticket_data[ticket_id]["priority"] = new_priority
-
-    @rule(ticket_id=tickets)
-    def update_ticket_status(self, ticket_id: str) -> None:
-        """Update a ticket's status to a valid status from its project's workflow."""
-        # Skip if deleted
-        if ticket_id in self.deleted_ticket_ids:
-            return
-
-        # Get ticket's project
-        if ticket_id not in self.ticket_data:
-            return
-
-        project_id = self.ticket_data[ticket_id]["project_id"]
-
-        # Get valid statuses for this project
-        if project_id not in self.project_statuses:
-            return
-
-        valid_statuses = self.project_statuses[project_id]
-        if not valid_statuses:
-            return
-
-        # Pick first valid status for simplicity
-        new_status = valid_statuses[0]
-
-        # Update status via SDK
-        ticket = self.sdk.tickets.update_status(ticket_id, new_status).assert_ok()
-
-        # Invariant: Status should be updated
-        assert ticket.status == new_status, f"Status should be {new_status}, got {ticket.status}"
-
-        # Update shadow state
-        if ticket_id in self.ticket_data:
-            self.ticket_data[ticket_id]["status"] = new_status
-
-    @rule(ticket_id=tickets, assignee_id=users)
-    def assign_ticket_to_user(self, ticket_id: str, assignee_id: str) -> None:
-        """Assign a ticket to a user via API."""
-        # Skip if ticket or user is deleted
-        if ticket_id in self.deleted_ticket_ids:
-            return
-        if assignee_id in self.deleted_user_ids:
-            return
-        # Skip if user is inactive (cannot assign to inactive users)
-        if assignee_id in self.user_data and not self.user_data[assignee_id].get("is_active", True):
-            return
-
-        # Assign ticket via SDK
-        ticket = self.sdk.tickets.assign(ticket_id, assignee_id).assert_ok()
-
-        # Invariant: Assignee should be updated
-        assert ticket.assignee_id == assignee_id, f"Assignee should be {assignee_id}"
-
-        # Update shadow state
-        if ticket_id in self.ticket_data:
-            self.ticket_data[ticket_id]["assignee_id"] = assignee_id
-
-    @rule(ticket_id=tickets)
-    def unassign_ticket(self, ticket_id: str) -> None:
-        """Unassign a ticket via API."""
-        # Skip if deleted
-        if ticket_id in self.deleted_ticket_ids:
-            return
-
-        # Unassign ticket via SDK
-        ticket = self.sdk.tickets.assign(ticket_id, None).assert_ok()
-
-        # Invariant: Assignee should be None
-        assert ticket.assignee_id is None, "Assignee should be None"
-
-        # Update shadow state
-        if ticket_id in self.ticket_data:
-            self.ticket_data[ticket_id]["assignee_id"] = None
-
-    @rule(project_id=projects)
-    def list_tickets_by_project(self, project_id: str) -> None:
-        """List all tickets for a project and verify count matches shadow state."""
-        # List tickets via SDK (using admin SDK for list operation)
-        tickets_list = self.admin_sdk.tickets.list(project_id=project_id).assert_ok()
-
-        # Invariant: Count matches expected tickets in this project
-        expected_ticket_ids = {
-            ticket_id
-            for ticket_id in self.ticket_data
-            if ticket_id not in self.deleted_ticket_ids and self.ticket_data[ticket_id]["project_id"] == project_id
-        }
-        returned_ticket_ids = {t.id for t in tickets_list}
-
-        assert returned_ticket_ids == expected_ticket_ids, (
-            f"Project filter mismatch. Expected {len(expected_ticket_ids)} tickets in project {project_id}, "
-            f"got {len(returned_ticket_ids)}"
-        )
-
-        # Invariant: All returned tickets belong to this project
-        for ticket in tickets_list:
-            assert ticket.project_id == project_id, f"Ticket {ticket.id} should be in project {project_id}"
-
-    # ========================================================================
-    # VALIDATION TESTING RULES (Testing that invalid operations fail correctly)
-    # ========================================================================
-
-    @rule(ticket_id=tickets, assignee_id=users)
-    def attempt_assign_to_inactive_user(self, ticket_id: str, assignee_id: str) -> None:
-        """Test that assigning ticket to inactive user returns 400.
-
-        This rule tests VALIDATION - it intentionally attempts an invalid operation
-        and verifies the API rejects it correctly.
-        """
-        # Precondition: Only run if user IS inactive (opposite of assign_ticket_to_user)
-        if assignee_id not in self.user_data:
-            return
-        if self.user_data[assignee_id].get("is_active", True):
-            return  # Skip if user is active
-
-        # Precondition: Skip if ticket or user is deleted
-        if ticket_id in self.deleted_ticket_ids:
-            return
-        if assignee_id in self.deleted_user_ids:
-            return
-
-        # Attempt to assign ticket to inactive user via SDK
-        result = self.sdk.tickets.assign(ticket_id, assignee_id)
-
-        # Invariant: Assignment to inactive user should return 400
-        result.assert_status(400)
-
-        # Invariant: Error message should mention "inactive"
-        result.assert_error_contains("inactive")
-
-    @rule(ticket_id=tickets, assignee_id=users)
-    def attempt_assign_to_deleted_user(self, ticket_id: str, assignee_id: str) -> None:
-        """Test that assigning ticket to deleted user returns 404.
-
-        This rule tests VALIDATION - it intentionally attempts an invalid operation
-        and verifies the API rejects it correctly.
-        """
-        # Precondition: Only run if user IS deleted (opposite of assign_ticket_to_user)
-        if assignee_id not in self.deleted_user_ids:
-            return  # Skip if user is not deleted
-
-        # Precondition: Skip if ticket is deleted
-        if ticket_id in self.deleted_ticket_ids:
-            return
-
-        # Attempt to assign ticket to deleted user via SDK
-        result = self.sdk.tickets.assign(ticket_id, assignee_id)
-
-        # Invariant: Assignment to deleted user should return 404
-        result.assert_status(404)
-
-        # Invariant: Error message should mention user not found
-        assert "not found" in result.error.lower() or "user" in result.error.lower(), (
-            f"Error message should mention user not found, got: {result.error}"
-        )
-
-    @rule(ticket_id=tickets)
-    def attempt_invalid_status_transition(self, ticket_id: str) -> None:
-        """Test that setting an invalid status returns 422.
-
-        This rule tests VALIDATION - it intentionally attempts an invalid operation
-        and verifies the API rejects it correctly.
-        """
-        # Precondition: Skip if ticket is deleted
-        if ticket_id in self.deleted_ticket_ids:
-            return
-
-        # Precondition: Get ticket's project to know valid statuses
-        if ticket_id not in self.ticket_data:
-            return
-
-        project_id = self.ticket_data[ticket_id]["project_id"]
-
-        # Get valid statuses for this project
-        if project_id not in self.project_statuses:
-            return
-
-        valid_statuses = self.project_statuses[project_id]
-        if not valid_statuses:
-            return
-
-        # Use an invalid status that is definitely not in the workflow
-        # Common workflow statuses are TODO, IN_PROGRESS, DONE, etc.
-        # We'll use something that should never be valid
-        invalid_status = "DEFINITELY_NOT_A_VALID_STATUS_XYZ123"
-
-        # Make sure this isn't somehow valid
-        if invalid_status in valid_statuses:
-            return  # Skip if by some chance this status is valid
-
-        # Attempt to set invalid status via SDK
-        result = self.sdk.tickets.update_status(ticket_id, invalid_status)
-
-        # Invariant: Invalid status should return 422 (validation error) or 400 (business logic error)
-        # Both are acceptable as different layers may catch the validation
-        assert result.status_code in [400, 422], f"Invalid status should return 400 or 422, got {result.status_code}"
-
-        # Invariant: Error message should mention status or workflow
-        assert any(keyword in result.error.lower() for keyword in ["status", "workflow", "invalid", "valid"]), (
-            f"Error message should mention status validation, got: {result.error}"
-        )
 
 
 # Test function that pytest will discover

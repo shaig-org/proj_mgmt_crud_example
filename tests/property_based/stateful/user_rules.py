@@ -16,9 +16,8 @@ class UserRulesMixin:
     This mixin expects the parent class to have:
     - self.state: StateTracker instance for shadow state
     - self.sdk: APITestSDK instance with super admin auth
-    - self.organization_id: Primary organization ID for test
 
-    All rules use Bundles.users for explicit, type-safe bundle references.
+    Bundle references use Bundles.users, Bundles.organizations, etc. from bundles.py.
     """
 
     @rule(target=Bundles.users)
