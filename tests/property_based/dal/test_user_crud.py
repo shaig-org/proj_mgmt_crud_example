@@ -1,4 +1,10 @@
-"""Stateful property-based tests for User repository CRUD operations."""
+"""Stateful property-based tests for User repository CRUD operations.
+
+Location: tests/property_based/dal/ - DAL-level (repository) tests
+Counterpart: tests/property_based/api/ - API-level (system) tests
+
+This tests the User repository layer directly, without HTTP/API overhead.
+"""
 
 from hypothesis.stateful import Bundle, RuleBasedStateMachine, rule, run_state_machine_as_test
 

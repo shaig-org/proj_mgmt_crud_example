@@ -1,8 +1,11 @@
 """Unified stateful property-based tests for the entire system API.
 
 This combines all entity operations (Users, Projects, Tickets) into a single
-comprehensive state machine that tests the system as a whole, including
-cross-entity interactions and workflows.
+comprehensive state machine that tests the system as a whole via HTTP API,
+including cross-entity interactions and workflows.
+
+Location: tests/property_based/api/ - API-level (system) tests
+Counterpart: tests/property_based/dal/ - DAL-level (repository) tests
 
 The state machine is organized using mixins for better maintainability:
 - State tracking: StateTracker (state_tracker.py)
