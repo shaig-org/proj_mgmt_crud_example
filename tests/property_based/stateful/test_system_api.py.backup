@@ -3,16 +3,11 @@
 This combines all entity operations (Users, Projects, Tickets) into a single
 comprehensive state machine that tests the system as a whole, including
 cross-entity interactions and workflows.
-
-The state machine is organized using mixins for better maintainability:
-- State tracking: StateTracker (state_tracker.py)
-- User rules: UserRulesMixin (user_rules.py)
-- Bundles: Central registry in bundles.py with explicit Bundles.users references
 """
 
 from fastapi.testclient import TestClient
 from hypothesis import strategies as st
-from hypothesis.stateful import RuleBasedStateMachine, rule, run_state_machine_as_test
+from hypothesis.stateful import Bundle, RuleBasedStateMachine, rule, run_state_machine_as_test
 
 from project_management_crud_example.domain_models import (
     TicketPriority,
@@ -22,37 +17,23 @@ from tests.fixtures.auth_fixtures import super_admin_token  # noqa: F401
 from tests.helpers import create_admin_user, create_test_org
 from tests.sdk.test_sdk import APITestSDK
 
-# Import new modular components
-from .bundles import Bundles
-from .state_tracker import StateTracker
-from .user_rules import UserRulesMixin
 
-
-class SystemAPIStateMachine(
-    UserRulesMixin,  # All user operation rules
-    RuleBasedStateMachine,
-):
+class SystemAPIStateMachine(RuleBasedStateMachine):
     """Comprehensive stateful property-based tests for the entire system API.
 
-    This state machine composes rule mixins to test the system as a whole,
-    including cross-entity interactions and workflows.
+    This tests that ALL API operations maintain consistent state across the system:
 
-    Organization:
-    - State tracking: StateTracker (state_tracker.py)
-    - Bundles: Central registry (bundles.py) with explicit references
-    - User rules: UserRulesMixin (user_rules.py) - using Bundles.users
-    - TODO: Extract remaining rules to mixins (tickets, orgs, projects, validation)
-
-    USER OPERATIONS (from UserRulesMixin):
+    USER OPERATIONS:
     - Created users return 201 and can be retrieved with 200
     - Deleted users return 404 on GET
     - Updated users persist changes correctly
     - List endpoint count matches created - deleted users
+    - Email uniqueness is enforced within organizations
     - HTTP responses are consistent with state
     - Immutable fields (username, organization_id) never change
     - Multi-organization isolation is enforced
 
-    TICKET OPERATIONS (TODO: Extract to TicketRulesMixin):
+    TICKET OPERATIONS:
     - Created tickets return 201 and can be retrieved with 200
     - Deleted tickets return 404 on GET
     - Updated tickets persist changes correctly
@@ -68,11 +49,14 @@ class SystemAPIStateMachine(
     - Tickets belong to projects which belong to organizations
     """
 
-    # Map bundles from central registry to instance attributes
-    users = Bundles.users
-    organizations = Bundles.organizations
-    projects = Bundles.projects
-    tickets = Bundles.tickets
+    # Bundles for all entities
+    users = Bundle("users")
+    organizations = Bundle("organizations")
+    projects = Bundle("projects")
+    tickets = Bundle("tickets")
+
+    # Define immutable fields once for reuse across all checks
+    IMMUTABLE_USER_FIELDS = ["username", "organization_id"]
 
     def __init__(self, client: TestClient, super_admin_token: str) -> None:
         import uuid
@@ -81,44 +65,307 @@ class SystemAPIStateMachine(
 
         # Create initial organization for this test run (each Hypothesis example gets its own)
         org_name = f"Test Org {uuid.uuid4().hex[:8]}"
-        organization_id = create_test_org(client, super_admin_token, name=org_name)
+        self.organization_id = create_test_org(client, super_admin_token, name=org_name)
 
         # Create admin user in the organization (super admin can't create projects)
         admin_username = f"admin{uuid.uuid4().hex[:8]}"
         admin_user_id, admin_password = create_admin_user(
-            client, super_admin_token, organization_id, username=admin_username
+            client, super_admin_token, self.organization_id, username=admin_username
         )
 
         # Login as admin to get token
         login_response = client.post("/auth/login", json={"username": admin_username, "password": admin_password})
-        admin_token = login_response.json()["access_token"]
+        self.admin_token = login_response.json()["access_token"]
 
         # Create SDK instances for different auth contexts
         base_sdk = APITestSDK(client)
         self.sdk = base_sdk.with_auth(super_admin_token)  # Super admin SDK for most operations
-        self.admin_sdk = base_sdk.with_auth(admin_token)  # Admin SDK for projects
+        self.admin_sdk = base_sdk.with_auth(self.admin_token)  # Admin SDK for projects
 
-        # Initialize state tracker (manages all shadow state)
-        self.state = StateTracker(organization_id, admin_user_id)
+        # Track organizations for multi-org testing
+        self.created_org_ids: set[str] = {self.organization_id}  # Start with initial org
 
-        # For backwards compatibility with inline rules (TODO: remove after full extraction)
-        # These aliases allow existing rules to work without changes
-        self.organization_id = self.state.organization_id
-        self.created_org_ids = self.state.created_org_ids
-        self.created_user_ids = self.state.created_user_ids
-        self.deleted_user_ids = self.state.deleted_user_ids
-        self.user_data = self.state.user_data
-        self.immutable_fields = self.state.immutable_fields
-        self.emails_in_use_per_org = self.state.emails_in_use_per_org
-        self.created_project_ids = self.state.created_project_ids
-        self.project_statuses = self.state.project_statuses
-        self.created_ticket_ids = self.state.created_ticket_ids
-        self.deleted_ticket_ids = self.state.deleted_ticket_ids
-        self.ticket_data = self.state.ticket_data
+        # Track user IDs (include the admin user created in setup)
+        self.created_user_ids: set[str] = {admin_user_id}  # Start with admin user
+        self.deleted_user_ids: set[str] = set()
+        # Note: We don't track admin user in user_data/immutable_fields because
+        # we won't be testing operations on it (it's just for infrastructure)
 
-    # ======================================================================================
-    # TEMPORARY: Rules not yet extracted to mixins (will be removed in next phase)
-    # ======================================================================================
+        # Shadow state for user data
+        self.user_data: dict[
+            str, dict[str, str | bool]
+        ] = {}  # user_id -> {email, full_name, role, is_active, organization_id}
+
+        # Track immutable fields (username, organization_id) for invariant checking
+        self.immutable_fields: dict[str, dict[str, str]] = {}  # user_id -> {username, organization_id}
+
+        # Track emails in use per organization (for uniqueness testing within org)
+        self.emails_in_use_per_org: dict[str, set[str]] = {}  # org_id -> set of emails
+
+        # Track project IDs
+        self.created_project_ids: set[str] = set()
+
+        # Shadow state for projects (to track valid statuses)
+        self.project_statuses: dict[str, list[str]] = {}  # project_id -> list of valid statuses
+
+        # Track ticket IDs
+        self.created_ticket_ids: set[str] = set()
+        self.deleted_ticket_ids: set[str] = set()
+
+        # Shadow state for tickets
+        self.ticket_data: dict[
+            str, dict
+        ] = {}  # ticket_id -> {title, description, priority, status, assignee_id, reporter_id, project_id}
+
+    # ========================================================================
+    # USER RULES
+    # ========================================================================
+
+    def _verify_immutable_fields(self, user_id: str, user_obj: dict) -> None:
+        """Helper to verify immutable fields haven't changed.
+
+        Args:
+            user_id: ID of the user to check
+            user_obj: User object from API response
+        """
+        if user_id in self.immutable_fields:
+            for field in self.IMMUTABLE_USER_FIELDS:
+                expected = self.immutable_fields[user_id][field]
+                actual = user_obj[field]
+                assert actual == expected, f"{field} changed for user {user_id}: expected {expected}, got {actual}"
+
+    @rule(target=users)
+    def create_user_via_api(self) -> str:
+        """Create a new user via API and add to bundle."""
+        import uuid
+
+        # Generate unique username and email using UUID to avoid collisions
+        username = f"apiuser{uuid.uuid4().hex[:10]}"
+        email = f"{username}@example.com"
+        full_name = f"API User {username}"
+
+        # Create user via SDK
+        # Invariant: Create should succeed
+        create_response = self.sdk.users.create(
+            self.organization_id, username, email, full_name, role="read_access"
+        ).assert_ok()
+
+        user_id = create_response.user.id
+        user_obj = create_response.user
+
+        # Track in shadow state
+        self.created_user_ids.add(user_id)
+        self.user_data[user_id] = {
+            "email": email,
+            "full_name": full_name,
+            "role": "read_access",
+            "is_active": True,
+            "organization_id": self.organization_id,
+        }
+        # Track immutable fields
+        self.immutable_fields[user_id] = {
+            "username": username,
+            "organization_id": self.organization_id,
+        }
+        # Track email in use for this organization
+        if self.organization_id not in self.emails_in_use_per_org:
+            self.emails_in_use_per_org[self.organization_id] = set()
+        self.emails_in_use_per_org[self.organization_id].add(email)
+
+        # Invariant: Response has correct structure (validated by Pydantic automatically)
+        assert create_response.generated_password is not None, "Create response should have generated_password"
+        assert len(create_response.generated_password) > 0, "Generated password should not be empty"
+
+        # Invariant: User data matches what we sent
+        assert user_obj.email == email
+        assert user_obj.full_name == full_name
+        assert user_obj.role == "read_access"
+
+        # Invariant: Just-created user should be retrievable
+        retrieved_user = self.sdk.users.get(user_id).assert_ok()
+        assert retrieved_user.id == user_id
+
+        return user_id
+
+    @rule(user_id=users)
+    def get_user_via_api(self, user_id: str) -> None:
+        """Retrieve a user by ID via API."""
+        result = self.sdk.users.get(user_id)
+
+        # Invariant: Status code matches deletion state
+        if user_id not in self.deleted_user_ids:
+            # Invariant: Should succeed
+            assert result.ok, f"Non-deleted user should return 200, got {result.status_code}"
+            user_obj = result.data
+            assert user_obj.id == user_id
+
+            # Invariant: Retrieved data matches shadow state
+            if user_id in self.user_data:
+                shadow = self.user_data[user_id]
+                assert user_obj.email == shadow["email"], f"Email mismatch for user {user_id}"
+                assert user_obj.full_name == shadow["full_name"], f"Full name mismatch for user {user_id}"
+                assert user_obj.role == shadow["role"], f"Role mismatch for user {user_id}"
+                assert user_obj.is_active == shadow["is_active"], f"is_active mismatch for user {user_id}"
+
+            # Invariant: Immutable fields never change
+            # Convert Pydantic model to dict for the helper
+            self._verify_immutable_fields(user_id, user_obj.model_dump())
+        else:
+            # Invariant: Deleted user returns 404
+            assert result.status_code == 404, f"Deleted user should return 404, got {result.status_code}"
+
+    @rule(user_id=users)
+    def delete_user_via_api(self, user_id: str) -> None:
+        """Delete a user via API."""
+        # Skip if already deleted
+        if user_id in self.deleted_user_ids:
+            return
+
+        # Get user data before deletion for cleanup
+        user_email = self.user_data.get(user_id, {}).get("email")
+
+        # Delete user via SDK
+        # Invariant: Delete should succeed
+        self.sdk.users.delete(user_id).assert_ok()
+
+        # Track deletion and clean up shadow state
+        self.deleted_user_ids.add(user_id)
+        if user_id in self.user_data:
+            user_org_id = str(self.user_data[user_id].get("organization_id", ""))
+            del self.user_data[user_id]
+            # Remove email from organization's email set
+            if user_email and user_org_id and user_org_id in self.emails_in_use_per_org:
+                if user_email in self.emails_in_use_per_org[user_org_id]:
+                    self.emails_in_use_per_org[user_org_id].remove(user_email)
+
+        # Invariant: Deleted user should return 404
+        get_result = self.sdk.users.get(user_id)
+        assert get_result.status_code == 404, "Deleted user should return 404"
+
+    @rule(user_id=users, new_full_name=st.text(min_size=1, max_size=50))
+    def update_user_full_name(self, user_id: str, new_full_name: str) -> None:
+        """Update a user's full name via API."""
+        # Skip if deleted
+        if user_id in self.deleted_user_ids:
+            return
+
+        # Update user via SDK
+        # Invariant: Update should succeed
+        user_obj = self.sdk.users.update(user_id, full_name=new_full_name).assert_ok()
+
+        # Invariant: Updated field changed
+        assert user_obj.full_name == new_full_name, "Full name should be updated"
+
+        # Invariant: Other fields unchanged
+        if user_id in self.user_data:
+            shadow = self.user_data[user_id]
+            assert user_obj.email == shadow["email"], "Email should not change"
+            assert user_obj.role == shadow["role"], "Role should not change"
+            assert user_obj.is_active == shadow["is_active"], "is_active should not change"
+
+        # Invariant: Immutable fields never change
+        self._verify_immutable_fields(user_id, user_obj.model_dump())
+
+        # Update shadow state
+        if user_id in self.user_data:
+            self.user_data[user_id]["full_name"] = new_full_name
+
+        # Invariant: GET reflects the update
+        updated_user = self.sdk.users.get(user_id).assert_ok()
+        assert updated_user.full_name == new_full_name
+
+    @rule(
+        user_id=users,
+        new_role=st.sampled_from(["read_access", "write_access", "project_manager", "admin"]),
+    )
+    def update_user_role(self, user_id: str, new_role: str) -> None:
+        """Update a user's role via API."""
+        # Skip if deleted
+        if user_id in self.deleted_user_ids:
+            return
+
+        # Update user via SDK
+        # Invariant: Update should succeed
+        user_obj = self.sdk.users.update(user_id, role=new_role).assert_ok()
+
+        # Invariant: Updated field changed
+        assert user_obj.role == new_role, f"Role should be updated to {new_role}"
+
+        # Invariant: Immutable fields never change
+        self._verify_immutable_fields(user_id, user_obj.model_dump())
+
+        # Update shadow state
+        if user_id in self.user_data:
+            self.user_data[user_id]["role"] = new_role
+
+    @rule(user_id=users)
+    def deactivate_user(self, user_id: str) -> None:
+        """Deactivate a user via API."""
+        # Skip if deleted or already inactive
+        if user_id in self.deleted_user_ids:
+            return
+        if user_id in self.user_data and not self.user_data[user_id]["is_active"]:
+            return
+
+        # Deactivate user using SDK
+        # Invariant: Update should succeed
+        user = self.sdk.users.deactivate(user_id).assert_ok()
+
+        # Invariant: User is now inactive
+        assert user.is_active is False, "User should be inactive"
+
+        # Update shadow state
+        if user_id in self.user_data:
+            self.user_data[user_id]["is_active"] = False
+
+        # Invariant: Inactive user still exists (not deleted)
+        get_result = self.sdk.users.get(user_id)
+        assert get_result.ok, "Inactive user should still be retrievable"
+
+    @rule()
+    def list_users_verify_count(self) -> None:
+        """List all users in our organization and verify count matches shadow state."""
+        # List users via SDK, filtering by organization
+        users_list = self.sdk.users.list(organization_id=self.organization_id).assert_ok()
+
+        # Invariant: Should return a list (validated by Pydantic)
+        assert isinstance(users_list, list), "List endpoint should return a list"
+
+        # Invariant: Count matches users in this organization (created - deleted)
+        # Note: For users in user_data, check organization matches. For users NOT in user_data
+        # (like the initial admin user), they're assumed to be in self.organization_id
+        expected_user_ids = {
+            user_id
+            for user_id in self.created_user_ids
+            if user_id not in self.deleted_user_ids
+            and (
+                user_id not in self.user_data  # Initial admin user (not tracked in user_data)
+                or str(self.user_data[user_id].get("organization_id", "")) == self.organization_id
+            )
+        }
+        expected_count = len(expected_user_ids)
+        actual_count = len(users_list)
+        assert actual_count == expected_count, f"User count mismatch: expected {expected_count}, got {actual_count}"
+
+        # Invariant: All non-deleted users from this org appear in list
+        returned_user_ids = {user.id for user in users_list}
+        assert returned_user_ids == expected_user_ids, (
+            f"User IDs mismatch. Expected: {expected_user_ids}, got: {returned_user_ids}"
+        )
+
+        # Invariant: No deleted users appear in list
+        for user in users_list:
+            assert user.id not in self.deleted_user_ids, f"Deleted user {user.id} should not appear in list"
+
+        # Invariant: Each user's data matches shadow state
+        for user in users_list:
+            user_id = user.id
+            if user_id in self.user_data:
+                shadow = self.user_data[user_id]
+                assert user.email == shadow["email"], f"Email mismatch in list for user {user_id}"
+                assert user.full_name == shadow["full_name"], f"Full name mismatch in list for user {user_id}"
+                assert user.role == shadow["role"], f"Role mismatch in list for user {user_id}"
+                assert user.is_active == shadow["is_active"], f"is_active mismatch in list for user {user_id}"
 
     @rule(target=organizations)
     def create_additional_organization(self) -> str:
@@ -530,9 +777,4 @@ class SystemAPIStateMachine(
 def test_system_api_state_machine(client: TestClient, super_admin_token: str) -> None:
     """Run the unified System API state machine test."""
     # Run state machine - each Hypothesis example creates its own org/admin in __init__
-    run_state_machine_as_test(lambda: SystemAPIStateMachine(client, super_admin_token))
-
-
-def test_system_api_state_machine(client: TestClient, super_admin_token: str) -> None:
-    """Run the unified System API state machine test."""
     run_state_machine_as_test(lambda: SystemAPIStateMachine(client, super_admin_token))

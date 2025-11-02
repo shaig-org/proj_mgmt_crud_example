@@ -8,7 +8,8 @@
       "Bash(python -m pytest tests/property_based/stateful/test_system_api.py -v --tb=short)",
       "Bash(find:*)",
       "Bash(ruff check:*)",
-      "Bash(python -m ruff check:*)"
+      "Bash(python -m ruff check:*)",
+      "Bash(/tmp/remaining_rules.txt)"
     ],
     "deny": [],
     "ask": [],
