@@ -9,7 +9,12 @@
       "Bash(find:*)",
       "Bash(ruff check:*)",
       "Bash(python -m ruff check:*)",
-      "Bash(/tmp/remaining_rules.txt)"
+      "Bash(/tmp/remaining_rules.txt)",
+      "Bash(tree:*)",
+      "Bash(python -m pip list:*)",
+      "Bash(python:*)",
+      "Bash(uv pip install:*)",
+      "Bash(uv sync:*)"
     ],
     "deny": [],
     "ask": [],
