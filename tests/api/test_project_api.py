@@ -180,6 +180,29 @@ class TestCreateProject:
 
         assert response.status_code == 422
 
+    def test_create_project_user_without_organization_fails(
+        self, client: TestClient, super_admin_token: str, test_repo: Repository
+    ) -> None:
+        """Test creating project when user has no organization fails."""
+        # Create a user without organization directly via repository
+        from project_management_crud_example.domain_models import UserCreateCommand, UserData, UserRole
+
+        user_data = UserData(username="orphan_user2", email="orphan2@test.com", full_name="Orphan User 2")
+        command = UserCreateCommand(user_data=user_data, password="password", organization_id=None, role=UserRole.ADMIN)
+        test_repo.users.create(command)
+
+        # Login as this user
+        login_response = client.post("/auth/login", json={"username": "orphan_user2", "password": "password"})
+        assert login_response.status_code == 200
+        token = login_response.json()["access_token"]
+
+        # Try to create project
+        project_data = {"name": "Test Project"}
+        response = client.post("/api/projects", json=project_data, headers=auth_headers(token))
+
+        assert response.status_code == 400
+        assert "user has no organization" in response.json()["detail"].lower()
+
 
 class TestGetProject:
     """Tests for GET /api/projects/{id} endpoint."""
@@ -368,6 +391,28 @@ class TestListProjects:
         response = client.get("/api/projects")
 
         assert response.status_code == 401
+
+    def test_list_projects_user_without_organization_returns_empty(
+        self, client: TestClient, super_admin_token: str, test_repo: Repository
+    ) -> None:
+        """Test listing projects when non-Super Admin user has no organization returns empty list."""
+        # Create a user without organization directly via repository
+        from project_management_crud_example.domain_models import UserCreateCommand, UserData, UserRole
+
+        user_data = UserData(username="orphan_user3", email="orphan3@test.com", full_name="Orphan User 3")
+        command = UserCreateCommand(user_data=user_data, password="password", organization_id=None, role=UserRole.ADMIN)
+        test_repo.users.create(command)
+
+        # Login as this user
+        login_response = client.post("/auth/login", json={"username": "orphan_user3", "password": "password"})
+        assert login_response.status_code == 200
+        token = login_response.json()["access_token"]
+
+        # Try to list projects
+        response = client.get("/api/projects", headers=auth_headers(token))
+
+        assert response.status_code == 200
+        assert response.json() == []  # Empty list for user without organization
 
 
 class TestFilterProjects:

@@ -1,0 +1,1351 @@
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+.card {
+  padding: 2em;
+}
+
+.status {
+  margin-top: 2em;
+  padding: 1em;
+  border-radius: 8px;
+  background-color: #333;
+}
+
+.status.connected {
+  background-color: #1a4d1a;
+  color: #90ee90;
+}
+
+.status.disconnected {
+  background-color: #4d1a1a;
+  color: #ff9090;
+}
+
+.status.loading {
+  background-color: #4d4d1a;
+  color: #ffff90;
+}
+
+/* Login Page Styles */
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.login-container {
+  width: 100%;
+  max-width: 400px;
+  padding: 2rem;
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.login-container h1 {
+  font-size: 1.8em;
+  margin-bottom: 0.5rem;
+}
+
+.login-container h2 {
+  font-size: 1.4em;
+  margin-bottom: 1.5rem;
+  color: #888;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.form-group label {
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.form-group input {
+  padding: 0.75rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background-color: #2a2a2a;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.form-group input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-form button {
+  padding: 0.75rem;
+  margin-top: 1rem;
+  background-color: #646cff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.login-form button:hover:not(:disabled) {
+  background-color: #535bf2;
+}
+
+.login-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  padding: 0.75rem;
+  background-color: #4d1a1a;
+  color: #ff9090;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+/* Projects Page Styles */
+.projects-page {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.page-header h1 {
+  font-size: 2.5em;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.primary-button {
+  padding: 0.5rem 1rem;
+  background-color: #646cff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-weight: 500;
+}
+
+.primary-button:hover:not(:disabled) {
+  background-color: #535bf2;
+}
+
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondary-button {
+  padding: 0.5rem 1rem;
+  background-color: #444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.secondary-button:hover:not(:disabled) {
+  background-color: #555;
+}
+
+.secondary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.logout-button {
+  padding: 0.5rem 1rem;
+  background-color: #444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.logout-button:hover {
+  background-color: #555;
+}
+
+.loading {
+  padding: 2rem;
+  text-align: center;
+  color: #888;
+}
+
+.projects-list {
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.projects-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.projects-table th,
+.projects-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #333;
+}
+
+.projects-table th {
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+.projects-table tbody tr:hover {
+  background-color: #222;
+}
+
+.projects-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-active {
+  background-color: #1a4d1a;
+  color: #90ee90;
+}
+
+.status-completed {
+  background-color: #1a3d4d;
+  color: #90c9ee;
+}
+
+.status-on_hold {
+  background-color: #4d4d1a;
+  color: #ffff90;
+}
+
+.status-cancelled {
+  background-color: #4d1a1a;
+  color: #ff9090;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5em;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #888;
+  cursor: pointer;
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.close-button:hover {
+  background-color: #333;
+  color: #fff;
+}
+
+.project-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.project-form textarea {
+  padding: 0.75rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background-color: #2a2a2a;
+  color: #fff;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+}
+
+.project-form textarea:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.project-form textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+/* Users Page Styles */
+.users-page {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.users-list {
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table th,
+.users-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #333;
+}
+
+.users-table th {
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+.users-table tbody tr:hover {
+  background-color: #222;
+}
+
+.users-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.role-super_admin {
+  background-color: #4d1a4d;
+  color: #ee90ee;
+}
+
+.role-admin {
+  background-color: #1a4d4d;
+  color: #90eeee;
+}
+
+.role-project_manager {
+  background-color: #1a3d4d;
+  color: #90c9ee;
+}
+
+.role-write_access {
+  background-color: #4d4d1a;
+  color: #ffff90;
+}
+
+.role-read_access {
+  background-color: #4d3d1a;
+  color: #eec990;
+}
+
+.status-inactive {
+  background-color: #4d1a1a;
+  color: #ff9090;
+}
+
+.user-form select {
+  padding: 0.75rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background-color: #2a2a2a;
+  color: #fff;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.user-form select:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.user-form select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Success Modal Styles */
+.success-modal {
+  max-width: 600px;
+}
+
+.success-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.password-display {
+  padding: 1rem;
+  background-color: #2a2a2a;
+  border-radius: 4px;
+  border: 2px solid #646cff;
+}
+
+.password-display h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1em;
+}
+
+.password-box {
+  padding: 1rem;
+  background-color: #1a1a1a;
+  border-radius: 4px;
+  margin: 0.5rem 0;
+}
+
+.password-box code {
+  font-size: 1.2em;
+  color: #90ee90;
+  font-family: monospace;
+}
+
+.password-warning {
+  margin: 0.5rem 0 0 0;
+  color: #ff9090;
+  font-size: 0.9em;
+}
+
+.user-details h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1em;
+}
+
+.user-details dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 1rem;
+}
+
+.user-details dt {
+  font-weight: 600;
+  color: #888;
+}
+
+.user-details dd {
+  margin: 0;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+
+  .status {
+    background-color: #f0f0f0;
+  }
+
+  .status.connected {
+    background-color: #d4f4dd;
+    color: #1a4d1a;
+  }
+
+  .status.disconnected {
+    background-color: #f4d4d4;
+    color: #4d1a1a;
+  }
+
+  .status.loading {
+    background-color: #f4f4d4;
+    color: #4d4d1a;
+  }
+
+  .login-container {
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+  }
+
+  .login-container h2 {
+    color: #666;
+  }
+
+  .form-group input {
+    background-color: #fff;
+    border-color: #ccc;
+    color: #213547;
+  }
+
+  .error-message {
+    background-color: #f4d4d4;
+    color: #4d1a1a;
+  }
+
+  .projects-list {
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+  }
+
+  .projects-table th,
+  .projects-table td {
+    border-bottom-color: #e0e0e0;
+  }
+
+  .projects-table th {
+    color: #666;
+  }
+
+  .projects-table tbody tr:hover {
+    background-color: #f0f0f0;
+  }
+
+  .logout-button {
+    background-color: #e0e0e0;
+    color: #213547;
+  }
+
+  .logout-button:hover {
+    background-color: #d0d0d0;
+  }
+
+  .status-active {
+    background-color: #d4f4dd;
+    color: #1a4d1a;
+  }
+
+  .status-completed {
+    background-color: #d4e4f4;
+    color: #1a3d4d;
+  }
+
+  .status-on_hold {
+    background-color: #f4f4d4;
+    color: #4d4d1a;
+  }
+
+  .status-cancelled {
+    background-color: #f4d4d4;
+    color: #4d1a1a;
+  }
+
+  .modal-content {
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+  }
+
+  .close-button {
+    color: #666;
+  }
+
+  .close-button:hover {
+    background-color: #f0f0f0;
+    color: #213547;
+  }
+
+  .project-form textarea {
+    background-color: #fff;
+    border-color: #ccc;
+    color: #213547;
+  }
+
+  .primary-button {
+    background-color: #646cff;
+  }
+
+  .primary-button:hover:not(:disabled) {
+    background-color: #535bf2;
+  }
+
+  .secondary-button {
+    background-color: #e0e0e0;
+    color: #213547;
+  }
+
+  .secondary-button:hover:not(:disabled) {
+    background-color: #d0d0d0;
+  }
+
+  .users-list {
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+  }
+
+  .users-table th,
+  .users-table td {
+    border-bottom-color: #e0e0e0;
+  }
+
+  .users-table th {
+    color: #666;
+  }
+
+  .users-table tbody tr:hover {
+    background-color: #f0f0f0;
+  }
+
+  .user-form select {
+    background-color: #fff;
+    border-color: #ccc;
+    color: #213547;
+  }
+
+  .password-display {
+    background-color: #f0f0f0;
+    border-color: #646cff;
+  }
+
+  .password-box {
+    background-color: #fff;
+  }
+
+  .password-box code {
+    color: #1a4d1a;
+  }
+
+  .user-details dt {
+    color: #666;
+  }
+}
+
+/* Navigation Styles */
+.main-navigation {
+  background-color: #1a1a1a;
+  border-bottom: 1px solid #333;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  min-height: 64px;
+}
+
+.nav-brand h1 {
+  font-size: 1.5rem;
+  margin: 0;
+  color: #646cff;
+  font-weight: 600;
+}
+
+.nav-links {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.nav-link {
+  padding: 0.75rem 1.25rem;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.nav-link:hover {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link.active {
+  color: #fff;
+  background-color: #646cff;
+}
+
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-info {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.875rem;
+}
+
+.nav-user .logout-button {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+@media (prefers-color-scheme: light) {
+  .main-navigation {
+    background-color: #fff;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .nav-brand h1 {
+    color: #646cff;
+  }
+
+  .nav-link {
+    color: rgba(33, 53, 71, 0.7);
+  }
+
+  .nav-link:hover {
+    color: #213547;
+    background-color: rgba(33, 53, 71, 0.05);
+  }
+
+  .nav-link.active {
+    color: #fff;
+    background-color: #646cff;
+  }
+
+  .user-info {
+    color: rgba(33, 53, 71, 0.6);
+  }
+}
+
+/* Project Link in Table */
+.project-link {
+  color: #646cff;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.project-link:hover {
+  color: #535bf2;
+  text-decoration: underline;
+}
+
+/* Project Details Page */
+.project-details-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.header-with-back {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.back-link {
+  color: #646cff;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+  display: inline-block;
+  margin-bottom: 0.5rem;
+}
+
+.back-link:hover {
+  color: #535bf2;
+  text-decoration: underline;
+}
+
+.project-details-content {
+  display: grid;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.details-section {
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.details-section h2 {
+  font-size: 1.25rem;
+  margin: 0 0 1rem 0;
+  color: #fff;
+  border-bottom: 1px solid #333;
+  padding-bottom: 0.5rem;
+}
+
+.details-list {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 1rem;
+  margin: 0;
+}
+
+.details-list dt {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.details-list dd {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.placeholder-text {
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  margin: 0;
+}
+
+@media (prefers-color-scheme: light) {
+  .project-details-page .back-link {
+    color: #646cff;
+  }
+
+  .project-details-page .back-link:hover {
+    color: #535bf2;
+  }
+
+  .details-section {
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+  }
+
+  .details-section h2 {
+    color: #213547;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .details-list dt {
+    color: #666;
+  }
+
+  .details-list dd {
+    color: #213547;
+  }
+
+  .placeholder-text {
+    color: #999;
+  }
+}
+
+/* Epic Management Styles */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.section-header h2 {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.epics-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.epics-table thead {
+  background-color: rgba(100, 108, 255, 0.1);
+}
+
+.epics-table th {
+  text-align: left;
+  padding: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.epics-table td {
+  padding: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.epics-table tbody tr:hover {
+  background-color: rgba(100, 108, 255, 0.05);
+}
+
+.epic-name {
+  font-weight: 500;
+  color: #90c9ee;
+}
+
+.epic-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Epic Progress Tracking Styles */
+.epic-link {
+  color: #1976d2;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.epic-link:hover {
+  text-decoration: underline;
+}
+
+.epic-progress-cell {
+  min-width: 250px;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.progress-text {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.progress-percentage {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-bar.progress-low {
+  background-color: #ff6b6b;
+}
+
+.progress-bar.progress-medium {
+  background-color: #ffd43b;
+}
+
+.progress-bar.progress-high {
+  background-color: #51cf66;
+}
+
+@media (prefers-color-scheme: light) {
+  .epics-table thead {
+    background-color: #f5f5f5;
+  }
+
+  .epics-table th {
+    color: #213547;
+  }
+
+  .epics-table td {
+    border-top: 1px solid #e0e0e0;
+  }
+
+  .epics-table tbody tr:hover {
+    background-color: #f9f9f9;
+  }
+
+  .epic-name {
+    color: #646cff;
+  }
+}
+
+/* Ticket Management Styles */
+.tickets-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.tickets-table thead {
+  background-color: rgba(100, 108, 255, 0.1);
+}
+
+.tickets-table th {
+  text-align: left;
+  padding: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.tickets-table td {
+  padding: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tickets-table tbody tr:hover {
+  background-color: rgba(100, 108, 255, 0.05);
+}
+
+.ticket-link {
+  color: #90c9ee;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.ticket-link:hover {
+  color: #646cff;
+}
+
+.ticket-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.ticket-form select {
+  padding: 0.75rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background-color: #2a2a2a;
+  color: #fff;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.ticket-form select:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.ticket-form select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.priority-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.priority-low {
+  background-color: #2a4d2a;
+  color: #90ee90;
+}
+
+.priority-medium {
+  background-color: #4d4d1a;
+  color: #ffff90;
+}
+
+.priority-high {
+  background-color: #4d3d1a;
+  color: #ffb090;
+}
+
+.priority-critical {
+  background-color: #4d1a1a;
+  color: #ff9090;
+}
+
+@media (prefers-color-scheme: light) {
+  .tickets-table thead {
+    background-color: #f5f5f5;
+  }
+
+  .tickets-table th {
+    color: #213547;
+  }
+
+  .tickets-table td {
+    border-top: 1px solid #e0e0e0;
+  }
+
+  .tickets-table tbody tr:hover {
+    background-color: #f9f9f9;
+  }
+
+  .ticket-link {
+    color: #646cff;
+  }
+
+  .ticket-link:hover {
+    color: #535bf2;
+  }
+
+  .ticket-form select {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    color: #213547;
+  }
+
+  .priority-low {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+  }
+
+  .priority-medium {
+    background-color: #fff9c4;
+    color: #f57f17;
+  }
+
+  .priority-high {
+    background-color: #ffe0b2;
+    color: #e65100;
+  }
+
+  .priority-critical {
+    background-color: #ffcdd2;
+    color: #c62828;
+  }
+}
+
+/* Ticket Details Page Styles */
+.ticket-details-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.ticket-details-page .page-header {
+  margin-bottom: 2rem;
+}
+
+.ticket-details-page .header-with-back {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ticket-details-page .back-link {
+  color: #90c9ee;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+
+.ticket-details-page .back-link:hover {
+  color: #646cff;
+}
+
+.ticket-details-page h1 {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.ticket-details-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.ticket-details-page .status-select,
+.ticket-details-page .assignee-select {
+  padding: 0.5rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background-color: #2a2a2a;
+  color: #fff;
+  font-size: 0.9rem;
+  min-width: 200px;
+}
+
+.ticket-details-page .status-select:focus,
+.ticket-details-page .assignee-select:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.ticket-details-page .status-select:disabled,
+.ticket-details-page .assignee-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (prefers-color-scheme: light) {
+  .ticket-details-page .back-link {
+    color: #646cff;
+  }
+
+  .ticket-details-page .back-link:hover {
+    color: #535bf2;
+  }
+
+  .ticket-details-page h1 {
+    color: #213547;
+  }
+
+  .ticket-details-page .status-select,
+  .ticket-details-page .assignee-select {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    color: #213547;
+  }
+}
+
+/* Ticket Filters Styles */
+.ticket-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: rgba(100, 108, 255, 0.05);
+  border-radius: 4px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.filter-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.filter-group select {
+  padding: 0.5rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background-color: #2a2a2a;
+  color: #fff;
+  font-size: 0.875rem;
+  min-width: 150px;
+}
+
+.filter-group select:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+@media (prefers-color-scheme: light) {
+  .ticket-filters {
+    background-color: #f5f5f5;
+  }
+
+  .filter-group label {
+    color: #666;
+  }
+
+  .filter-group select {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    color: #213547;
+  }
+}

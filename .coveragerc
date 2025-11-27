@@ -1,0 +1,15 @@
+[run]
+source = project_management_crud_example
+omit =
+    */bootstrap.py
+    */bootstrap_data.py
+    */tests/*
+    */__pycache__/*
+
+[report]
+precision = 2
+show_missing = True
+skip_covered = False
+
+[html]
+directory = htmlcov

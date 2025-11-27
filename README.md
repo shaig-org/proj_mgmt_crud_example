@@ -41,9 +41,14 @@ EOF
 
 ### Running the Application
 
-Start the development server:
+**Basic Development Server**:
 ```bash
 uv run uvicorn project_management_crud_example.app:app --reload
+```
+
+**With Rich Demo Data** (for manual testing and exploration):
+```bash
+BOOTSTRAP_DEMO_DATA=true uv run uvicorn project_management_crud_example.app:app --reload
 ```
 
 The API will be available at `http://localhost:8000`
@@ -51,6 +56,8 @@ The API will be available at `http://localhost:8000`
 **Interactive API Documentation**:
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
+
+> 💡 **Tip**: See [DEMO_SETUP.md](./DEMO_SETUP.md) for comprehensive instructions on running with demo data for manual testing and Playwright MCP exploration.
 
 ## Bootstrap & Initial Setup
 
@@ -81,6 +88,41 @@ This will:
 - Create database tables if they don't exist
 - Create Super Admin if none exists
 - Display the Super Admin credentials
+
+### Rich Demo Data Bootstrap
+
+For **manual testing, Playwright MCP exploration, or demonstrations**, you can bootstrap the application with rich demo data including multiple organizations, users, projects, epics, and tickets.
+
+**Option 1: Auto-bootstrap on app startup (Recommended)**:
+```bash
+BOOTSTRAP_DEMO_DATA=true uv run uvicorn project_management_crud_example.app:app --reload --port 8000
+```
+
+**Option 2: Run bootstrap script manually**:
+```bash
+# Clear existing database (optional)
+rm -f project_management_crud_example.db
+
+# Run bootstrap script
+uv run python -m project_management_crud_example.bootstrap_rich_data
+
+# Then start the server normally
+uv run uvicorn project_management_crud_example.app:app --reload --port 8000
+```
+
+**Demo Data Includes**:
+- 3 Organizations (Acme Corporation, TechStart Inc, Global Systems)
+- 12 Users (4 per organization: PM, 2 developers, QA) - all with password `demo`
+- 6 Projects (2 per organization)
+- Multiple Epics per project
+- Tickets with realistic data, assignments, and comments
+
+**Demo User Credentials** (all passwords are `demo`):
+- `acme-pm`, `acme-dev1`, `acme-dev2`, `acme-qa`
+- `tech-pm`, `tech-dev1`, `tech-dev2`, `tech-qa`
+- `global-pm`, `global-dev1`, `global-dev2`, `global-qa`
+
+See [DEMO_SETUP.md](./DEMO_SETUP.md) for detailed setup instructions and login credentials.
 
 ### Customizing Bootstrap Configuration
 
@@ -164,11 +206,11 @@ Run all validations (lint, format, type check, tests):
 
 ### Database
 
-The application uses SQLite by default with the database file `stub_entities.db` in the project root.
+The application uses SQLite by default with the database file `project_management_crud_example.db` in the project root.
 
 To reset the database:
 ```bash
-rm stub_entities.db
+rm project_management_crud_example.db
 # Restart the app - it will recreate tables and bootstrap Super Admin
 ```
 

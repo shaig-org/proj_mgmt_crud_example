@@ -42,5 +42,12 @@ node_modules/
 # Hypothesis cache directory
 .hypothesis/
 
-# python
-.coverage*
+# Playwright-mcp
+.playwright-mcp
+# Coverage reports
+htmlcov/
+.coverage
+.coverage-*
+.coverage.*
+coverage.xml
+*.cover

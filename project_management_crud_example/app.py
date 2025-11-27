@@ -5,6 +5,7 @@ CORS middleware, dependency injection, and core endpoints.
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
@@ -19,6 +20,7 @@ from project_management_crud_example.routers import (
     activity_log_api,
     auth_api,
     comment_api,
+    e2e_api,
     epic_api,
     health,
     organization_api,
@@ -65,6 +67,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     else:
         logger.info("All organizations have default workflows")
 
+    # Bootstrap rich demo data if BOOTSTRAP_DEMO_DATA environment variable is set
+    if os.getenv("BOOTSTRAP_DEMO_DATA") == "true":
+        logger.info("BOOTSTRAP_DEMO_DATA=true detected - creating rich demo data...")
+        from project_management_crud_example.bootstrap_rich_data import bootstrap_rich_data
+
+        try:
+            bootstrap_rich_data()
+            logger.info("Rich demo data bootstrapped successfully")
+        except Exception as e:
+            logger.error(f"Failed to bootstrap demo data: {e}")
+            # Don't crash the app, just log the error
+
     yield
     # Cleanup resources on shutdown if needed
     pass
@@ -100,6 +114,7 @@ app.include_router(ticket_api.router)
 app.include_router(comment_api.router)
 app.include_router(activity_log_api.router)
 app.include_router(stub_entity_api.router)
+app.include_router(e2e_api.router)  # E2E testing utilities (only available when E2E_TESTING=true)
 app.include_router(health.router)
 
 
@@ -158,7 +173,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 
 
 @app.exception_handler(Exception)
-async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:  # pragma: no cover
     """Handle unexpected exceptions with generic error response."""
     logger.error(f"Unexpected error on {request.method} {request.url}: {type(exc).__name__}: {exc}")
     return JSONResponse(

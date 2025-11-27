@@ -4,6 +4,7 @@ This module provides shared dependency functions that can be used across
 the application and routers without creating circular imports.
 """
 
+import os
 from typing import Iterator, Optional
 
 from fastapi import Depends, Header
@@ -27,11 +28,33 @@ from project_management_crud_example.utils.jwt import decode_access_token
 _db_instance: Database | None = None
 
 
-def get_database(db_path: str = "stub_entities.db") -> Database:
-    """Get or create the database instance."""
+def _get_db_path() -> str:
+    """Get the appropriate database path based on environment.
+
+    Returns:
+        Database file path based on testing environment:
+        - E2E_TESTING=true -> project_management_crud_example_e2e.db
+        - TESTING=true -> stub_entities_test.db (for unit tests)
+        - Otherwise -> project_management_crud_example.db (development)
+    """
+    if os.getenv("E2E_TESTING") == "true":
+        return "project_management_crud_example_e2e.db"
+    elif os.getenv("TESTING") == "true":
+        return "stub_entities_test.db"
+    return "project_management_crud_example.db"
+
+
+def get_database(db_path: str | None = None) -> Database:
+    """Get or create the database instance.
+
+    Args:
+        db_path: Optional override for database path. If not provided,
+                uses environment-based detection.
+    """
     global _db_instance
     if _db_instance is None:
-        _db_instance = Database(db_path)
+        actual_path = db_path if db_path is not None else _get_db_path()
+        _db_instance = Database(actual_path)
     return _db_instance
 
 

@@ -81,6 +81,29 @@ class TestCreateEpic:
 
         assert response.status_code == 422
 
+    def test_create_epic_user_without_organization_fails(
+        self, client: TestClient, super_admin_token: str, test_repo: Repository
+    ) -> None:
+        """Test creating epic when user has no organization fails."""
+        # Create a user without organization directly via repository (bypassing API validation)
+        from project_management_crud_example.domain_models import UserCreateCommand, UserData, UserRole
+
+        user_data = UserData(username="orphan_user", email="orphan@test.com", full_name="Orphan User")
+        command = UserCreateCommand(user_data=user_data, password="password", organization_id=None, role=UserRole.ADMIN)
+        test_repo.users.create(command)
+
+        # Login as this user
+        login_response = client.post("/auth/login", json={"username": "orphan_user", "password": "password"})
+        assert login_response.status_code == 200
+        token = login_response.json()["access_token"]
+
+        # Try to create epic
+        epic_data = {"name": "Test Epic"}
+        response = client.post("/api/epics", json=epic_data, headers=auth_headers(token))
+
+        assert response.status_code == 400
+        assert "User has no organization" in response.json()["detail"]
+
 
 class TestGetEpic:
     """Tests for GET /api/epics/{id} endpoint."""
@@ -227,6 +250,32 @@ class TestUpdateEpic:
         response = client.put("/api/epics/nonexistent", json={"name": "New"}, headers=auth_headers(token))
 
         assert response.status_code == 404
+
+    def test_update_epic_from_different_org_fails(self, client: TestClient, super_admin_token: str) -> None:
+        """Test non-Super Admin cannot update epic from different organization."""
+        # Create two organizations
+        org1_id = create_test_org(client, super_admin_token, "Org 1")
+        org2_id = create_test_org(client, super_admin_token, "Org 2")
+
+        # Create admin users for each org
+        admin1_id, admin1_pass = create_admin_user(client, super_admin_token, org1_id, username="admin1")
+        admin2_id, admin2_pass = create_admin_user(client, super_admin_token, org2_id, username="admin2")
+
+        # Login as both admins
+        login1 = client.post("/auth/login", json={"username": "admin1", "password": admin1_pass})
+        token1 = login1.json()["access_token"]
+
+        login2 = client.post("/auth/login", json={"username": "admin2", "password": admin2_pass})
+        token2 = login2.json()["access_token"]
+
+        # Create epic in org1
+        epic_id = create_test_epic(client, token1, "Org1 Epic")
+
+        # Try to update org1 epic from org2 admin
+        response = client.put(f"/api/epics/{epic_id}", json={"name": "Hacked"}, headers=auth_headers(token2))
+
+        assert response.status_code == 403
+        assert "different organization" in response.json()["detail"]
 
 
 class TestDeleteEpic:
@@ -479,6 +528,70 @@ class TestAddTicketToEpic:
         assert response.status_code == 403
         assert "different organization" in response.json()["detail"]
 
+    def test_add_ticket_to_epic_project_not_found(
+        self, client: TestClient, org_admin_token: tuple[str, str], test_repo: Repository
+    ) -> None:
+        """Test adding ticket to epic when ticket's project is missing (data integrity issue)."""
+        token, org_id = org_admin_token
+
+        # Create epic, project, and ticket
+        epic_id = create_test_epic(client, token, "Epic")
+        project_id = create_test_project(client, token, "Project")
+        ticket_response = client.post(
+            "/api/tickets",
+            json={"title": "Ticket", "description": "Test"},
+            params={"project_id": project_id},
+            headers=auth_headers(token),
+        )
+        ticket_id = ticket_response.json()["id"]
+
+        # Delete project directly via repository (simulating data integrity issue)
+        test_repo.projects.delete(project_id)
+
+        # Try to add ticket to epic - should fail because project is gone
+        response = client.post(
+            f"/api/epics/{epic_id}/tickets", params={"ticket_id": ticket_id}, headers=auth_headers(token)
+        )
+
+        assert response.status_code == 500
+        assert "project not found" in response.json()["detail"].lower()
+
+    def test_add_ticket_to_epic_from_different_org_user_fails(self, client: TestClient, super_admin_token: str) -> None:
+        """Test user from different organization cannot add ticket to epic."""
+        # Create two organizations
+        org1_id = create_test_org(client, super_admin_token, "Org 1")
+        org2_id = create_test_org(client, super_admin_token, "Org 2")
+
+        # Create admin users for each org
+        admin1_id, admin1_pass = create_admin_user(client, super_admin_token, org1_id, username="admin1")
+        admin2_id, admin2_pass = create_admin_user(client, super_admin_token, org2_id, username="admin2")
+
+        # Login as both admins
+        login1 = client.post("/auth/login", json={"username": "admin1", "password": admin1_pass})
+        token1 = login1.json()["access_token"]
+
+        login2 = client.post("/auth/login", json={"username": "admin2", "password": admin2_pass})
+        token2 = login2.json()["access_token"]
+
+        # Create epic and project and ticket in org1
+        epic_id = create_test_epic(client, token1, "Org1 Epic")
+        project_id = create_test_project(client, token1, "Org1 Project")
+        ticket_response = client.post(
+            "/api/tickets",
+            json={"title": "Org1 Ticket", "description": "Test"},
+            params={"project_id": project_id},
+            headers=auth_headers(token1),
+        )
+        ticket_id = ticket_response.json()["id"]
+
+        # Try to add org1 ticket to org1 epic from org2 user (user from different org)
+        response = client.post(
+            f"/api/epics/{epic_id}/tickets", params={"ticket_id": ticket_id}, headers=auth_headers(token2)
+        )
+
+        assert response.status_code == 403
+        assert "different organization" in response.json()["detail"]
+
 
 class TestRemoveTicketFromEpic:
     """Tests for DELETE /api/epics/{epic_id}/tickets/{ticket_id} endpoint."""
@@ -594,6 +707,110 @@ class TestRemoveTicketFromEpic:
         # Verify ticket still exists
         ticket_get = client.get(f"/api/tickets/{ticket_id}", headers=auth_headers(token))
         assert ticket_get.status_code == 200
+
+    def test_remove_ticket_from_epic_project_not_found(
+        self, client: TestClient, org_admin_token: tuple[str, str], test_repo: Repository
+    ) -> None:
+        """Test removing ticket from epic when ticket's project is missing (data integrity issue)."""
+        token, org_id = org_admin_token
+
+        # Create epic, project, and ticket
+        epic_id = create_test_epic(client, token, "Epic")
+        project_id = create_test_project(client, token, "Project")
+        ticket_response = client.post(
+            "/api/tickets",
+            json={"title": "Ticket", "description": "Test"},
+            params={"project_id": project_id},
+            headers=auth_headers(token),
+        )
+        ticket_id = ticket_response.json()["id"]
+
+        # Add ticket to epic
+        client.post(f"/api/epics/{epic_id}/tickets", params={"ticket_id": ticket_id}, headers=auth_headers(token))
+
+        # Delete project directly via repository (simulating data integrity issue)
+        test_repo.projects.delete(project_id)
+
+        # Try to remove ticket from epic - should fail because project is gone
+        response = client.delete(f"/api/epics/{epic_id}/tickets/{ticket_id}", headers=auth_headers(token))
+
+        assert response.status_code == 500
+        assert "project not found" in response.json()["detail"].lower()
+
+    def test_remove_ticket_from_epic_from_different_org_user_fails(
+        self, client: TestClient, super_admin_token: str
+    ) -> None:
+        """Test user from different organization cannot remove ticket from epic."""
+        # Create two organizations
+        org1_id = create_test_org(client, super_admin_token, "Org 1")
+        org2_id = create_test_org(client, super_admin_token, "Org 2")
+
+        # Create admin users for each org
+        admin1_id, admin1_pass = create_admin_user(client, super_admin_token, org1_id, username="admin1")
+        admin2_id, admin2_pass = create_admin_user(client, super_admin_token, org2_id, username="admin2")
+
+        # Login as both admins
+        login1 = client.post("/auth/login", json={"username": "admin1", "password": admin1_pass})
+        token1 = login1.json()["access_token"]
+
+        login2 = client.post("/auth/login", json={"username": "admin2", "password": admin2_pass})
+        token2 = login2.json()["access_token"]
+
+        # Create epic, project, and ticket in org1
+        epic_id = create_test_epic(client, token1, "Org1 Epic")
+        project_id = create_test_project(client, token1, "Org1 Project")
+        ticket_response = client.post(
+            "/api/tickets",
+            json={"title": "Org1 Ticket", "description": "Test"},
+            params={"project_id": project_id},
+            headers=auth_headers(token1),
+        )
+        ticket_id = ticket_response.json()["id"]
+
+        # Add ticket to epic in org1
+        client.post(f"/api/epics/{epic_id}/tickets", params={"ticket_id": ticket_id}, headers=auth_headers(token1))
+
+        # Try to remove org1 ticket from org1 epic as org2 user
+        response = client.delete(f"/api/epics/{epic_id}/tickets/{ticket_id}", headers=auth_headers(token2))
+
+        assert response.status_code == 403
+        assert "different organization" in response.json()["detail"]
+
+    def test_remove_cross_organization_ticket_from_epic(self, client: TestClient, super_admin_token: str) -> None:
+        """Test cannot remove ticket from different organization from epic."""
+        # Create two organizations
+        org1_id = create_test_org(client, super_admin_token, "Org 1")
+        org2_id = create_test_org(client, super_admin_token, "Org 2")
+
+        # Create admin users for each org
+        admin1_id, admin1_pass = create_admin_user(client, super_admin_token, org1_id, username="admin1")
+        admin2_id, admin2_pass = create_admin_user(client, super_admin_token, org2_id, username="admin2")
+
+        # Login as both admins
+        login1 = client.post("/auth/login", json={"username": "admin1", "password": admin1_pass})
+        token1 = login1.json()["access_token"]
+
+        login2 = client.post("/auth/login", json={"username": "admin2", "password": admin2_pass})
+        token2 = login2.json()["access_token"]
+
+        # Create epic in org1
+        epic_id = create_test_epic(client, token1, "Org1 Epic")
+
+        # Create project and ticket in org2
+        project_id = create_test_project(client, token2, "Org2 Project")
+        ticket_response = client.post(
+            "/api/tickets",
+            json={"title": "Org2 Ticket", "description": "Test"},
+            params={"project_id": project_id},
+            headers=auth_headers(token2),
+        )
+        ticket_id = ticket_response.json()["id"]
+
+        # Try to remove org2 ticket from org1 epic (even though not added, should still check org)
+        response = client.delete(f"/api/epics/{epic_id}/tickets/{ticket_id}", headers=auth_headers(token1))
+
+        assert response.status_code == 403
+        assert "different organization" in response.json()["detail"]
 
 
 class TestGetEpicTickets:

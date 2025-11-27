@@ -12,7 +12,7 @@ from project_management_crud_example.domain_models import ActionType
 from tests.conftest import client, test_repo  # noqa: F401
 from tests.fixtures.auth_fixtures import super_admin_token  # noqa: F401
 from tests.fixtures.data_fixtures import organization, second_organization  # noqa: F401
-from tests.helpers import auth_headers, create_write_user
+from tests.helpers import auth_headers, create_admin_user, create_write_user
 
 # Local fixtures for ticket tests - create multiple users in the SAME organization
 # Note: These fixtures are prefixed with 'shared_org_' to avoid shadowing global fixtures
@@ -22,8 +22,6 @@ from tests.helpers import auth_headers, create_write_user
 @pytest.fixture
 def shared_org_admin_token(client: TestClient, organization: str, super_admin_token: str) -> tuple[str, str]:
     """Create Admin user in shared organization and return token and org_id."""
-    from tests.helpers import create_admin_user
-
     _, password = create_admin_user(client, super_admin_token, organization)
     response = client.post("/auth/login", json={"username": "admin", "password": password})
     return response.json()["access_token"], organization
@@ -496,6 +494,36 @@ class TestListTickets:
         assert len(data) == 1
         assert data[0]["title"] == "Org2 Ticket"
 
+    def test_list_tickets_filtered_by_project_not_in_org_returns_empty(
+        self, client: TestClient, shared_org_admin_token: tuple[str, str], super_admin_token: str
+    ) -> None:
+        """Test filtering tickets by project not in user's org returns empty list."""
+        token, org_id = shared_org_admin_token
+        headers = auth_headers(token)
+
+        # Create another organization and project
+        org2_response = client.post(
+            "/api/organizations", json={"name": "Org 2"}, headers=auth_headers(super_admin_token)
+        )
+        org2_id = org2_response.json()["id"]
+
+        _, org2_password = create_admin_user(client, super_admin_token, org2_id, username="org2admin")
+        org2_token = client.post("/auth/login", json={"username": "org2admin", "password": org2_password}).json()[
+            "access_token"
+        ]
+
+        # Create project in org2
+        project2_response = client.post(
+            "/api/projects", json={"name": "Org2 Project"}, headers=auth_headers(org2_token)
+        )
+        project2_id = project2_response.json()["id"]
+
+        # Try to filter org1 user's tickets by org2 project
+        response = client.get(f"/api/tickets?project_id={project2_id}", headers=headers)
+
+        assert response.status_code == 200
+        assert response.json() == []  # Empty list because project not in user's org
+
 
 class TestUpdateTicket:
     """Test PUT /api/tickets/{id} endpoint."""
@@ -652,6 +680,30 @@ class TestUpdateTicketStatus:
         response = client.put(f"/api/tickets/{ticket_id}/status", json={"status": "INVALID"}, headers=headers)
 
         assert response.status_code == 422
+
+    def test_update_status_as_read_user_fails(
+        self, client: TestClient, shared_org_admin_token: tuple[str, str], shared_org_read_token: tuple[str, str]
+    ) -> None:
+        """Test that Read user cannot change ticket status."""
+        admin_token, org_id = shared_org_admin_token
+        read_token, _ = shared_org_read_token
+        admin_headers = auth_headers(admin_token)
+        read_headers = auth_headers(read_token)
+
+        # Create project and ticket as admin
+        project_response = client.post("/api/projects", json={"name": "Project"}, headers=admin_headers)
+        project_id = project_response.json()["id"]
+
+        create_response = client.post(
+            f"/api/tickets?project_id={project_id}", json={"title": "Test"}, headers=admin_headers
+        )
+        ticket_id = create_response.json()["id"]
+
+        # Try to change status as read user
+        response = client.put(f"/api/tickets/{ticket_id}/status", json={"status": "IN_PROGRESS"}, headers=read_headers)
+
+        assert response.status_code == 403
+        assert "Insufficient permissions" in response.json()["detail"]
 
 
 class TestMoveTicketToProject:
@@ -875,6 +927,44 @@ class TestAssignTicket:
 
         assert response.status_code == 400
         assert "inactive" in response.json()["detail"].lower()
+
+    def test_assign_to_cross_organization_user_fails(self, client: TestClient, super_admin_token: str) -> None:
+        """Test non-Super Admin cannot assign to user in different organization."""
+        # Create two organizations
+        org1_response = client.post(
+            "/api/organizations", json={"name": "Org 1"}, headers=auth_headers(super_admin_token)
+        )
+        org1_id = org1_response.json()["id"]
+
+        org2_response = client.post(
+            "/api/organizations", json={"name": "Org 2"}, headers=auth_headers(super_admin_token)
+        )
+        org2_id = org2_response.json()["id"]
+
+        # Create admin in org1
+        admin1_id, admin1_pass = create_admin_user(client, super_admin_token, org1_id, username="admin1")
+        login1 = client.post("/auth/login", json={"username": "admin1", "password": admin1_pass})
+        token1 = login1.json()["access_token"]
+
+        # Create user in org2
+        user2_id, _ = create_write_user(client, super_admin_token, org2_id, username="user2")
+
+        # Create project and ticket in org1
+        project_response = client.post("/api/projects", json={"name": "Project"}, headers=auth_headers(token1))
+        project_id = project_response.json()["id"]
+
+        create_response = client.post(
+            f"/api/tickets?project_id={project_id}", json={"title": "Test"}, headers=auth_headers(token1)
+        )
+        ticket_id = create_response.json()["id"]
+
+        # Try to assign org1 ticket to org2 user
+        response = client.put(
+            f"/api/tickets/{ticket_id}/assignee", json={"assignee_id": user2_id}, headers=auth_headers(token1)
+        )
+
+        assert response.status_code == 403
+        assert "different organization" in response.json()["detail"]
 
 
 class TestDeleteTicket:
