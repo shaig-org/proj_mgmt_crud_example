@@ -18,6 +18,10 @@ Usage:
         return APITestSDK(client).with_auth(admin_token)
 """
 
+from __future__ import annotations
+
+import builtins
+
 from fastapi.testclient import TestClient
 
 from project_management_crud_example.domain_models import (
@@ -340,7 +344,7 @@ class UserOperations:
 
         return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
 
-    def list(self, organization_id: str | None = None) -> APIResult[list[User]]:
+    def list(self, organization_id: str | None = None) -> APIResult[builtins.list[User]]:
         """List all users, optionally filtered by organization.
 
         Args:
@@ -662,7 +666,7 @@ class TicketOperations:
 
         return APIResult(status_code=response.status_code, raw_response=response, data=data, error=error)
 
-    def list(self, project_id: str | None = None) -> APIResult[list[Ticket]]:
+    def list(self, project_id: str | None = None) -> APIResult[builtins.list[Ticket]]:
         """List all tickets, optionally filtered by project.
 
         Args:

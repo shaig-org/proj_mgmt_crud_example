@@ -5,9 +5,16 @@ operations to verify the API rejects them correctly with appropriate error codes
 and messages.
 """
 
+from typing import TYPE_CHECKING
+
 from hypothesis.stateful import rule
 
 from .bundles import Bundles
+
+if TYPE_CHECKING:
+    from tests.sdk.test_sdk import APITestSDK
+
+    from .state_tracker import StateTracker
 
 
 class ValidationRulesMixin:
@@ -22,6 +29,10 @@ class ValidationRulesMixin:
 
     Bundle references use Bundles.tickets, Bundles.users from bundles.py.
     """
+
+    # Type hints for mixin - these are provided by the parent class
+    sdk: "APITestSDK"
+    state: "StateTracker"
 
     @rule(ticket_id=Bundles.tickets, assignee_id=Bundles.users)
     def attempt_assign_to_inactive_user(self, ticket_id: str, assignee_id: str) -> None:
@@ -73,6 +84,7 @@ class ValidationRulesMixin:
         result.assert_status(404)
 
         # Invariant: Error message should mention user not found
+        assert result.error is not None, "Error message should be present for 404 response"
         assert "not found" in result.error.lower() or "user" in result.error.lower(), (
             f"Error message should mention user not found, got: {result.error}"
         )

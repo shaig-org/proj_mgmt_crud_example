@@ -4,12 +4,19 @@ This mixin provides all property-based test rules for user repository operations
 Each rule tests a specific repository method and verifies invariants are maintained.
 """
 
+from typing import TYPE_CHECKING
+
 from hypothesis import strategies as st
 from hypothesis.stateful import rule
 
 from project_management_crud_example.domain_models import UserCreateCommand, UserData, UserRole
 
 from .bundles import Bundles
+
+if TYPE_CHECKING:
+    from project_management_crud_example.dal.sqlite.repository import Repository
+
+    from .state_tracker import StateTracker
 
 
 class UserRulesMixin:
@@ -21,6 +28,10 @@ class UserRulesMixin:
 
     Bundle references use Bundles.users from bundles.py.
     """
+
+    # Type hints for mixin - these are provided by the parent class
+    repo: "Repository"
+    state: "StateTracker"
 
     @rule(target=Bundles.users)
     def create_user(self) -> str:
@@ -117,6 +128,7 @@ class UserRulesMixin:
 
         update_command = UserUpdateCommand(full_name=new_full_name)
         updated_user = self.repo.users.update(user_id, update_command)
+        assert updated_user is not None, f"Update should succeed for existing user {user_id}"
 
         # Invariant: Updated field changed
         assert updated_user.full_name == new_full_name, "Full name should be updated"
@@ -185,7 +197,7 @@ class UserRulesMixin:
         if user_id not in self.state.user_data:
             return
 
-        username = self.state.user_data[user_id]["username"]
+        username = str(self.state.user_data[user_id]["username"])
 
         # Retrieve by username
         user = self.repo.users.get_by_username(username)

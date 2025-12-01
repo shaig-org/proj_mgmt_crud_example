@@ -4,9 +4,16 @@ This mixin provides all property-based test rules for organization-related API o
 Each rule tests a specific API operation and verifies invariants are maintained.
 """
 
+from typing import TYPE_CHECKING
+
 from hypothesis.stateful import rule
 
 from .bundles import Bundles
+
+if TYPE_CHECKING:
+    from tests.sdk.test_sdk import APITestSDK
+
+    from .state_tracker import StateTracker
 
 
 class OrganizationRulesMixin:
@@ -18,6 +25,10 @@ class OrganizationRulesMixin:
 
     Bundle references use Bundles.organizations, Bundles.users from bundles.py.
     """
+
+    # Type hints for mixin - these are provided by the parent class
+    sdk: "APITestSDK"
+    state: "StateTracker"
 
     @rule(target=Bundles.organizations)
     def create_additional_organization(self) -> str:

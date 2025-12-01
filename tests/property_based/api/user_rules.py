@@ -4,10 +4,17 @@ This mixin provides all property-based test rules for user-related API operation
 Each rule tests a specific API operation and verifies invariants are maintained.
 """
 
+from typing import TYPE_CHECKING
+
 from hypothesis import strategies as st
 from hypothesis.stateful import rule
 
 from .bundles import Bundles
+
+if TYPE_CHECKING:
+    from tests.sdk.test_sdk import APITestSDK
+
+    from .state_tracker import StateTracker
 
 
 class UserRulesMixin:
@@ -19,6 +26,10 @@ class UserRulesMixin:
 
     Bundle references use Bundles.users, Bundles.organizations, etc. from bundles.py.
     """
+
+    # Type hints for mixin - these are provided by the parent class
+    sdk: "APITestSDK"
+    state: "StateTracker"
 
     @rule(target=Bundles.users)
     def create_user_via_api(self) -> str:
@@ -68,6 +79,7 @@ class UserRulesMixin:
             # Invariant: Should succeed
             assert result.ok, f"Non-deleted user should return 200, got {result.status_code}"
             user_obj = result.data
+            assert user_obj is not None, "User data should not be None for successful request"
             assert user_obj.id == user_id
 
             # Invariant: Retrieved data matches shadow state
@@ -104,7 +116,7 @@ class UserRulesMixin:
         self.state.delete_user(user_id)
 
         # Remove email from organization's email set
-        if user_email and user_org_id:
+        if user_email and user_org_id and isinstance(user_email, str):
             self.state.untrack_user_email(user_org_id, user_email)
 
         # Invariant: Deleted user should return 404

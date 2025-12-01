@@ -4,9 +4,16 @@ This mixin provides all property-based test rules for project-related API operat
 Each rule tests a specific API operation and verifies invariants are maintained.
 """
 
+from typing import TYPE_CHECKING
+
 from hypothesis.stateful import rule
 
 from .bundles import Bundles
+
+if TYPE_CHECKING:
+    from tests.sdk.test_sdk import APITestSDK
+
+    from .state_tracker import StateTracker
 
 
 class ProjectRulesMixin:
@@ -19,6 +26,11 @@ class ProjectRulesMixin:
 
     Bundle references use Bundles.projects from bundles.py.
     """
+
+    # Type hints for mixin - these are provided by the parent class
+    sdk: "APITestSDK"
+    admin_sdk: "APITestSDK"
+    state: "StateTracker"
 
     @rule(target=Bundles.projects)
     def create_project_via_api(self) -> str:
@@ -38,7 +50,7 @@ class ProjectRulesMixin:
         workflow_id = project.workflow_id
         if workflow_id:
             workflow_result = self.sdk.workflows.get(workflow_id)
-            if workflow_result.ok:
+            if workflow_result.ok and workflow_result.data is not None:
                 workflow = workflow_result.data
                 self.state.project_statuses[project_id] = workflow.statuses
             else:

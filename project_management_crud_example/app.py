@@ -96,7 +96,7 @@ app = FastAPI(
 
 # Configure CORS for local development
 app.add_middleware(
-    CORSMiddleware,
+    CORSMiddleware,  # type: ignore[arg-type]  # FastAPI middleware typing issue
     allow_origins=["*"],  # For development only, restrict in production
     allow_credentials=True,
     allow_methods=["*"],

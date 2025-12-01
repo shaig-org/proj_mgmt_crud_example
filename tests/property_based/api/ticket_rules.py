@@ -4,12 +4,19 @@ This mixin provides all property-based test rules for ticket-related API operati
 Each rule tests a specific API operation and verifies invariants are maintained.
 """
 
+from typing import TYPE_CHECKING
+
 from hypothesis import strategies as st
 from hypothesis.stateful import rule
 
 from project_management_crud_example.domain_models import TicketPriority
 
 from .bundles import Bundles
+
+if TYPE_CHECKING:
+    from tests.sdk.test_sdk import APITestSDK
+
+    from .state_tracker import StateTracker
 
 
 class TicketRulesMixin:
@@ -22,6 +29,11 @@ class TicketRulesMixin:
 
     Bundle references use Bundles.tickets, Bundles.projects, Bundles.users from bundles.py.
     """
+
+    # Type hints for mixin - these are provided by the parent class
+    sdk: "APITestSDK"
+    admin_sdk: "APITestSDK"
+    state: "StateTracker"
 
     @rule(target=Bundles.tickets, project_id=Bundles.projects, reporter_id=Bundles.users)
     def create_ticket_via_api(self, project_id: str, reporter_id: str) -> str:
@@ -70,6 +82,7 @@ class TicketRulesMixin:
             assert result.ok, f"Non-deleted ticket should return 200, got {result.status_code}"
 
             ticket = result.data
+            assert ticket is not None, "Ticket data should not be None for successful request"
             assert ticket.id == ticket_id
 
             # Invariant: Retrieved data matches shadow state
@@ -77,6 +90,7 @@ class TicketRulesMixin:
                 shadow = self.state.ticket_data[ticket_id]
                 assert ticket.title == shadow["title"], f"Title mismatch for ticket {ticket_id}"
                 assert ticket.description == shadow["description"], f"Description mismatch for ticket {ticket_id}"
+                assert ticket.priority is not None, f"Priority should not be None for ticket {ticket_id}"
                 assert ticket.priority.value == shadow["priority"], f"Priority mismatch for ticket {ticket_id}"
                 assert ticket.status == shadow["status"], f"Status mismatch for ticket {ticket_id}"
                 assert ticket.project_id == shadow["project_id"], f"Project ID mismatch for ticket {ticket_id}"
@@ -130,6 +144,7 @@ class TicketRulesMixin:
         ticket = self.sdk.tickets.update(ticket_id, priority=new_priority).assert_ok()
 
         # Invariant: Updated field changed
+        assert ticket.priority is not None, "Priority should not be None after update"
         assert ticket.priority.value == new_priority, "Priority should be updated"
 
         # Update shadow state
