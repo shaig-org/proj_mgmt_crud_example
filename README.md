@@ -1,4 +1,4 @@
-# Project Management CRUD Example
+# 📋✨🚀 Project Management CRUD Example
 
 A FastAPI-based backend service demonstrating a complete CRUD application with authentication, multi-tenancy, and project management capabilities. Built with Python, SQLite, and modern development practices.
 
