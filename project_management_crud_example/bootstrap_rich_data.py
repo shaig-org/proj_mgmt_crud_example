@@ -42,7 +42,9 @@ def login_as_admin(client: TestClient) -> str:
     return response.json()["access_token"]
 
 
-def create_organization(client: TestClient, admin_token: str, name: str, description: str | None = None) -> dict[str, Any]:
+def create_organization(
+    client: TestClient, admin_token: str, name: str, description: str | None = None
+) -> dict[str, Any]:
     """Create an organization and return the response."""
     response = client.post(
         "/api/organizations",
@@ -354,7 +356,9 @@ def bootstrap_rich_data() -> None:
                 for t in range(num_tickets):
                     assignee = random.choice([dev1_user["id"], dev2_user["id"], qa_user["id"], None])
                     priority = random.choice(["LOW", "MEDIUM", "HIGH", "CRITICAL"])
-                    status = random.choice(["TODO", "TODO", "IN_PROGRESS", "IN_PROGRESS", "DONE"])  # Bias towards TODO/IN_PROGRESS
+                    status = random.choice(
+                        ["TODO", "TODO", "IN_PROGRESS", "IN_PROGRESS", "DONE"]
+                    )  # Bias towards TODO/IN_PROGRESS
 
                     ticket = create_ticket(
                         client,
@@ -374,7 +378,9 @@ def bootstrap_rich_data() -> None:
                     if random.random() > 0.5:  # 50% chance of comments
                         num_comments = random.randint(1, 3)
                         for c in range(num_comments):
-                            comment_user_token = random.choice([pm_token, login_as_user(client, dev1_user["username"], "demo")])
+                            comment_user_token = random.choice(
+                                [pm_token, login_as_user(client, dev1_user["username"], "demo")]
+                            )
                             add_comment(
                                 client,
                                 comment_user_token,
@@ -393,7 +399,7 @@ def bootstrap_rich_data() -> None:
     print("=" * 80)
     print()
     print("Super Admin (can manage everything):")
-    print(f"  Username: admin")
+    print("  Username: admin")
     print(f"  Password: {SUPER_ADMIN_PASSWORD}")
     print()
     print("─" * 80)
