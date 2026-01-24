@@ -3,7 +3,7 @@ name = "project-management-crud-example"
 version = "0.1.0"
 description = "project management crud example"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = "==3.13.*"
 dependencies = [
     "bcrypt>=5.0.0",
     "deepdiff>=8.6.1",
