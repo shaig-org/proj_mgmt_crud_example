@@ -1,7 +1,6 @@
 import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import apiClient, { Project, Epic, Ticket, TicketPriority, User } from '../services/api';
-import { Navigation } from '../components/Navigation';
 
 export function ProjectDetailsPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -220,33 +219,25 @@ export function ProjectDetailsPage() {
 
   if (isLoading) {
     return (
-      <>
-        <Navigation />
-        <div className="project-details-page">
-          <div className="loading">Loading project...</div>
-        </div>
-      </>
+      <div className="page-container">
+        <div className="loading">Loading project...</div>
+      </div>
     );
   }
 
   if (error || !project) {
     return (
-      <>
-        <Navigation />
-        <div className="project-details-page">
-          <div className="error-message">{error || 'Project not found'}</div>
-          <Link to="/projects" className="back-link">
-            ← Back to Projects
-          </Link>
-        </div>
-      </>
+      <div className="page-container">
+        <div className="error-message">{error || 'Project not found'}</div>
+        <Link to="/projects" className="back-link">
+          ← Back to Projects
+        </Link>
+      </div>
     );
   }
 
   return (
-    <>
-      <Navigation />
-      <div className="project-details-page">
+    <div className="page-container">
         <div className="page-header">
           <div className="header-with-back">
             <Link to="/projects" className="back-link">
@@ -656,7 +647,6 @@ export function ProjectDetailsPage() {
             </div>
           </div>
         )}
-      </div>
-    </>
+    </div>
   );
 }

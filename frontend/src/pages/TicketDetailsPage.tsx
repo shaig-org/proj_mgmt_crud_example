@@ -1,7 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import apiClient, { Ticket, User, Comment, Epic } from '../services/api';
-import { Navigation } from '../components/Navigation';
 
 export function TicketDetailsPage() {
   const { ticketId } = useParams<{ ticketId: string }>();
@@ -175,33 +174,25 @@ export function TicketDetailsPage() {
 
   if (isLoading) {
     return (
-      <>
-        <Navigation />
-        <div className="ticket-details-page">
-          <div className="loading">Loading ticket...</div>
-        </div>
-      </>
+      <div className="page-container">
+        <div className="loading">Loading ticket...</div>
+      </div>
     );
   }
 
   if (error || !ticket) {
     return (
-      <>
-        <Navigation />
-        <div className="ticket-details-page">
-          <div className="error-message">{error || 'Ticket not found'}</div>
-          <Link to={`/projects/${ticket?.project_id || ''}`} className="back-link">
-            ← Back to Project
-          </Link>
-        </div>
-      </>
+      <div className="page-container">
+        <div className="error-message">{error || 'Ticket not found'}</div>
+        <Link to={`/projects/${ticket?.project_id || ''}`} className="back-link">
+          ← Back to Project
+        </Link>
+      </div>
     );
   }
 
   return (
-    <>
-      <Navigation />
-      <div className="ticket-details-page">
+    <div className="page-container">
         <div className="page-header">
           <div className="header-with-back">
             <Link to={`/projects/${ticket.project_id}`} className="back-link">
@@ -587,7 +578,6 @@ export function TicketDetailsPage() {
             color: #666;
           }
         `}</style>
-      </div>
-    </>
+    </div>
   );
 }

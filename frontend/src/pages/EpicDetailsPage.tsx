@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import apiClient, { Epic, Ticket } from '../services/api';
-import { Navigation } from '../components/Navigation';
 
 export function EpicDetailsPage() {
   const { epicId } = useParams<{ epicId: string }>();
@@ -43,23 +42,17 @@ export function EpicDetailsPage() {
 
   if (isLoading) {
     return (
-      <>
-        <Navigation />
-        <div className="epic-details-page">
-          <div className="loading">Loading epic...</div>
-        </div>
-      </>
+      <div className="page-container">
+        <div className="loading">Loading epic...</div>
+      </div>
     );
   }
 
   if (error || !epic) {
     return (
-      <>
-        <Navigation />
-        <div className="epic-details-page">
-          <div className="error-message">{error || 'Epic not found'}</div>
-        </div>
-      </>
+      <div className="page-container">
+        <div className="error-message">{error || 'Epic not found'}</div>
+      </div>
     );
   }
 
@@ -100,9 +93,7 @@ export function EpicDetailsPage() {
   const progressColor = progressPercentage >= 70 ? 'high' : progressPercentage >= 30 ? 'medium' : 'low';
 
   return (
-    <>
-      <Navigation />
-      <div className="epic-details-page">
+    <div className="page-container">
         <div className="page-header">
           <div className="header-with-back">
             <Link to="/projects" className="back-link">
@@ -488,7 +479,6 @@ export function EpicDetailsPage() {
             margin: 1rem 0;
           }
         `}</style>
-      </div>
-    </>
+    </div>
   );
 }

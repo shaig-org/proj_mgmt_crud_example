@@ -1,7 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import apiClient, { Project } from '../services/api';
-import { Navigation } from '../components/Navigation';
 
 export function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -62,9 +61,7 @@ export function ProjectsPage() {
   };
 
   return (
-    <>
-      <Navigation />
-      <div className="projects-page">
+    <div className="page-container">
         <header className="page-header">
           <h1>Projects</h1>
           <div className="header-actions">
@@ -177,7 +174,6 @@ export function ProjectsPage() {
           </div>
         </div>
       )}
-      </div>
-    </>
+    </div>
   );
 }

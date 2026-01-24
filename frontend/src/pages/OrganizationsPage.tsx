@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import apiClient, { Organization } from '../services/api';
-import { Navigation } from '../components/Navigation';
 
 export function OrganizationsPage() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -54,9 +53,7 @@ export function OrganizationsPage() {
   };
 
   return (
-    <>
-      <Navigation />
-      <div className="organizations-page">
+    <div className="page-container">
         <header className="page-header">
           <h1>Organizations</h1>
           <button
@@ -214,7 +211,6 @@ export function OrganizationsPage() {
             color: #1976d2;
           }
         `}</style>
-      </div>
-    </>
+    </div>
   );
 }

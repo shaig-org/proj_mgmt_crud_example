@@ -1,6 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
 import apiClient, { User, Organization, UserCreateResponse } from '../services/api';
-import { Navigation } from '../components/Navigation';
 
 export function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -92,9 +91,7 @@ export function UsersPage() {
   };
 
   return (
-    <>
-      <Navigation />
-      <div className="users-page">
+    <div className="page-container">
         <header className="page-header">
           <h1>Users</h1>
           <div className="header-actions">
@@ -315,7 +312,6 @@ export function UsersPage() {
           </div>
         </div>
       )}
-      </div>
-    </>
+    </div>
   );
 }
