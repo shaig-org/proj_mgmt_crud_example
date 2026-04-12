@@ -52,7 +52,6 @@ exclude = [
   "dist",
   "node_modules",
   "site-packages",
-  "docs/pbt_explanations",  # Educational examples, not production code
 ]
 
 [tool.ruff.lint]

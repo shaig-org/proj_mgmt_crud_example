@@ -1,5 +1,7 @@
 # Test Coverage Guide
 
+> **Note**: All `uv run` commands in this guide must be run from the `backend/` directory.
+
 ## Quick Start
 
 ### Run Coverage
@@ -241,8 +243,8 @@ uv run pytest tests/dal/ \
 
 ### Coverage Shows 0%
 ```bash
-# Make sure you're running from project root
-cd /path/to/project_management_crud_example_3
+# Make sure you're running from the backend/ directory
+cd backend
 
 # Check .coveragerc is present
 cat .coveragerc
@@ -287,4 +289,4 @@ uv run pytest --cov=project_management_crud_example --cov-report=term-missing:sk
 ## Related Documentation
 - [Testing Guidelines](../spec/how_to_write_specs.md)
 - [Test Implementation Guide](../how_to_implement_tasks.md)
-- [Test Structure](../../tests/CLAUDE.md)
+- [Test Structure](../../backend/tests/CLAUDE.md)

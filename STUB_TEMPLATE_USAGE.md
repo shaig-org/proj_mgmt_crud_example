@@ -99,7 +99,7 @@ All template files use explicit "stub" naming:
 
 7. **Update tests** to match new field names and behavior
 
-8. **Run validations**: `./devtools/run_all_agent_validations.sh`
+8. **Run validations**: `cd backend && ./devtools/run_all_agent_validations.sh`
 
 ### Option 2: Keep Stub Template + Add New Entity
 
@@ -191,7 +191,7 @@ class ProjectRepository:
 # ... adapt from test_stub_entity_*.py
 
 # 7. Run validations
-./devtools/run_all_agent_validations.sh
+cd backend && ./devtools/run_all_agent_validations.sh
 ```
 
 ## Questions?

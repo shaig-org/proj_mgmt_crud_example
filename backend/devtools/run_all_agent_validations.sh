@@ -50,7 +50,7 @@ run_step "ruff-format-check" uv run ruff format --diff . || {
     exit 1
 }
 
-run_step "type-check" uv run ty check --exclude 'docs/pbt_explanations/**' || {
+run_step "type-check" uv run ty check || {
     echo "❌ Type checking failed:"
     cat "$TEMP_OUTPUT"
     exit 1

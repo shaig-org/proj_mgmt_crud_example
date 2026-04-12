@@ -36,7 +36,7 @@ Creating task_implementation_plan.md...
 ---
 
 ### ✅ Validating: [Task Name]
-Running ./devtools/run_all_agent_validations.sh...
+Running cd backend && ./devtools/run_all_agent_validations.sh...
 
 ---
 
@@ -210,7 +210,7 @@ Running ./devtools/run_all_agent_validations.sh...
 **Message**: `### VALIDATING: [Task Name]`
 
 **Actions**:
-1. Run `./devtools/run_all_agent_validations.sh`
+1. Run `cd backend && ./devtools/run_all_agent_validations.sh`
 2. Fix any failures (see validation feedback loop below)
 3. Repeat until ZERO errors/warnings
 

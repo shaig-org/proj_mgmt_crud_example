@@ -35,6 +35,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## Project Structure
+
+The repository has three top-level directories:
+- **`backend/`** - Python/FastAPI backend (run all Python commands from this directory)
+- **`frontend/`** - React/TypeScript frontend
+- **`docs/`** - Project-wide documentation (specs, tech specs, tasks, diagrams)
+
 ## Project Overview
 
 The project follows the specification in the `docs/spec/` directory, where the central spec is `docs/spec/main_spec.md`.
@@ -152,7 +159,7 @@ When ALL tasks are done:
 
 1. **Plan** - Read spec requirements. Design tests. Check if existing tests need updates.
 2. **Implement** - Write code and tests together covering ALL spec scenarios.
-3. **Validate** - Run `./devtools/run_all_agent_validations.sh` until zero errors/warnings.
+3. **Validate** - Run `cd backend && ./devtools/run_all_agent_validations.sh` until zero errors/warnings.
 
 🚨 **ZERO TOLERANCE** 🚨
 - ZERO test failures, linting errors, type errors, warnings
@@ -197,4 +204,4 @@ For example, a serialization and deserialization capability based on the model t
 - **Before committing** - All new behaviors have comprehensive tests
 
 ### Testing Guidelines
-See `tests/CLAUDE.md` and `docs/spec/how_to_write_specs.md`
+See `backend/tests/CLAUDE.md` and `docs/spec/how_to_write_specs.md`

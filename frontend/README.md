@@ -29,9 +29,10 @@ The frontend will start on port 3000 (or 3001 if 3000 is in use).
 
 ### Start Backend
 
-From the project root:
+From the backend directory:
 
 ```bash
+cd backend
 uv run uvicorn project_management_crud_example.app:app --reload --port 8000
 ```
 
