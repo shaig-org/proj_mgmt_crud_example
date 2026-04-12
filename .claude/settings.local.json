@@ -63,7 +63,8 @@
       "mcp__playwright__browser_network_requests",
       "Bash(xargs ps:*)",
       "Bash(python -m project_management_crud_example.bootstrap_rich_data:*)",
-      "Bash(time python:*)"
+      "Bash(time python:*)",
+      "Bash(chmod +x:*)"
     ],
     "deny": [],
     "ask": [],

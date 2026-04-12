@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(cd backend && uv run pytest*)",
+      "Bash(cd backend && uv run ruff*)",
+      "Bash(cd backend && ./devtools/*)",
+      "Bash(cd frontend && npm run lint*)",
+      "Bash(cd frontend && npm run typecheck*)",
+      "Bash(cd frontend && npm run e2e*)",
+      "Bash(cd frontend && npx playwright test*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/post-edit-validate.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
