@@ -5,10 +5,10 @@
 This is a **FastAPI-based project management CRUD application** with the following architecture:
 
 ### Layers:
-1. **API Layer** (`project_management_crud_example/routers/`) - FastAPI endpoints
-2. **Repository/DAL Layer** (`project_management_crud_example/dal/sqlite/`) - Database access
-3. **Domain Layer** (`project_management_crud_example/domain_models.py`) - Business logic & validation
-4. **ORM Layer** (`project_management_crud_example/dal/sqlite/orm_data_models.py`) - SQLAlchemy models
+1. **API Layer** (`backend/project_management_crud_example/routers/`) - FastAPI endpoints
+2. **Repository/DAL Layer** (`backend/project_management_crud_example/dal/sqlite/`) - Database access
+3. **Domain Layer** (`backend/project_management_crud_example/domain_models.py`) - Business logic & validation
+4. **ORM Layer** (`backend/project_management_crud_example/dal/sqlite/orm_data_models.py`) - SQLAlchemy models
 
 ---
 
@@ -65,7 +65,7 @@ This is a **FastAPI-based project management CRUD application** with the followi
 ## 2. All Repository Operations
 
 ### Repository Structure
-Location: `/project_management_crud_example/dal/sqlite/repository.py`
+Location: `/backend/project_management_crud_example/dal/sqlite/repository.py`
 
 **Pattern**: Single `Repository` class with nested classes for organization:
 - `repo.users.*`
@@ -175,7 +175,7 @@ delete(stub_entity_id: str) -> bool
 ## 3. All API Endpoints
 
 ### API Structure
-Location: `/project_management_crud_example/routers/`
+Location: `/backend/project_management_crud_example/routers/`
 
 **Pattern**: Each entity has its own router file with prefixes like `/api/users`, `/api/organizations`, etc.
 

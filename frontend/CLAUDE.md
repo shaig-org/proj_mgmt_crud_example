@@ -161,7 +161,8 @@ frontend/
 The backend must be running for the frontend to work:
 
 ```bash
-# From project root
+# From the backend directory
+cd backend
 uv run uvicorn project_management_crud_example.app:app --reload --port 8000
 ```
 

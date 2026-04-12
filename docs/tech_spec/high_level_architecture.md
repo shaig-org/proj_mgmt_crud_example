@@ -188,25 +188,27 @@ def orm_stub_entity_to_business_stub_entity(
 ## Directory Structure
 
 ```
-project_management_crud_example/
-├── app.py                    # FastAPI application setup
-├── domain_models.py          # Domain entities & commands
-├── dependencies.py           # FastAPI dependencies
-├── dal/                      # Data Access Layer
-│   └── sqlite/
-│       ├── database.py       # Database connection management
-│       ├── orm_data_models.py # SQLAlchemy ORM models
-│       ├── repository.py     # Repository implementations
-│       └── converters.py     # ORM <-> Domain converters
-├── routers/                  # API route handlers
-│   ├── stub_entity_api.py   # Entity CRUD endpoints
-│   └── health.py            # Health check
-└── tests/
-    ├── conftest.py          # Test fixtures
-    ├── api/                 # API integration tests
-    │   └── test_stub_entity_api.py
-    └── dal/                 # Repository/DAL tests
-        └── test_stub_entity_repository.py
+backend/
+├── project_management_crud_example/
+│   ├── app.py                    # FastAPI application setup
+│   ├── domain_models.py          # Domain entities & commands
+│   ├── dependencies.py           # FastAPI dependencies
+│   ├── dal/                      # Data Access Layer
+│   │   └── sqlite/
+│   │       ├── database.py       # Database connection management
+│   │       ├── orm_data_models.py # SQLAlchemy ORM models
+│   │       ├── repository.py     # Repository implementations
+│   │       └── converters.py     # ORM <-> Domain converters
+│   └── routers/                  # API route handlers
+│       ├── stub_entity_api.py   # Entity CRUD endpoints
+│       └── health.py            # Health check
+├── tests/
+│   ├── conftest.py          # Test fixtures
+│   ├── api/                 # API integration tests
+│   │   └── test_stub_entity_api.py
+│   └── dal/                 # Repository/DAL tests
+│       └── test_stub_entity_repository.py
+└── devtools/                # Development validation scripts
 ```
 
 ## Configuration

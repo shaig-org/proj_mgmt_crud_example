@@ -39,12 +39,13 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: [
     {
-      command: 'cd .. && E2E_TESTING=true uv run uvicorn project_management_crud_example.app:app --port 18000',
+      command: 'cd ../backend && E2E_TESTING=true uv run uvicorn project_management_crud_example.app:app --port 18000',
       url: 'http://localhost:18000/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
       env: {
         E2E_TESTING: 'true',
+        JWT_SECRET_KEY: 'e2e-test-secret-key-for-playwright-testing-only',
       },
     },
     {

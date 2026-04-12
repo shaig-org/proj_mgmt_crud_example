@@ -28,26 +28,29 @@ cd project_management_crud_example
 
 2. Install dependencies:
 ```bash
+cd backend
 uv sync
 ```
 
 3. Set up environment variables:
 ```bash
-# Create .env file
-cat > .env <<EOF
+# Create .env file in backend/
+cat > backend/.env <<EOF
 JWT_SECRET_KEY=your-secret-key-here-change-in-production
 EOF
 ```
 
 ### Running the Application
 
-**Basic Development Server**:
+**Basic Development Server** (from `backend/` directory):
 ```bash
+cd backend
 uv run uvicorn project_management_crud_example.app:app --reload
 ```
 
 **With Rich Demo Data** (for manual testing and exploration):
 ```bash
+cd backend
 BOOTSTRAP_DEMO_DATA=true uv run uvicorn project_management_crud_example.app:app --reload
 ```
 
@@ -81,6 +84,7 @@ The application **automatically creates a Super Admin user** on first startup if
 You can also manually bootstrap the system using the CLI script:
 
 ```bash
+cd backend
 uv run python -m project_management_crud_example.bootstrap
 ```
 
@@ -95,11 +99,14 @@ For **manual testing, Playwright MCP exploration, or demonstrations**, you can b
 
 **Option 1: Auto-bootstrap on app startup (Recommended)**:
 ```bash
+cd backend
 BOOTSTRAP_DEMO_DATA=true uv run uvicorn project_management_crud_example.app:app --reload --port 8000
 ```
 
 **Option 2: Run bootstrap script manually**:
 ```bash
+cd backend
+
 # Clear existing database (optional)
 rm -f project_management_crud_example.db
 
@@ -182,18 +189,21 @@ curl http://localhost:8000/api/stub_entities \
 
 ### Running Tests
 
-Run all tests:
+Run all tests (from `backend/` directory):
 ```bash
+cd backend
 uv run pytest
 ```
 
 Run with coverage:
 ```bash
+cd backend
 uv run pytest --cov=project_management_crud_example --cov-report=html
 ```
 
 Run specific test file:
 ```bash
+cd backend
 uv run pytest tests/api/test_auth_api.py
 ```
 
@@ -201,16 +211,16 @@ uv run pytest tests/api/test_auth_api.py
 
 Run all validations (lint, format, type check, tests):
 ```bash
-./devtools/run_all_agent_validations.sh
+cd backend && ./devtools/run_all_agent_validations.sh
 ```
 
 ### Database
 
-The application uses SQLite by default with the database file `project_management_crud_example.db` in the project root.
+The application uses SQLite by default with the database file `project_management_crud_example.db` in the `backend/` directory.
 
 To reset the database:
 ```bash
-rm project_management_crud_example.db
+rm backend/project_management_crud_example.db
 # Restart the app - it will recreate tables and bootstrap Super Admin
 ```
 
@@ -242,30 +252,33 @@ The application implements five permission levels:
 
 ```
 project_management_crud_example/
-├── project_management_crud_example/
-│   ├── app.py                  # FastAPI application
-│   ├── domain_models.py        # Domain models and commands
-│   ├── bootstrap_data.py       # Bootstrap utilities
-│   ├── bootstrap.py            # Bootstrap CLI script
-│   ├── config.py              # Configuration and settings
-│   ├── dependencies.py        # Dependency injection
-│   ├── exceptions.py          # Custom exceptions
-│   ├── dal/                   # Data Access Layer
-│   │   └── sqlite/
-│   │       ├── database.py
-│   │       ├── orm_data_models.py
-│   │       ├── repository.py
-│   │       └── converters.py
-│   ├── routers/              # API endpoints
-│   │   ├── auth_api.py
-│   │   ├── health.py
-│   │   └── stub_entity_api.py
-│   └── utils/                # Utilities
-│       ├── jwt_handler.py
-│       └── password.py
-├── tests/                    # Comprehensive test suite
-├── docs/                     # Specifications and documentation
-└── devtools/                # Development tools
+├── backend/                      # Python/FastAPI backend
+│   ├── project_management_crud_example/
+│   │   ├── app.py                  # FastAPI application
+│   │   ├── domain_models.py        # Domain models and commands
+│   │   ├── bootstrap_data.py       # Bootstrap utilities
+│   │   ├── bootstrap.py            # Bootstrap CLI script
+│   │   ├── config.py              # Configuration and settings
+│   │   ├── dependencies.py        # Dependency injection
+│   │   ├── exceptions.py          # Custom exceptions
+│   │   ├── dal/                   # Data Access Layer
+│   │   │   └── sqlite/
+│   │   │       ├── database.py
+│   │   │       ├── orm_data_models.py
+│   │   │       ├── repository.py
+│   │   │       └── converters.py
+│   │   ├── routers/              # API endpoints
+│   │   │   ├── auth_api.py
+│   │   │   ├── health.py
+│   │   │   └── stub_entity_api.py
+│   │   └── utils/                # Utilities
+│   │       ├── jwt_handler.py
+│   │       └── password.py
+│   ├── tests/                    # Comprehensive test suite
+│   └── devtools/                # Development tools
+├── frontend/                     # React/TypeScript frontend
+├── docs/                         # Specifications and documentation
+└── CLAUDE.md                    # Agent instructions
 ```
 
 ## API Endpoints

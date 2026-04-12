@@ -437,7 +437,9 @@ def bootstrap_rich_data() -> None:
     print("🎉 Ready for manual testing and Playwright MCP exploration!")
     print()
     print("Quick Start:")
-    print("  1. Start backend: python -m uvicorn project_management_crud_example.app:app --reload --port 8000")
+    print(
+        "  1. Start backend: cd backend && python -m uvicorn project_management_crud_example.app:app --reload --port 8000"
+    )
     print("  2. Start frontend: cd frontend && npm run dev")
     print("  3. Navigate to http://localhost:3000")
     print("  4. Login with any user above (all passwords are 'demo')")

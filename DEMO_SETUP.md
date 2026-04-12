@@ -10,6 +10,7 @@ Start the backend with the `BOOTSTRAP_DEMO_DATA` environment variable set:
 
 ```bash
 # Terminal 1: Start backend with bootstrap flag
+cd backend
 BOOTSTRAP_DEMO_DATA=true python -m uvicorn project_management_crud_example.app:app --reload --port 8000
 
 # Terminal 2: Start frontend
@@ -26,6 +27,8 @@ The backend will automatically create demo data on first startup.
 If you prefer to bootstrap data manually before starting the server:
 
 ```bash
+cd backend
+
 # Clear existing database (optional)
 rm -f project_management_crud_example.db
 
@@ -33,7 +36,7 @@ rm -f project_management_crud_example.db
 python -m project_management_crud_example.bootstrap_rich_data
 
 # Then start the servers normally:
-# Terminal 1: Start backend
+# Terminal 1: Start backend (from backend/)
 python -m uvicorn project_management_crud_example.app:app --reload --port 8000
 
 # Terminal 2: Start frontend
@@ -116,6 +119,7 @@ To reset and regenerate demo data:
 
 ```bash
 # Stop the backend server (Ctrl+C)
+cd backend
 
 # Clear database
 rm -f project_management_crud_example.db
@@ -133,7 +137,7 @@ python -m uvicorn project_management_crud_example.app:app --reload --port 8000
 ### Database already exists error
 If you see "Organization with this name already exists", clear the database first:
 ```bash
-rm -f stub_entities.db project_management_crud_example.db
+rm -f backend/stub_entities.db backend/project_management_crud_example.db
 ```
 
 ### Login fails with "Invalid credentials"
