@@ -370,8 +370,9 @@ async def update_ticket(
     # Verify ticket exists and user has access
     ticket = _get_ticket_and_check_access(ticket_id, repo, current_user, "update ticket")
 
-    # Get project for organization_id
+    # Get project for organization_id (project must exist since ticket exists with valid project_id)
     project = repo.projects.get_by_id(ticket.project_id)
+    assert project is not None, f"Project {ticket.project_id} not found for ticket {ticket_id}"
 
     logger.info(f"Updating ticket: {ticket_id} (by user {current_user.id})")
 
@@ -444,8 +445,9 @@ async def update_ticket_status(
     # Verify ticket exists and user has access
     ticket = _get_ticket_and_check_access(ticket_id, repo, current_user, "change ticket status")
 
-    # Get project for organization_id
+    # Get project for organization_id (project must exist since ticket exists with valid project_id)
     project = repo.projects.get_by_id(ticket.project_id)
+    assert project is not None, f"Project {ticket.project_id} not found for ticket {ticket_id}"
 
     logger.info(f"Changing ticket status: {ticket_id} to {status_update.status} (by user {current_user.id})")
 
@@ -517,8 +519,9 @@ async def move_ticket_to_project(
     # Verify ticket exists and user has access to source project
     ticket = _get_ticket_and_check_access(ticket_id, repo, current_user, "move ticket")
 
-    # Get source project for organization_id
+    # Get source project for organization_id (project must exist since ticket exists with valid project_id)
     source_project = repo.projects.get_by_id(ticket.project_id)
+    assert source_project is not None, f"Source project {ticket.project_id} not found for ticket {ticket_id}"
 
     # Verify target project exists and user has access to it
     _get_project_and_check_access(project_update.project_id, repo, current_user, "move ticket to project")
@@ -598,8 +601,9 @@ async def update_ticket_assignee(
     # Verify ticket exists and user has access
     ticket = _get_ticket_and_check_access(ticket_id, repo, current_user, "assign ticket")
 
-    # Get project for organization_id
+    # Get project for organization_id (project must exist since ticket exists with valid project_id)
     project = repo.projects.get_by_id(ticket.project_id)
+    assert project is not None, f"Project {ticket.project_id} not found for ticket {ticket_id}"
 
     # If assigning (not unassigning), verify assignee exists and is valid
     if assignee_update.assignee_id:
@@ -683,8 +687,9 @@ async def delete_ticket(
     # Verify ticket exists and user has access - capture snapshot before deletion
     ticket = _get_ticket_and_check_access(ticket_id, repo, current_user, "delete ticket")
 
-    # Get project for organization_id
+    # Get project for organization_id (project must exist since ticket exists with valid project_id)
     project = repo.projects.get_by_id(ticket.project_id)
+    assert project is not None, f"Project {ticket.project_id} not found for ticket {ticket_id}"
 
     logger.info(f"Deleting ticket: {ticket_id} (by user {current_user.id})")
 

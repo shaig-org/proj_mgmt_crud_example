@@ -39,6 +39,9 @@ node_modules/
 # don't include the sqlite database
 *.db
 
+# Hypothesis cache directory
+.hypothesis/
+
 # Playwright-mcp
 .playwright-mcp
 # Coverage reports

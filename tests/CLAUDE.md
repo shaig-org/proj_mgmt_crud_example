@@ -563,6 +563,132 @@ A test should almost always test a single fact about the behavior of the code.
 - BAD: `test_task_03_stub_entity.py`
 - BAD: `test_api.py`
 
+## Property-Based Testing (PBT)
+
+### **When to Use Property-Based Tests**
+
+Property-based tests complement traditional example-based tests by testing **invariants that should hold for all inputs**, not just specific examples.
+
+**Location**: `tests/property_based/`
+
+**Use property-based tests for:**
+- ✅ Testing properties that should hold across all valid inputs
+- ✅ Finding edge cases and bugs that example-based tests miss
+- ✅ Stateful testing of complex workflows with many possible action sequences
+- ✅ Verifying invariants like count consistency, data integrity, uniqueness constraints
+
+**Property-based test types:**
+1. **Stateless PBT** (`tests/property_based/dal/`): Test individual operations with generated inputs
+2. **Stateful PBT** (`tests/property_based/stateful/`): Test sequences of operations maintain invariants
+
+### **CRITICAL: When PBT Discovers a Bug**
+
+**When a property-based test discovers a bug, you MUST create a hardcoded regression test.**
+
+#### **For Stateless Property-Based Tests**
+
+Use Hypothesis's `@example()` decorator to add the failing case as a hardcoded example:
+
+```python
+from hypothesis import given, example
+from hypothesis import strategies as st
+
+@given(username=usernames(), email=emails())
+@example(username="admin", email="duplicate@example.com")  # Bug found by PBT
+def test_user_create_with_duplicate_email_fails(test_repo: Repository, username: str, email: str) -> None:
+    """Test that duplicate emails are rejected.
+
+    Note: Bug originally discovered by property-based testing in test_user_create_roundtrip.
+    Added hardcoded example to ensure this specific case is always tested.
+    """
+    # ... test implementation
+```
+
+**Why use @example():**
+- Ensures the specific failing case is always tested (fast, deterministic)
+- Documents the bug that was found
+- Maintains the property-based test for finding future bugs
+- No need for separate test function
+
+#### **For Stateful Property-Based Tests**
+
+Create a separate hardcoded API/repository test that replicates the bug:
+
+```python
+def test_duplicate_email_within_organization_fails(self, client: TestClient, super_admin_token: str) -> None:
+    """Test that duplicate emails are rejected within same organization.
+
+    Regression test for bug discovered by property-based stateful testing.
+
+    Bug Discovery:
+    - Original test: tests/property_based/stateful/test_user_api.py::test_user_api_state_machine
+    - Rule: attempt_duplicate_email_update
+    - Issue: Email uniqueness constraint was missing from database schema
+    - Fix: Added composite unique constraint on (organization_id, email)
+
+    This test ensures the bug doesn't regress.
+    """
+    org_id = create_test_org(client, super_admin_token)
+
+    # Create first user
+    create_admin_user(client, super_admin_token, org_id, username="user1", email="test@example.com")
+
+    # Create second user
+    user2_id, _ = create_admin_user(client, super_admin_token, org_id, username="user2", email="user2@example.com")
+
+    # Attempt to update second user's email to duplicate first user's email
+    response = client.put(
+        f"/api/users/{user2_id}",
+        json={"email": "test@example.com"},
+        headers=auth_headers(super_admin_token)
+    )
+
+    # Should fail with 400
+    assert response.status_code == 400
+    assert "email" in response.json()["detail"].lower()
+```
+
+**Why create a separate test:**
+- Stateful tests are complex and slow - hard to pin down specific scenarios
+- Separate test is fast, deterministic, and clearly documents the bug
+- Test name and docstring explain what bug was found and how
+- Makes it easy to verify the fix and prevent regressions
+
+#### **Documentation Requirements**
+
+Every regression test MUST include in its docstring:
+1. **Where the bug was found**: Reference the PBT test file and rule/function
+2. **What the bug was**: Brief description of the incorrect behavior
+3. **How it was fixed**: Brief description of the fix (e.g., "Added unique constraint")
+4. **Purpose**: "This test ensures the bug doesn't regress"
+
+### **Property-Based Testing Workflow**
+
+1. **Run PBT regularly** during development (included in validation script)
+2. **When PBT finds a bug**:
+   - ✅ Investigate the root cause
+   - ✅ Fix the bug in the code
+   - ✅ Add regression test (using @example() or separate test)
+   - ✅ Document the bug discovery in the regression test
+   - ✅ Verify both PBT and regression test pass
+3. **Keep the original PBT test** - it may find other bugs in the future
+
+### **Example: Real Bug Found by PBT**
+
+**Bug**: Duplicate emails allowed within same organization
+
+**PBT Test**: `tests/property_based/stateful/test_user_api.py::test_user_api_state_machine`
+- Rule `attempt_duplicate_email_update` consistently failed
+- Expected: API returns 400 for duplicate email
+- Actual: API returns 200 (update succeeds)
+
+**Root Cause**: Missing database constraint on `(organization_id, email)`
+
+**Regression Test Created**: `tests/api/test_user_api.py::test_duplicate_email_within_organization_fails`
+- Hardcoded test with specific emails
+- Fast, deterministic, clearly documents the bug
+- Ensures the fix prevents regression
+
 ## PyTest Fixtures
 
 ### **Available Test Fixtures**
