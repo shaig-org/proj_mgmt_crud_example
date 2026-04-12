@@ -93,7 +93,7 @@ class TestCreateAccessToken:
         with pytest.raises(jwt.InvalidSignatureError):
             jwt.decode(
                 token,
-                "wrong-secret-key",
+                "wrong-secret-key-that-is-long-enough-for-hmac",
                 algorithms=[settings.JWT_ALGORITHM],
             )
 
@@ -186,7 +186,7 @@ class TestDecodeAccessToken:
 
         # Manually create token with wrong signature
         payload = jwt.decode(token, options={"verify_signature": False})
-        bad_token = jwt.encode(payload, "wrong-secret", algorithm=settings.JWT_ALGORITHM)
+        bad_token = jwt.encode(payload, "wrong-secret-that-is-long-enough-for-hmac", algorithm=settings.JWT_ALGORITHM)
 
         with pytest.raises(InvalidTokenError):
             decode_access_token(bad_token)
