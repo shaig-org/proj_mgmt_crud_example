@@ -67,7 +67,8 @@
       if (s.gifPath) {
         thumb = '<img class="thumb" src="' + escapeHtml(s.gifPath) + '" alt="" loading="lazy" />';
       } else if (s.steps && s.steps.length) {
-        thumb = '<img class="thumb" src="' + escapeHtml('screenshots/' + s.slug + '/' + String(s.steps.length).padStart(2, '0') + '-' + s.steps[s.steps.length - 1].slug + '.png') + '" alt="" loading="lazy" />';
+        var lastStep = s.steps[s.steps.length - 1];
+        thumb = '<img class="thumb" src="' + escapeHtml(lastStep.screenshot) + '" alt="" loading="lazy" />';
       } else {
         thumb = '<div class="thumb"></div>';
       }

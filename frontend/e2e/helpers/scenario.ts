@@ -218,6 +218,8 @@ interface PendingScenario {
 }
 
 // Keyed by testInfo.testId; populated during fixture setup, consumed in afterEach.
+// Module-level but safe under Playwright parallelism: each worker runs in its
+// own Node process, so this Map is per-worker (not shared across workers).
 const PENDING: Map<string, PendingScenario> = new Map();
 
 export const scenarioTest = base.extend<ScenarioFixtures>({

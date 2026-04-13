@@ -1,12 +1,10 @@
 /**
- * Scenario: given a project + epic (API pre-created), admin creates a
- * ticket via the project UI and transitions its status via the ticket
- * details page.
+ * Scenario: given a project (API pre-created), PM creates a ticket via the
+ * project UI and transitions its status via the ticket details page.
  *
  * Note: in this app, the "New Ticket" button lives on the project details
- * page (not the epic details page); tickets may optionally be linked to
- * an epic via the form. This scenario creates the ticket from the project
- * page, then opens its details and updates status.
+ * page; the current ticket form does not expose an epic selector, so this
+ * scenario does not create an epic.
  */
 
 import { expect } from '@playwright/test';
@@ -15,7 +13,6 @@ import {
   TEST_CONFIG,
   generateTestOrgName,
   generateTestProjectName,
-  generateTestEpicTitle,
   generateTestTicketTitle,
 } from '../utils/test-config';
 
@@ -24,8 +21,6 @@ interface SetupFixture {
   password: string;
   projectId: string;
   projectName: string;
-  epicId: string;
-  epicName: string;
 }
 
 let setup: SetupFixture;
@@ -69,20 +64,11 @@ scenarioTest.beforeAll(async ({ request }) => {
   );
   const project = (await projectRes.json()) as { id: string };
 
-  const epicName = generateTestEpicTitle('TicketEpic');
-  const epicRes = await request.post(`${TEST_CONFIG.API_BASE_URL}/api/epics`, {
-    headers: { Authorization: `Bearer ${pmToken}`, 'Content-Type': 'application/json' },
-    data: { name: epicName, description: 'Epic for ticket scenario' },
-  });
-  const epic = (await epicRes.json()) as { id: string };
-
   setup = {
     username: pmUsername,
     password,
     projectId: project.id,
     projectName,
-    epicId: epic.id,
-    epicName,
   };
 });
 

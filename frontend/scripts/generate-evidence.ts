@@ -106,17 +106,11 @@ async function probeVideoDurationSec(videoPath: string): Promise<number | null> 
 async function renderGif(videoAbsPath: string, gifAbsPath: string): Promise<boolean> {
   const duration = await probeVideoDurationSec(videoAbsPath);
   let speedFilter = '';
-  if (duration !== null) {
-    if (duration > 8) {
-      const mult = duration / 8;
-      speedFilter = `setpts=PTS/${mult.toFixed(4)},`;
-    } else if (duration < 5) {
-      // keep natural speed for short videos
-      speedFilter = '';
-    } else {
-      speedFilter = '';
-    }
+  if (duration !== null && duration > 8) {
+    const mult = duration / 8;
+    speedFilter = `setpts=PTS/${mult.toFixed(4)},`;
   }
+  // else: keep natural speed (short or mid-length videos)
   const vf = `${speedFilter}fps=10,scale=640:-1:flags=lanczos`;
   try {
     await execFileP('ffmpeg', [
@@ -141,15 +135,6 @@ async function renderGif(videoAbsPath: string, gifAbsPath: string): Promise<bool
 function inferFeature(specFile: string): string {
   const base = path.basename(specFile).replace(/\.scenario\.spec\.ts$/, '');
   return base.replace(/[-_]/g, ' ');
-}
-
-async function copyFileIfExists(src: string, dest: string): Promise<boolean> {
-  try {
-    await fs.copyFile(src, dest);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 async function copyDirContents(src: string, dest: string): Promise<void> {
@@ -195,25 +180,29 @@ async function main(): Promise<void> {
   }
 
   const manifest: ManifestEntry[] = [];
+  let gifsRendered = 0;
+  let gifsSkipped = 0;
   for (const meta of metadataEntries) {
     let gifRel: string | null = null;
     if (meta.videoPath) {
       const videoAbs = path.join(EVIDENCE_DIR, meta.videoPath);
       const gifAbs = path.join(GALLERY_GIFS_DIR, `${meta.slug}.gif`);
-      if (await copyFileIfExists(videoAbs, videoAbs)) {
-        // exists
-      }
       try {
         await fs.access(videoAbs);
         const ok = await renderGif(videoAbs, gifAbs);
         if (ok) {
           gifRel = path.posix.join('gifs', `${meta.slug}.gif`);
+          gifsRendered += 1;
+        } else {
+          gifsSkipped += 1;
         }
       } catch {
         console.warn(`[evidence] video missing for slug ${meta.slug}, skipping GIF`);
+        gifsSkipped += 1;
       }
     } else {
       console.warn(`[evidence] no video recorded for slug ${meta.slug}, skipping GIF`);
+      gifsSkipped += 1;
     }
 
     manifest.push({
@@ -231,6 +220,7 @@ async function main(): Promise<void> {
   );
 
   console.log(`[evidence] wrote manifest with ${manifest.length} scenario(s) to ${GALLERY_DIR}`);
+  console.log(`[evidence] ${gifsRendered} GIFs rendered, ${gifsSkipped} skipped`);
   console.log(`[evidence] open ${path.join(GALLERY_DIR, 'index.html')} or run \`npm run evidence:serve\``);
 }
 
