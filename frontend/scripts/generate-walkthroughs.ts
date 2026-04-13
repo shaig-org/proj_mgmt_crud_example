@@ -85,6 +85,62 @@ async function rmDir(dir: string): Promise<void> {
   await fs.rm(dir, { recursive: true, force: true });
 }
 
+/**
+ * Scenario slugs embed a per-run suffix: `<stable-prefix>-<epoch-ms>-w<workerIndex>`.
+ * We keep only the latest run per stable prefix so the dashboard shows one card
+ * per scenario (the most recent), not N cards accumulated across runs. Older
+ * metadata JSONs and their sibling screenshots/videos/traces are deleted so
+ * regeneration starts from a clean, per-scenario-latest state.
+ */
+const SLUG_RUN_SUFFIX = /-\d{10,}-w\d+$/;
+
+function stableScenarioKey(slug: string): string {
+  return slug.replace(SLUG_RUN_SUFFIX, '');
+}
+
+async function pruneStaleScenarioArtifacts(): Promise<void> {
+  let files: string[] = [];
+  try {
+    files = await fs.readdir(METADATA_DIR);
+  } catch {
+    return;
+  }
+  const jsons = files.filter((f) => f.endsWith('.json'));
+  // Parse minimal fields from each metadata to group by stable key and find latest.
+  interface MetaRef { file: string; slug: string; startedAt: string; key: string; }
+  const refs: MetaRef[] = [];
+  for (const f of jsons) {
+    try {
+      const raw = await fs.readFile(path.join(METADATA_DIR, f), 'utf8');
+      const parsed = JSON.parse(raw) as Partial<RawMetadata>;
+      if (typeof parsed.slug !== 'string' || typeof parsed.startedAt !== 'string') continue;
+      refs.push({ file: f, slug: parsed.slug, startedAt: parsed.startedAt, key: stableScenarioKey(parsed.slug) });
+    } catch {
+      // skip malformed; will be cleaned up by rmDir on subsequent steps if orphaned
+    }
+  }
+  const latestByKey: Map<string, MetaRef> = new Map();
+  for (const r of refs) {
+    const prev = latestByKey.get(r.key);
+    if (!prev || r.startedAt > prev.startedAt) latestByKey.set(r.key, r);
+  }
+  const keepSlugs = new Set<string>();
+  for (const r of latestByKey.values()) keepSlugs.add(r.slug);
+
+  let removedMeta = 0;
+  for (const r of refs) {
+    if (keepSlugs.has(r.slug)) continue;
+    await fs.rm(path.join(METADATA_DIR, r.file), { force: true });
+    await rmDir(path.join(SCREENSHOTS_DIR, r.slug));
+    await fs.rm(path.join(WALKTHROUGHS_DIR, 'videos', `${r.slug}.webm`), { force: true });
+    await fs.rm(path.join(WALKTHROUGHS_DIR, 'traces', `${r.slug}.zip`), { force: true });
+    removedMeta += 1;
+  }
+  if (removedMeta > 0) {
+    console.log(`[walkthroughs] pruned ${removedMeta} stale scenario run(s); kept ${latestByKey.size} latest.`);
+  }
+}
+
 async function readMetadataFiles(): Promise<RawMetadata[]> {
   let files: string[] = [];
   try {
@@ -103,6 +159,23 @@ async function readMetadataFiles(): Promise<RawMetadata[]> {
     }
   }
   return results;
+}
+
+async function probeImageSize(imagePath: string): Promise<{ width: number; height: number } | null> {
+  try {
+    const { stdout } = await execFileP('ffprobe', [
+      '-v', 'error',
+      '-select_streams', 'v:0',
+      '-show_entries', 'stream=width,height',
+      '-of', 'csv=p=0',
+      imagePath,
+    ]);
+    const [w, h] = stdout.trim().split(',').map((s) => parseInt(s, 10));
+    if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) return { width: w, height: h };
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 async function probeVideoDurationSec(videoPath: string): Promise<number | null> {
@@ -164,8 +237,21 @@ async function renderMotionGif(videoAbsPath: string, gifAbsPath: string, slug: s
 
 /**
  * Render a "flipbook" GIF from per-step screenshots — one frame per step,
- * holding each frame for ~1s (5 fps loop with frame duplication via -loop and
- * concat demuxer). This is the primary GIF: a step-by-step comprehension aid.
+ * holding each frame for FLIPBOOK_HOLD_SECONDS.
+ *
+ * Why we do NOT use the concat demuxer here: Playwright `fullPage: true`
+ * screenshots have variable heights (the page can grow between steps when
+ * new rows/modals appear). Feeding variable-size stills through the concat
+ * demuxer causes ffmpeg to reconfigure the filter graph mid-stream and the
+ * GIF encoder silently collapses the output into a tiny clip where every
+ * frame matches the FIRST input's geometry — producing a "constant frame"
+ * flipbook even though the source PNGs are all distinct.
+ *
+ * Instead: load each screenshot as its own looped image input, scale + pad
+ * every input to a shared (width, height) box computed from the max scaled
+ * height across inputs, then concat the normalized streams. All inputs now
+ * share identical SAR/PAR/resolution, so the GIF encoder produces one
+ * distinct frame per step as intended.
  */
 async function renderFlipbookGif(
   screenshotAbsPaths: string[],
@@ -173,25 +259,54 @@ async function renderFlipbookGif(
   slug: string,
 ): Promise<boolean> {
   if (screenshotAbsPaths.length === 0) return false;
-  // Use ffmpeg's concat demuxer with explicit per-frame durations (1s each).
-  // This is more reliable than relying on input -framerate alone for stills.
-  const concatLines: string[] = [];
+
+  // Probe every input so we can compute a common output box.
+  const sizes: Array<{ path: string; width: number; height: number }> = [];
   for (const p of screenshotAbsPaths) {
-    concatLines.push(`file '${p.replace(/'/g, "'\\''")}'`);
-    concatLines.push(`duration ${FLIPBOOK_HOLD_SECONDS.toFixed(3)}`);
+    const s = await probeImageSize(p);
+    if (!s) {
+      console.warn(`[walkthroughs] could not probe size of ${p}, skipping flipbook for ${slug}`);
+      return false;
+    }
+    sizes.push({ path: p, ...s });
   }
-  // Concat demuxer requires the last file to be repeated without a duration.
-  concatLines.push(`file '${screenshotAbsPaths[screenshotAbsPaths.length - 1].replace(/'/g, "'\\''")}'`);
-  const concatFile = gifAbsPath + '.concat.txt';
-  await fs.writeFile(concatFile, concatLines.join('\n'), 'utf8');
-  const vf = `fps=${FLIPBOOK_FPS},scale=${GIF_WIDTH}:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5`;
+
+  // Target width: GIF_WIDTH. For each input compute its scaled height (width=GIF_WIDTH,
+  // preserving aspect). Use the maximum scaled height (rounded to even) as the output
+  // canvas height; pad shorter frames with black bars top/bottom.
+  const scaledHeights = sizes.map((s) => Math.round((GIF_WIDTH * s.height) / s.width));
+  const rawMaxH = Math.max(...scaledHeights);
+  const outH = rawMaxH % 2 === 0 ? rawMaxH : rawMaxH + 1; // even for GIF/palette filters
+  const outW = GIF_WIDTH;
+
+  // Build a single ffmpeg invocation: one -loop 1 -t DUR -i FILE per screenshot,
+  // then a filter_complex that normalizes each to outW x outH and concats.
+  const inputArgs: string[] = [];
+  for (const s of sizes) {
+    inputArgs.push('-loop', '1', '-t', FLIPBOOK_HOLD_SECONDS.toFixed(3), '-i', s.path);
+  }
+
+  const normChains: string[] = [];
+  const concatLabels: string[] = [];
+  for (let i = 0; i < sizes.length; i++) {
+    const label = `v${i}`;
+    // scale to fit outW x outH preserving aspect, then pad to exactly outW x outH centered.
+    normChains.push(
+      `[${i}:v]scale=${outW}:${outH}:force_original_aspect_ratio=decrease:flags=lanczos,` +
+      `pad=${outW}:${outH}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=${FLIPBOOK_FPS},format=rgba[${label}]`,
+    );
+    concatLabels.push(`[${label}]`);
+  }
+  const concatFilter =
+    `${concatLabels.join('')}concat=n=${sizes.length}:v=1:a=0[cat];` +
+    `[cat]split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5`;
+  const fc = normChains.join(';') + ';' + concatFilter;
+
   try {
     await execFileP('ffmpeg', [
       '-y',
-      '-f', 'concat',
-      '-safe', '0',
-      '-i', concatFile,
-      '-filter_complex', vf,
+      ...inputArgs,
+      '-filter_complex', fc,
       '-loop', '0',
       gifAbsPath,
     ]);
@@ -199,7 +314,7 @@ async function renderFlipbookGif(
     console.log(
       `[walkthroughs] flipbook GIF ${slug}: ${FLIPBOOK_FPS} fps, ` +
       `${screenshotAbsPaths.length} steps × ${FLIPBOOK_HOLD_SECONDS}s, ` +
-      `gif=${renderedDuration ? renderedDuration.toFixed(2) : '?'}s`
+      `canvas=${outW}x${outH}, gif=${renderedDuration ? renderedDuration.toFixed(2) : '?'}s`
     );
     return true;
   } catch (err) {
@@ -207,8 +322,6 @@ async function renderFlipbookGif(
     handleFfmpegMissing(e);
     console.warn(`[walkthroughs] flipbook ffmpeg failed for ${slug}: ${e.stderr ?? e.message}`);
     return false;
-  } finally {
-    await fs.rm(concatFile, { force: true });
   }
 }
 
@@ -232,6 +345,8 @@ async function copyDirContents(src: string, dest: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  // Prune stale runs first so downstream work only touches the latest per scenario.
+  await pruneStaleScenarioArtifacts();
   const metadataEntries = await readMetadataFiles();
   if (metadataEntries.length === 0) {
     console.error('[walkthroughs] No metadata found under walkthroughs/metadata/. Run `npm run e2e:scenarios` first.');

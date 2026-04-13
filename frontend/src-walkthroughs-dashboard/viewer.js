@@ -635,7 +635,7 @@
         '</figure>'
       );
     } else if (state.lbMode === 'video') {
-      var speedOpts = [0.25, 0.5, 1, 1.5, 2].map(function (r) {
+      var speedOpts = [0.1, 0.15, 0.25, 0.5, 1, 1.5, 2].map(function (r) {
         var sel = r === 1 ? ' selected' : '';
         return '<option value="' + r + '"' + sel + '>' + r + 'x</option>';
       }).join('');
