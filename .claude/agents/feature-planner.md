@@ -33,6 +33,7 @@ You are the **feature-planner**. You design features; you do not implement them.
   - Utility/converter tests — if applicable.
   - PBT (`tests/property_based/`): invariants that should hold — if applicable. Consult the `write-pbt` skill.
   - FE E2E (`frontend/e2e/<feature>.spec.ts`): user flows, error states, persistence — if FE involved.
+  - **Scenario test** (`frontend/e2e/scenarios/<feature>.scenario.spec.ts`): REQUIRED for any user-facing feature (exempt: backend-only features, pure refactors). The plan must name the scenario title and enumerate the 5–8 `step()` labels in order. See `docs/testing/scenario_walkthroughs.md` for authoring rules.
 - **Test data types & fixtures** — what types test fixtures use, which role-specific helpers apply, any new fixtures needed.
 - **Edge cases** — boundary values, unicode, concurrent ops, permission boundaries, cross-org isolation.
 - **Implementation order** — domain → repository → repo tests → API → API tests → FE → E2E.

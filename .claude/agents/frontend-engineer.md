@@ -29,6 +29,10 @@ You are the **frontend-engineer**. You implement the FE slice of an approved pla
 - **`beforeAll` for shared fixtures** when multiple tests can share setup.
 - **Descriptive test names** — the same naming discipline as backend: state the behavior.
 
+## Scenario tests
+- If the approved plan calls for a scenario test (it should, for any user-facing feature), author it in `frontend/e2e/scenarios/<feature>.scenario.spec.ts` using the `scenarioTest` fixture and `step()` helper.
+- Title and step labels must match the plan's scenario breakdown. Follow `docs/testing/scenario_walkthroughs.md` (authoring rules, 5–8 steps, one distinct DOM state per step, UI-only inside the body).
+
 ## Running tests
 Use **`run-targeted-tests-frontend`** skill for fast feedback (single spec, `--grep`, one browser). Use **`validate-frontend`** when ready to confirm green.
 
