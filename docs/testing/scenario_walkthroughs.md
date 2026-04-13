@@ -45,11 +45,11 @@ The "every major user-facing feature requires at least one scenario" rule applie
 ### Minimal example
 
 ```ts
-import { scenarioTest, step } from '../helpers/scenario';
-import { generateTestProjectName } from '../helpers/test-data';
+import { scenarioTest } from '../helpers/scenario';
+import { generateTestProjectName } from '../utils/test-config';
 
-scenarioTest('Create project full flow', async ({ page }) => {
-  const projectName = generateTestProjectName();
+scenarioTest('Create project full flow', async ({ page, step }) => {
+  const projectName = generateTestProjectName('WebApp');
 
   await step('Open the projects page', async () => {
     await page.goto('/projects');
