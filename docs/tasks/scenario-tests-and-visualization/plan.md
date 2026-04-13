@@ -321,6 +321,87 @@ Four reviewer-driven enhancements to the evidence viewer, shipped on top of comm
 - Lightbox does not preload neighbouring images (POC; dataset is tiny).
 - Flow strip does not resize frames responsively beyond CSS grid auto-fill; there is no zoom slider.
 
+## Deviations (round 3) — 2026-04-12
+
+Second-pass UX polish on the scenario evidence viewer. All changes frontend-
+only; no backend, no production FE. Static viewer served over HTTP via
+`npm run evidence:serve` (no `file://` support required).
+
+1. **Slower motion GIF via `setpts` + lower fps.** The motion GIF pipeline
+   now stretches wall-clock time by `MOTION_SLOWDOWN=2.0` (`setpts=2.0*PTS`)
+   and outputs at `MOTION_FPS=3` (333 ms/frame). A 2 s source video now
+   yields a ~4 s GIF — readable on the first pass. Flipbook GIF hold is
+   `FLIPBOOK_HOLD_SECONDS=1.5` (up from 1.0). All three constants live at
+   the top of `frontend/scripts/generate-evidence.ts` for future tuning.
+
+2. **Playwright viewport bumped to 1600x900** in the `scenarios` project
+   (previously Desktop Chrome default, 1280x720). Video `size` is pinned to
+   match. Screenshots/videos now have enough pixels to zoom into in the
+   enlarged lightbox.
+
+3. **Video playback speed control.** The old `<video controls>` on the
+   detail page is replaced with a click-to-enlarge preview; the enlarged
+   lightbox video has a native `<select>` speed control (0.25x, 0.5x, 1x,
+   1.5x, 2x) driving `video.playbackRate`, plus a Download link. No
+   external deps.
+
+4. **Enlarged media lightbox.** A single unified lightbox now handles
+   screenshots (with prev/next nav), GIFs, and videos. Sizing:
+   `max-width: 95vw; max-height: 90vh; object-fit: contain`. Videos get
+   `95vw` width and a toolbar for speed + download.
+
+5. **Arrow-key beep fix.** `keydown` listener is attached to `document` in
+   the capture phase and calls `preventDefault()` + `stopPropagation()` on
+   `ArrowLeft/Right/Up/Down` and `Escape` whenever the lightbox is open —
+   stops macOS Chrome/Safari from emitting the system beep that fires when
+   arrows hit a focused button.
+
+6. **Clickable previews on the detail page.** Screenshots preview (small
+   filmstrip of the first five frames), flipbook GIF, motion GIF, and
+   video thumbnail are themselves clickable. Screenshots preview routes to
+   `#/scenario/<slug>/screenshots`; GIFs/video open in the lightbox. The
+   redundant top "Screenshots / Flow / Play video / Motion GIF" pills were
+   removed — interaction is now the preview itself.
+
+7. **Per-view size control.** Gallery, Screenshots, and Flow pages all get
+   a Small / Medium / Large toolbar bound to a CSS custom property
+   `--tile-size` used by `grid-template-columns: repeat(auto-fill,
+   minmax(var(--tile-size), 1fr))`. Choice persisted in `localStorage`
+   (`evidence.tileSize`). Default = Medium (320px).
+
+8. **Gallery view toggle (GIF cards / Screenshot strips).** New toolbar
+   button switches the gallery between GIF-thumb cards and horizontal
+   screenshot strips. Strip mode renders a scrolling row of every step's
+   screenshot per scenario; clicking a frame opens the screenshots
+   lightbox at that index. Persisted in `localStorage`
+   (`evidence.galleryView`). Default = GIF cards.
+
+### Files touched (round 3)
+- `frontend/scripts/generate-evidence.ts` — tunable GIF constants, setpts
+  slowdown for motion GIFs, log line now includes slowdown factor.
+- `frontend/playwright.config.ts` — 1600x900 viewport + matching video size
+  for the `scenarios` project.
+- `frontend/src-evidence-gallery/viewer.js` — unified media lightbox,
+  routing preserved, new toolbar with size + view-mode controls, strip
+  view, clickable detail previews, keybeep fix.
+- `frontend/src-evidence-gallery/viewer.css` — toolbar styles, strip/grid
+  sizing via `--tile-size`, enlarged lightbox, video toolbar.
+- `frontend/src-evidence-gallery/index.html` — lightbox container is now
+  an empty focusable element populated by JS per-mode.
+- `docs/tasks/scenario-tests-and-visualization/plan.md` — this section.
+
+### Generator log sample (post-change)
+```
+[evidence] motion GIF scenario-create-ticket-and-change-status-...: 3 fps, 2x slowdown, source=2.52s, gif=5.00s
+[evidence] flipbook GIF scenario-create-ticket-and-change-status-...: 5 fps, 8 steps × 1.5s, gif=5.80s
+```
+
+### Known non-goals (round 3)
+- Lightbox still does not preload neighbouring screenshots.
+- Strip-view horizontal scroll uses default browser scrollbar; no custom
+  affordance.
+- Size control has three presets rather than a continuous slider.
+
 ## 9. Sign-off
 
 - [ ] User approved plan — date/note
