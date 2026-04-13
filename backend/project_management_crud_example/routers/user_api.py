@@ -6,12 +6,18 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
 
-from project_management_crud_example.capabilities import UserReadCapability, UserWriteCapability
+from project_management_crud_example.capabilities import (
+    OrgUserWriteCapability,
+    SelfUserWriteCapability,
+    UserReadCapability,
+)
 from project_management_crud_example.dependencies import (
+    get_org_user_write_capability,
+    get_self_user_write_capability,
     get_user_read_capability,
-    get_user_write_capability,
 )
 from project_management_crud_example.domain_models import (
+    SelfUserUpdateCommand,
     User,
     UserCreateCommand,
     UserCreateResponse,
@@ -34,7 +40,7 @@ async def create_user(
     user_data: UserData,
     organization_id: str,
     role: UserRole,
-    cap: UserWriteCapability = Depends(get_user_write_capability),  # noqa: B008
+    cap: OrgUserWriteCapability = Depends(get_org_user_write_capability),  # noqa: B008
 ) -> UserCreateResponse:
     """Create a new user with auto-generated password."""
     if role == UserRole.SUPER_ADMIN:
@@ -106,11 +112,48 @@ async def list_users(
     return cap.list_users(organization_id=organization_id, role=role, is_active=is_active)
 
 
+@router.put("/me", response_model=User)
+async def update_own_profile(
+    update_data: SelfUserUpdateCommand,
+    cap: SelfUserWriteCapability = Depends(get_self_user_write_capability),  # noqa: B008
+) -> User:
+    """Update the authenticated user's own profile (email, full_name).
+
+    Scope is baked into the capability: there is no path, via this endpoint,
+    to reach any other user's record. Privileged fields (role, is_active) are
+    not representable on `SelfUserUpdateCommand`.
+    """
+    existing_user = cap.repo.users.get_by_id(cap.user.id)
+    if not existing_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    try:
+        updated_user = cap.update_profile(update_data)
+    except IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already exists in this organization",
+        ) from None
+
+    if not updated_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    log_diff_debug(existing_user, updated_user, "user", "update_own_profile")
+    log_activity(
+        repo=cap.repo,
+        command=update_data,
+        entity_id=cap.user.id,
+        actor_id=cap.user.id,
+        organization_id=updated_user.organization_id or "",
+    )
+    return updated_user
+
+
 @router.put("/{user_id}", response_model=User)
 async def update_user(
     user_id: str,
     update_data: UserUpdateCommand,
-    cap: UserWriteCapability = Depends(get_user_write_capability),  # noqa: B008
+    cap: OrgUserWriteCapability = Depends(get_org_user_write_capability),  # noqa: B008
 ) -> User:
     """Update user details."""
     existing_user = cap.repo.users.get_by_id(user_id)
@@ -150,7 +193,7 @@ async def update_user(
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: str,
-    cap: UserWriteCapability = Depends(get_user_write_capability),  # noqa: B008
+    cap: OrgUserWriteCapability = Depends(get_org_user_write_capability),  # noqa: B008
 ) -> None:
     """Delete a user (Super Admin only)."""
     cap.require_super_admin_for_delete()

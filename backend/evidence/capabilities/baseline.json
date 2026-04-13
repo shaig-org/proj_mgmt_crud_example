@@ -282,7 +282,7 @@
     },
     {
       "capabilities": [
-        "UserWriteCapability"
+        "OrgUserWriteCapability"
       ],
       "handler": "user_api.create_user",
       "method": "POST",
@@ -290,7 +290,15 @@
     },
     {
       "capabilities": [
-        "UserWriteCapability"
+        "SelfUserWriteCapability"
+      ],
+      "handler": "user_api.update_own_profile",
+      "method": "PUT",
+      "path": "/api/users/me"
+    },
+    {
+      "capabilities": [
+        "OrgUserWriteCapability"
       ],
       "handler": "user_api.delete_user",
       "method": "DELETE",
@@ -306,7 +314,7 @@
     },
     {
       "capabilities": [
-        "UserWriteCapability"
+        "OrgUserWriteCapability"
       ],
       "handler": "user_api.update_user",
       "method": "PUT",

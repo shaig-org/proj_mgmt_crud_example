@@ -185,13 +185,14 @@ from project_management_crud_example.capabilities import (  # noqa: E402
     EpicReadCapability,
     EpicWriteCapability,
     OrganizationCapability,
+    OrgUserWriteCapability,
     PasswordChangeCapability,
     ProjectReadCapability,
     ProjectWriteCapability,
+    SelfUserWriteCapability,
     TicketReadCapability,
     TicketWriteCapability,
     UserReadCapability,
-    UserWriteCapability,
     WorkflowReadCapability,
     WorkflowWriteCapability,
 )
@@ -225,11 +226,26 @@ def get_user_read_capability(
     return UserReadCapability(repo, user)
 
 
-def get_user_write_capability(
+def get_self_user_write_capability(
     repo: Repository = Depends(get_repository),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
-) -> UserWriteCapability:
-    return UserWriteCapability(repo, user)
+) -> SelfUserWriteCapability:
+    """Self-only user writes. No authorization gate needed — scope is baked in."""
+    return SelfUserWriteCapability(repo, user)
+
+
+def get_org_user_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> OrgUserWriteCapability:
+    """Org-scoped user writes. Admin gate enforced at the factory so non-admins
+    cannot even construct the capability; they get 403 before the handler runs."""
+    from project_management_crud_example.capabilities.errors import CapabilityPermissionError
+    from project_management_crud_example.domain_models import UserRole
+
+    if user.role not in {UserRole.SUPER_ADMIN, UserRole.ADMIN}:
+        raise CapabilityPermissionError("Admin access required")
+    return OrgUserWriteCapability(repo, user)
 
 
 def get_organization_capability(

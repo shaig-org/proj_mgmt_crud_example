@@ -26,7 +26,11 @@ from project_management_crud_example.capabilities.tickets_capability import (
     TicketReadCapability,
     TicketWriteCapability,
 )
-from project_management_crud_example.capabilities.users_capability import UserReadCapability, UserWriteCapability
+from project_management_crud_example.capabilities.users_capability import (
+    OrgUserWriteCapability,
+    SelfUserWriteCapability,
+    UserReadCapability,
+)
 from project_management_crud_example.capabilities.workflows_capability import (
     WorkflowReadCapability,
     WorkflowWriteCapability,
@@ -45,8 +49,9 @@ __all__ = [
     "ProjectWriteCapability",
     "TicketReadCapability",
     "TicketWriteCapability",
+    "OrgUserWriteCapability",
+    "SelfUserWriteCapability",
     "UserReadCapability",
-    "UserWriteCapability",
     "WorkflowReadCapability",
     "WorkflowWriteCapability",
 ]
