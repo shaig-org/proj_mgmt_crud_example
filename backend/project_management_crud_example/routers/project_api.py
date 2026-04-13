@@ -10,10 +10,10 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from project_management_crud_example.capabilities import ProjectReadCapability, ProjectWriteCapability
+from project_management_crud_example.capabilities import OrgProjectWriteCapability, ProjectReadCapability
 from project_management_crud_example.dependencies import (
+    get_org_project_write_capability,
     get_project_read_capability,
-    get_project_write_capability,
 )
 from project_management_crud_example.domain_models import (
     Project,
@@ -34,7 +34,7 @@ router = APIRouter(prefix="/api/projects", tags=["projects"])
 @router.post("", response_model=Project, status_code=status.HTTP_201_CREATED)
 async def create_project(
     project_data: ProjectData,
-    cap: ProjectWriteCapability = Depends(get_project_write_capability),  # noqa: B008
+    cap: OrgProjectWriteCapability = Depends(get_org_project_write_capability),  # noqa: B008
 ) -> Project:
     """Create a new project within the user's organization."""
     try:
@@ -84,7 +84,7 @@ async def list_projects(
 async def update_project(
     project_id: str,
     update_data: ProjectUpdateCommand,
-    cap: ProjectWriteCapability = Depends(get_project_write_capability),  # noqa: B008
+    cap: OrgProjectWriteCapability = Depends(get_org_project_write_capability),  # noqa: B008
 ) -> Project:
     """Update an existing project."""
     old_project = cap.load_for_update(project_id)
@@ -114,7 +114,7 @@ async def update_project(
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_project(
     project_id: str,
-    cap: ProjectWriteCapability = Depends(get_project_write_capability),  # noqa: B008
+    cap: OrgProjectWriteCapability = Depends(get_org_project_write_capability),  # noqa: B008
 ) -> None:
     """Delete a project."""
     project = cap.load_for_delete(project_id)
@@ -140,7 +140,7 @@ async def delete_project(
 @router.patch("/{project_id}/archive", response_model=Project)
 async def archive_project(
     project_id: str,
-    cap: ProjectWriteCapability = Depends(get_project_write_capability),  # noqa: B008
+    cap: OrgProjectWriteCapability = Depends(get_org_project_write_capability),  # noqa: B008
 ) -> Project:
     """Archive a project."""
     project = cap.load_for_archive(project_id)
@@ -166,7 +166,7 @@ async def archive_project(
 @router.patch("/{project_id}/unarchive", response_model=Project)
 async def unarchive_project(
     project_id: str,
-    cap: ProjectWriteCapability = Depends(get_project_write_capability),  # noqa: B008
+    cap: OrgProjectWriteCapability = Depends(get_org_project_write_capability),  # noqa: B008
 ) -> Project:
     """Unarchive a project."""
     project = cap.load_for_unarchive(project_id)

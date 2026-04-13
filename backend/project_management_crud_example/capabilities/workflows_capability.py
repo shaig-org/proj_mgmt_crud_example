@@ -50,7 +50,7 @@ class WorkflowReadCapability:
         return self._repo.workflows.get_by_organization_id(self._user.organization_id)
 
 
-class WorkflowWriteCapability:
+class OrgWorkflowWriteCapability:
     """Write-side workflow authorization."""
 
     def __init__(self, repo: Repository, current_user: User) -> None:

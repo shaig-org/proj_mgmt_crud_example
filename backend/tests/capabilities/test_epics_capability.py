@@ -1,10 +1,10 @@
-"""Unit tests for EpicReadCapability and EpicWriteCapability."""
+"""Unit tests for EpicReadCapability and OrgEpicWriteCapability."""
 
 from __future__ import annotations
 
 from project_management_crud_example.capabilities.epics_capability import (
     EpicReadCapability,
-    EpicWriteCapability,
+    OrgEpicWriteCapability,
 )
 from project_management_crud_example.dal.sqlite.repository import Repository
 from project_management_crud_example.domain_models import EpicData, EpicUpdateCommand, UserRole
@@ -57,7 +57,7 @@ def test_epic_read_list_super_admin_sees_all(test_repo: Repository) -> None:
 def test_epic_write_create_allows_pm(test_repo: Repository) -> None:
     org = create_test_org_via_repo(test_repo, name="Org A")
     pm = make_user(test_repo, org, UserRole.PROJECT_MANAGER)
-    cap = EpicWriteCapability(test_repo, pm)
+    cap = OrgEpicWriteCapability(test_repo, pm)
     command = cap.build_create_command(EpicData(name="New"))
     epic = cap.create(command)
     assert epic.organization_id == org.id
@@ -66,7 +66,7 @@ def test_epic_write_create_allows_pm(test_repo: Repository) -> None:
 def test_epic_write_create_denies_write_user(test_repo: Repository) -> None:
     org = create_test_org_via_repo(test_repo, name="Org A")
     writer = make_user(test_repo, org, UserRole.WRITE_ACCESS)
-    cap = EpicWriteCapability(test_repo, writer)
+    cap = OrgEpicWriteCapability(test_repo, writer)
     assert_denied(cap.build_create_command, EpicData(name="x"))
 
 
@@ -74,7 +74,7 @@ def test_epic_write_load_for_update_allows_admin(test_repo: Repository) -> None:
     org = create_test_org_via_repo(test_repo, name="Org A")
     admin = make_user(test_repo, org, UserRole.ADMIN)
     epic = create_test_epic_via_repo(test_repo, org.id, name="E")
-    cap = EpicWriteCapability(test_repo, admin)
+    cap = OrgEpicWriteCapability(test_repo, admin)
     assert cap.load_for_update(epic.id) is not None
 
 
@@ -83,7 +83,7 @@ def test_epic_write_load_for_update_denies_cross_org(test_repo: Repository) -> N
     org_b = create_test_org_via_repo(test_repo, name="Org B")
     admin_b = make_user(test_repo, org_b, UserRole.ADMIN, username="admin_b")
     epic = create_test_epic_via_repo(test_repo, org_a.id, name="E")
-    cap = EpicWriteCapability(test_repo, admin_b)
+    cap = OrgEpicWriteCapability(test_repo, admin_b)
     assert_denied(cap.load_for_update, epic.id)
 
 
@@ -91,7 +91,7 @@ def test_epic_write_update_returns_updated(test_repo: Repository) -> None:
     org = create_test_org_via_repo(test_repo, name="Org A")
     admin = make_user(test_repo, org, UserRole.ADMIN)
     epic = create_test_epic_via_repo(test_repo, org.id, name="E")
-    cap = EpicWriteCapability(test_repo, admin)
+    cap = OrgEpicWriteCapability(test_repo, admin)
     updated = cap.update(epic.id, EpicUpdateCommand(name="E2"))
     assert updated is not None and updated.name == "E2"
 
@@ -100,7 +100,7 @@ def test_epic_write_load_for_delete_denies_pm(test_repo: Repository) -> None:
     org = create_test_org_via_repo(test_repo, name="Org A")
     pm = make_user(test_repo, org, UserRole.PROJECT_MANAGER)
     epic = create_test_epic_via_repo(test_repo, org.id, name="E")
-    cap = EpicWriteCapability(test_repo, pm)
+    cap = OrgEpicWriteCapability(test_repo, pm)
     assert_denied(cap.load_for_delete, epic.id)
 
 
@@ -108,6 +108,6 @@ def test_epic_write_delete_allows_admin(test_repo: Repository) -> None:
     org = create_test_org_via_repo(test_repo, name="Org A")
     admin = make_user(test_repo, org, UserRole.ADMIN)
     epic = create_test_epic_via_repo(test_repo, org.id, name="E")
-    cap = EpicWriteCapability(test_repo, admin)
+    cap = OrgEpicWriteCapability(test_repo, admin)
     cap.load_for_delete(epic.id)
     assert cap.delete(epic.id) is True

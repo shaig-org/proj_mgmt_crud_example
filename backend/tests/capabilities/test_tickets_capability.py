@@ -1,10 +1,10 @@
-"""Unit tests for TicketReadCapability and TicketWriteCapability."""
+"""Unit tests for TicketReadCapability and OrgTicketWriteCapability."""
 
 from __future__ import annotations
 
 from project_management_crud_example.capabilities.tickets_capability import (
+    OrgTicketWriteCapability,
     TicketReadCapability,
-    TicketWriteCapability,
 )
 from project_management_crud_example.dal.sqlite.repository import Repository
 from project_management_crud_example.domain_models import (
@@ -66,7 +66,7 @@ def test_ticket_write_authorize_create_allows_write_user(test_repo: Repository) 
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     writer = make_user(test_repo, org, UserRole.WRITE_ACCESS)
     project = create_test_project_via_repo(test_repo, org.id, name="P")
-    cap = TicketWriteCapability(test_repo, writer)
+    cap = OrgTicketWriteCapability(test_repo, writer)
     cap.authorize_create(project)  # no raise
 
 
@@ -74,7 +74,7 @@ def test_ticket_write_authorize_create_denies_read_user(test_repo: Repository) -
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     reader = make_user(test_repo, org, UserRole.READ_ACCESS)
     project = create_test_project_via_repo(test_repo, org.id, name="P")
-    cap = TicketWriteCapability(test_repo, reader)
+    cap = OrgTicketWriteCapability(test_repo, reader)
     assert_denied(cap.authorize_create, project)
 
 
@@ -83,7 +83,7 @@ def test_ticket_write_authorize_create_denies_cross_org(test_repo: Repository) -
     org_b = create_test_org_with_workflow_via_repo(test_repo, name="Org B")
     writer_b = make_user(test_repo, org_b, UserRole.WRITE_ACCESS, username="writer_b")
     project_a = create_test_project_via_repo(test_repo, org_a.id, name="PA")
-    cap = TicketWriteCapability(test_repo, writer_b)
+    cap = OrgTicketWriteCapability(test_repo, writer_b)
     assert_denied(cap.authorize_create, project_a)
 
 
@@ -92,7 +92,7 @@ def test_ticket_write_authorize_assignee_denies_cross_org(test_repo: Repository)
     org_b = create_test_org_with_workflow_via_repo(test_repo, name="Org B")
     admin_a = make_user(test_repo, org_a, UserRole.ADMIN, username="admin_a")
     cross_assignee = make_user(test_repo, org_b, UserRole.WRITE_ACCESS, username="cross")
-    cap = TicketWriteCapability(test_repo, admin_a)
+    cap = OrgTicketWriteCapability(test_repo, admin_a)
     assert_denied(cap.authorize_assignee, cross_assignee)
 
 
@@ -101,7 +101,7 @@ def test_ticket_write_authorize_move_requires_pm(test_repo: Repository) -> None:
     writer = make_user(test_repo, org, UserRole.WRITE_ACCESS)
     p1 = create_test_project_via_repo(test_repo, org.id, name="P1")
     p2 = create_test_project_via_repo(test_repo, org.id, name="P2")
-    cap = TicketWriteCapability(test_repo, writer)
+    cap = OrgTicketWriteCapability(test_repo, writer)
     # WRITE_ACCESS is NOT in _MOVE_OR_ASSIGN_ROLES
     assert_denied(cap.authorize_move, p1, p2)
 
@@ -110,7 +110,7 @@ def test_ticket_write_authorize_assign_allows_pm(test_repo: Repository) -> None:
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     pm = make_user(test_repo, org, UserRole.PROJECT_MANAGER)
     project = create_test_project_via_repo(test_repo, org.id, name="P")
-    cap = TicketWriteCapability(test_repo, pm)
+    cap = OrgTicketWriteCapability(test_repo, pm)
     cap.authorize_assign(project)  # no raise
 
 
@@ -119,7 +119,7 @@ def test_ticket_write_authorize_delete_denies_pm(test_repo: Repository) -> None:
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     pm = make_user(test_repo, org, UserRole.PROJECT_MANAGER)
     project = create_test_project_via_repo(test_repo, org.id, name="P")
-    cap = TicketWriteCapability(test_repo, pm)
+    cap = OrgTicketWriteCapability(test_repo, pm)
     assert_denied(cap.authorize_delete, project)
 
 
@@ -127,5 +127,5 @@ def test_ticket_write_authorize_delete_allows_admin(test_repo: Repository) -> No
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     admin = make_user(test_repo, org, UserRole.ADMIN)
     project = create_test_project_via_repo(test_repo, org.id, name="P")
-    cap = TicketWriteCapability(test_repo, admin)
+    cap = OrgTicketWriteCapability(test_repo, admin)
     cap.authorize_delete(project)  # no raise

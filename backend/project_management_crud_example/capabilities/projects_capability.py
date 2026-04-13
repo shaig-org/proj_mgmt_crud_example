@@ -74,7 +74,7 @@ class ProjectReadCapability:
         )
 
 
-class ProjectWriteCapability:
+class OrgProjectWriteCapability:
     """Write-side project authorization (create/update/delete/archive/unarchive)."""
 
     def __init__(self, repo: Repository, current_user: User) -> None:

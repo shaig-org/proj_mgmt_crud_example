@@ -183,20 +183,21 @@ from project_management_crud_example.capabilities import (  # noqa: E402
     ActivityLogReadCapability,
     CommentReadCapability,
     EpicReadCapability,
-    EpicWriteCapability,
-    OrganizationCapability,
+    GlobalOrganizationWriteCapability,
+    OrganizationReadCapability,
     OrgCommentModerationCapability,
+    OrgEpicWriteCapability,
+    OrgProjectWriteCapability,
+    OrgTicketWriteCapability,
     OrgUserWriteCapability,
+    OrgWorkflowWriteCapability,
     OwnCommentWriteCapability,
     PasswordChangeCapability,
     ProjectReadCapability,
-    ProjectWriteCapability,
     SelfUserWriteCapability,
     TicketReadCapability,
-    TicketWriteCapability,
     UserReadCapability,
     WorkflowReadCapability,
-    WorkflowWriteCapability,
 )
 
 
@@ -214,11 +215,11 @@ def get_project_read_capability(
     return ProjectReadCapability(repo, user)
 
 
-def get_project_write_capability(
+def get_org_project_write_capability(
     repo: Repository = Depends(get_repository),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
-) -> ProjectWriteCapability:
-    return ProjectWriteCapability(repo, user)
+) -> OrgProjectWriteCapability:
+    return OrgProjectWriteCapability(repo, user)
 
 
 def get_user_read_capability(
@@ -250,11 +251,25 @@ def get_org_user_write_capability(
     return OrgUserWriteCapability(repo, user)
 
 
-def get_organization_capability(
+def get_organization_read_capability(
     repo: Repository = Depends(get_repository),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
-) -> OrganizationCapability:
-    return OrganizationCapability(repo, user)
+) -> OrganizationReadCapability:
+    return OrganizationReadCapability(repo, user)
+
+
+def get_global_organization_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> GlobalOrganizationWriteCapability:
+    """Super-admin-only global writes on organizations. Role enforced at the
+    factory so non-super-admins cannot construct it; they 403 before handler."""
+    from project_management_crud_example.capabilities.errors import CapabilityPermissionError
+    from project_management_crud_example.domain_models import UserRole
+
+    if user.role != UserRole.SUPER_ADMIN:
+        raise CapabilityPermissionError("Super Admin access required")
+    return GlobalOrganizationWriteCapability(repo, user)
 
 
 def get_epic_read_capability(
@@ -264,11 +279,11 @@ def get_epic_read_capability(
     return EpicReadCapability(repo, user)
 
 
-def get_epic_write_capability(
+def get_org_epic_write_capability(
     repo: Repository = Depends(get_repository),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
-) -> EpicWriteCapability:
-    return EpicWriteCapability(repo, user)
+) -> OrgEpicWriteCapability:
+    return OrgEpicWriteCapability(repo, user)
 
 
 def get_workflow_read_capability(
@@ -278,11 +293,11 @@ def get_workflow_read_capability(
     return WorkflowReadCapability(repo, user)
 
 
-def get_workflow_write_capability(
+def get_org_workflow_write_capability(
     repo: Repository = Depends(get_repository),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
-) -> WorkflowWriteCapability:
-    return WorkflowWriteCapability(repo, user)
+) -> OrgWorkflowWriteCapability:
+    return OrgWorkflowWriteCapability(repo, user)
 
 
 def get_ticket_read_capability(
@@ -292,11 +307,11 @@ def get_ticket_read_capability(
     return TicketReadCapability(repo, user)
 
 
-def get_ticket_write_capability(
+def get_org_ticket_write_capability(
     repo: Repository = Depends(get_repository),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
-) -> TicketWriteCapability:
-    return TicketWriteCapability(repo, user)
+) -> OrgTicketWriteCapability:
+    return OrgTicketWriteCapability(repo, user)
 
 
 def get_comment_read_capability(

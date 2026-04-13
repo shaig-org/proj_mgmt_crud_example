@@ -61,7 +61,7 @@ class EpicReadCapability:
         return self._repo.epics.get_tickets_in_epic(epic_id)
 
 
-class EpicWriteCapability:
+class OrgEpicWriteCapability:
     """Write-side epic authorization."""
 
     def __init__(self, repo: Repository, current_user: User) -> None:

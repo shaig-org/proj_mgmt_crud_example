@@ -1,4 +1,4 @@
-"""Organization API endpoints (capability-based)."""
+"""Organization API endpoints (capability-based, scope-split)."""
 
 import logging
 from typing import List
@@ -6,8 +6,14 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 
-from project_management_crud_example.capabilities import OrganizationCapability
-from project_management_crud_example.dependencies import get_organization_capability
+from project_management_crud_example.capabilities import (
+    GlobalOrganizationWriteCapability,
+    OrganizationReadCapability,
+)
+from project_management_crud_example.dependencies import (
+    get_global_organization_write_capability,
+    get_organization_read_capability,
+)
 from project_management_crud_example.domain_models import (
     Organization,
     OrganizationCreateCommand,
@@ -25,9 +31,9 @@ router = APIRouter(prefix="/api/organizations", tags=["organizations"])
 @router.post("", response_model=Organization, status_code=status.HTTP_201_CREATED)
 async def create_organization(
     organization_data: OrganizationData,
-    cap: OrganizationCapability = Depends(get_organization_capability),  # noqa: B008
+    cap: GlobalOrganizationWriteCapability = Depends(get_global_organization_write_capability),  # noqa: B008
 ) -> Organization:
-    """Create organization (Super Admin only)."""
+    """Create organization (Super Admin only — enforced at DI factory)."""
     command = OrganizationCreateCommand(organization_data=organization_data)
     try:
         organization = cap.create(command)
@@ -37,7 +43,6 @@ async def create_organization(
             detail="Organization with this name already exists",
         ) from None
 
-    # Create default workflow for the new organization
     try:
         cap.repo.workflows.create_default_workflow(organization.id)
     except Exception as e:
@@ -56,9 +61,8 @@ async def create_organization(
 @router.get("/{organization_id}", response_model=Organization)
 async def get_organization(
     organization_id: str,
-    cap: OrganizationCapability = Depends(get_organization_capability),  # noqa: B008
+    cap: OrganizationReadCapability = Depends(get_organization_read_capability),  # noqa: B008
 ) -> Organization:
-    """Get organization by ID."""
     organization = cap.get_by_id(organization_id)
     if not organization:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
@@ -67,7 +71,7 @@ async def get_organization(
 
 @router.get("", response_model=List[Organization])
 async def list_organizations(
-    cap: OrganizationCapability = Depends(get_organization_capability),  # noqa: B008
+    cap: OrganizationReadCapability = Depends(get_organization_read_capability),  # noqa: B008
 ) -> List[Organization]:
     return cap.list_visible()
 
@@ -76,14 +80,11 @@ async def list_organizations(
 async def update_organization(
     organization_id: str,
     update_data: OrganizationUpdateCommand,
-    cap: OrganizationCapability = Depends(get_organization_capability),  # noqa: B008
+    cap: GlobalOrganizationWriteCapability = Depends(get_global_organization_write_capability),  # noqa: B008
 ) -> Organization:
-    """Update organization (Super Admin only)."""
+    """Update organization (Super Admin only — enforced at DI factory)."""
     existing_organization = cap.repo.organizations.get_by_id(organization_id)
     if not existing_organization:
-        # Still need super-admin check first? The original router checked super admin via Depends.
-        # Here we need the role check to run even for not-found -> we call cap._require_super_admin via update.
-        cap._require_super_admin()  # type: ignore[attr-defined]
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
 
     try:

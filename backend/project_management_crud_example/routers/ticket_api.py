@@ -6,10 +6,10 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from project_management_crud_example.capabilities import TicketReadCapability, TicketWriteCapability
+from project_management_crud_example.capabilities import OrgTicketWriteCapability, TicketReadCapability
 from project_management_crud_example.dependencies import (
+    get_org_ticket_write_capability,
     get_ticket_read_capability,
-    get_ticket_write_capability,
 )
 from project_management_crud_example.domain_models import (
     Ticket,
@@ -46,7 +46,7 @@ async def create_ticket(
     ticket_data: TicketData,
     project_id: str = Query(...),
     assignee_id: Optional[str] = Query(None),
-    cap: TicketWriteCapability = Depends(get_ticket_write_capability),  # noqa: B008
+    cap: OrgTicketWriteCapability = Depends(get_org_ticket_write_capability),  # noqa: B008
 ) -> Ticket:
     # Original order: role check first, then existence check, then cross-org check.
     from project_management_crud_example.capabilities import CapabilityPermissionError
@@ -106,14 +106,14 @@ async def list_tickets(
     return cap.list_tickets(project_id=project_id, status=status, assignee_id=assignee_id)
 
 
-def _require_role_for_write(cap: TicketWriteCapability, allowed_roles: set, action: str) -> None:
+def _require_role_for_write(cap: OrgTicketWriteCapability, allowed_roles: set, action: str) -> None:
     from project_management_crud_example.capabilities import CapabilityPermissionError
 
     if cap.user.role not in allowed_roles:
         raise CapabilityPermissionError(f"Insufficient permissions to {action}")
 
 
-def _load_ticket_and_project(cap: TicketWriteCapability, ticket_id: str) -> tuple:
+def _load_ticket_and_project(cap: OrgTicketWriteCapability, ticket_id: str) -> tuple:
     """Helper: returns (ticket, project) with 404 if missing."""
     ticket = cap.repo.tickets.get_by_id(ticket_id)
     if not ticket:
@@ -128,7 +128,7 @@ def _load_ticket_and_project(cap: TicketWriteCapability, ticket_id: str) -> tupl
 async def update_ticket(
     ticket_id: str,
     update_data: TicketUpdateCommand,
-    cap: TicketWriteCapability = Depends(get_ticket_write_capability),  # noqa: B008
+    cap: OrgTicketWriteCapability = Depends(get_org_ticket_write_capability),  # noqa: B008
 ) -> Ticket:
     from project_management_crud_example.capabilities.tickets_capability import _UPDATE_ROLES
 
@@ -154,7 +154,7 @@ async def update_ticket(
 async def update_ticket_status(
     ticket_id: str,
     status_update: TicketStatusUpdate,
-    cap: TicketWriteCapability = Depends(get_ticket_write_capability),  # noqa: B008
+    cap: OrgTicketWriteCapability = Depends(get_org_ticket_write_capability),  # noqa: B008
 ) -> Ticket:
     from project_management_crud_example.capabilities.tickets_capability import _UPDATE_ROLES
 
@@ -184,7 +184,7 @@ async def update_ticket_status(
 async def move_ticket_to_project(
     ticket_id: str,
     project_update: TicketProjectUpdate,
-    cap: TicketWriteCapability = Depends(get_ticket_write_capability),  # noqa: B008
+    cap: OrgTicketWriteCapability = Depends(get_org_ticket_write_capability),  # noqa: B008
 ) -> Ticket:
     from project_management_crud_example.capabilities.tickets_capability import _MOVE_OR_ASSIGN_ROLES
 
@@ -221,7 +221,7 @@ async def move_ticket_to_project(
 async def update_ticket_assignee(
     ticket_id: str,
     assignee_update: TicketAssigneeUpdate,
-    cap: TicketWriteCapability = Depends(get_ticket_write_capability),  # noqa: B008
+    cap: OrgTicketWriteCapability = Depends(get_org_ticket_write_capability),  # noqa: B008
 ) -> Ticket:
     from project_management_crud_example.capabilities.tickets_capability import _MOVE_OR_ASSIGN_ROLES
 
@@ -256,7 +256,7 @@ async def update_ticket_assignee(
 @router.delete("/{ticket_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_ticket(
     ticket_id: str,
-    cap: TicketWriteCapability = Depends(get_ticket_write_capability),  # noqa: B008
+    cap: OrgTicketWriteCapability = Depends(get_org_ticket_write_capability),  # noqa: B008
 ) -> None:
     from project_management_crud_example.capabilities.tickets_capability import _DELETE_ROLES
 

@@ -81,7 +81,7 @@ class TicketReadCapability:
         return all_org_tickets
 
 
-class TicketWriteCapability:
+class OrgTicketWriteCapability:
     """Write-side ticket authorization."""
 
     def __init__(self, repo: Repository, current_user: User) -> None:

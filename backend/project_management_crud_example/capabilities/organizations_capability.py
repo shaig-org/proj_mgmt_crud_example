@@ -1,4 +1,11 @@
-"""Organization capability (single class; super-admin-only writes)."""
+"""Organization capabilities — split by scope.
+
+- `OrganizationReadCapability` — any member can read their own org; super
+  admins can read any org.
+- `GlobalOrganizationWriteCapability` — super-admin-only create/update/delete.
+  Scope is GLOBAL, not org-bound. Admin role is enforced at the DI factory
+  so non-super-admins cannot even construct it.
+"""
 
 from typing import List, Optional
 
@@ -13,8 +20,8 @@ from project_management_crud_example.domain_models import (
 )
 
 
-class OrganizationCapability:
-    """Organization read + write. Writes are Super-Admin-only."""
+class OrganizationReadCapability:
+    """Read-side organization authorization."""
 
     def __init__(self, repo: Repository, current_user: User) -> None:
         self._repo = repo
@@ -27,10 +34,6 @@ class OrganizationCapability:
     @property
     def user(self) -> User:
         return self._user
-
-    def _require_super_admin(self) -> None:
-        if self._user.role != UserRole.SUPER_ADMIN:
-            raise CapabilityPermissionError("Super Admin access required")
 
     def get_by_id(self, organization_id: str) -> Optional[Organization]:
         organization = self._repo.organizations.get_by_id(organization_id)
@@ -49,14 +52,32 @@ class OrganizationCapability:
         org = self._repo.organizations.get_by_id(self._user.organization_id)
         return [org] if org else []
 
+
+class GlobalOrganizationWriteCapability:
+    """Create / update / delete organizations.
+
+    Scope is GLOBAL (super-admin only). Must be constructed via
+    `get_global_organization_write_capability`, which enforces the role at
+    the DI boundary so non-super-admins cannot even construct it.
+    """
+
+    def __init__(self, repo: Repository, current_user: User) -> None:
+        self._repo = repo
+        self._user = current_user
+
+    @property
+    def repo(self) -> Repository:
+        return self._repo
+
+    @property
+    def user(self) -> User:
+        return self._user
+
     def create(self, command: OrganizationCreateCommand) -> Organization:
-        self._require_super_admin()
         return self._repo.organizations.create(command)
 
     def update(self, organization_id: str, command: OrganizationUpdateCommand) -> Optional[Organization]:
-        self._require_super_admin()
         return self._repo.organizations.update(organization_id, command)
 
     def delete(self, organization_id: str) -> bool:
-        self._require_super_admin()
         return self._repo.organizations.delete(organization_id)

@@ -5,8 +5,8 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from project_management_crud_example.capabilities import EpicReadCapability, EpicWriteCapability
-from project_management_crud_example.dependencies import get_epic_read_capability, get_epic_write_capability
+from project_management_crud_example.capabilities import EpicReadCapability, OrgEpicWriteCapability
+from project_management_crud_example.dependencies import get_epic_read_capability, get_org_epic_write_capability
 from project_management_crud_example.domain_models import (
     Epic,
     EpicData,
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/api/epics", tags=["epics"])
 @router.post("", response_model=Epic, status_code=status.HTTP_201_CREATED)
 async def create_epic(
     epic_data: EpicData,
-    cap: EpicWriteCapability = Depends(get_epic_write_capability),  # noqa: B008
+    cap: OrgEpicWriteCapability = Depends(get_org_epic_write_capability),  # noqa: B008
 ) -> Epic:
     try:
         command = cap.build_create_command(epic_data)
@@ -66,7 +66,7 @@ async def list_epics(
 async def update_epic(
     epic_id: str,
     update_data: EpicUpdateCommand,
-    cap: EpicWriteCapability = Depends(get_epic_write_capability),  # noqa: B008
+    cap: OrgEpicWriteCapability = Depends(get_org_epic_write_capability),  # noqa: B008
 ) -> Epic:
     old_epic = cap.load_for_update(epic_id)
     if not old_epic:
@@ -88,7 +88,7 @@ async def update_epic(
 @router.delete("/{epic_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_epic(
     epic_id: str,
-    cap: EpicWriteCapability = Depends(get_epic_write_capability),  # noqa: B008
+    cap: OrgEpicWriteCapability = Depends(get_org_epic_write_capability),  # noqa: B008
 ) -> None:
     epic = cap.load_for_delete(epic_id)
     if not epic:
@@ -111,7 +111,7 @@ async def delete_epic(
 async def add_ticket_to_epic(
     epic_id: str,
     ticket_id: str,
-    cap: EpicWriteCapability = Depends(get_epic_write_capability),  # noqa: B008
+    cap: OrgEpicWriteCapability = Depends(get_org_epic_write_capability),  # noqa: B008
 ) -> dict:
     epic = cap.repo.epics.get_by_id(epic_id)
     if not epic:
@@ -154,7 +154,7 @@ async def add_ticket_to_epic(
 async def remove_ticket_from_epic(
     epic_id: str,
     ticket_id: str,
-    cap: EpicWriteCapability = Depends(get_epic_write_capability),  # noqa: B008
+    cap: OrgEpicWriteCapability = Depends(get_org_epic_write_capability),  # noqa: B008
 ) -> None:
     epic = cap.repo.epics.get_by_id(epic_id)
     if not epic:

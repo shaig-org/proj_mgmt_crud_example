@@ -1,10 +1,10 @@
-"""Unit tests for ProjectReadCapability and ProjectWriteCapability."""
+"""Unit tests for ProjectReadCapability and OrgProjectWriteCapability."""
 
 from __future__ import annotations
 
 from project_management_crud_example.capabilities.projects_capability import (
+    OrgProjectWriteCapability,
     ProjectReadCapability,
-    ProjectWriteCapability,
 )
 from project_management_crud_example.dal.sqlite.repository import Repository
 from project_management_crud_example.domain_models import (
@@ -77,7 +77,7 @@ def test_project_read_list_projects_super_admin_sees_all(test_repo: Repository) 
 def test_project_write_create_allows_admin(test_repo: Repository) -> None:
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     admin = make_user(test_repo, org, UserRole.ADMIN)
-    cap = ProjectWriteCapability(test_repo, admin)
+    cap = OrgProjectWriteCapability(test_repo, admin)
     command = cap.build_create_command(ProjectData(name="New"))
     project = cap.create(command)
     assert project.organization_id == org.id
@@ -86,7 +86,7 @@ def test_project_write_create_allows_admin(test_repo: Repository) -> None:
 def test_project_write_create_denies_read_user(test_repo: Repository) -> None:
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     read_user = make_user(test_repo, org, UserRole.READ_ACCESS)
-    cap = ProjectWriteCapability(test_repo, read_user)
+    cap = OrgProjectWriteCapability(test_repo, read_user)
     assert_denied(cap.build_create_command, ProjectData(name="nope"))
 
 
@@ -95,7 +95,7 @@ def test_project_write_update_allows_admin_same_org(test_repo: Repository) -> No
     admin = make_user(test_repo, org, UserRole.ADMIN)
     project = create_test_project_via_repo(test_repo, org.id, name="P")
 
-    cap = ProjectWriteCapability(test_repo, admin)
+    cap = OrgProjectWriteCapability(test_repo, admin)
     loaded = cap.load_for_update(project.id)
     assert loaded is not None
     updated = cap.update(project.id, ProjectUpdateCommand(name="P2"))
@@ -106,7 +106,7 @@ def test_project_write_update_denies_regular_user(test_repo: Repository) -> None
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     writer = make_user(test_repo, org, UserRole.WRITE_ACCESS)
     project = create_test_project_via_repo(test_repo, org.id, name="P")
-    cap = ProjectWriteCapability(test_repo, writer)
+    cap = OrgProjectWriteCapability(test_repo, writer)
     assert_denied(cap.load_for_update, project.id)
 
 
@@ -115,7 +115,7 @@ def test_project_write_load_for_update_denies_cross_org_admin(test_repo: Reposit
     org_b = create_test_org_with_workflow_via_repo(test_repo, name="Org B")
     cross_admin = make_user(test_repo, org_b, UserRole.ADMIN, username="cross_admin")
     project = create_test_project_via_repo(test_repo, org_a.id, name="P")
-    cap = ProjectWriteCapability(test_repo, cross_admin)
+    cap = OrgProjectWriteCapability(test_repo, cross_admin)
     assert_denied(cap.load_for_update, project.id)
 
 
@@ -123,7 +123,7 @@ def test_project_write_delete_allows_admin_same_org(test_repo: Repository) -> No
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     admin = make_user(test_repo, org, UserRole.ADMIN)
     project = create_test_project_via_repo(test_repo, org.id, name="P")
-    cap = ProjectWriteCapability(test_repo, admin)
+    cap = OrgProjectWriteCapability(test_repo, admin)
     assert cap.load_for_delete(project.id) is not None
     assert cap.delete(project.id) is True
 
@@ -133,7 +133,7 @@ def test_project_write_delete_denies_project_manager(test_repo: Repository) -> N
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     pm = make_user(test_repo, org, UserRole.PROJECT_MANAGER)
     project = create_test_project_via_repo(test_repo, org.id, name="P")
-    cap = ProjectWriteCapability(test_repo, pm)
+    cap = OrgProjectWriteCapability(test_repo, pm)
     assert_denied(cap.load_for_delete, project.id)
 
 
@@ -141,7 +141,7 @@ def test_project_write_archive_allows_pm(test_repo: Repository) -> None:
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     pm = make_user(test_repo, org, UserRole.PROJECT_MANAGER)
     project = create_test_project_via_repo(test_repo, org.id, name="P")
-    cap = ProjectWriteCapability(test_repo, pm)
+    cap = OrgProjectWriteCapability(test_repo, pm)
     assert cap.load_for_archive(project.id) is not None
 
 
@@ -149,7 +149,7 @@ def test_project_write_archive_denies_read_user(test_repo: Repository) -> None:
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     reader = make_user(test_repo, org, UserRole.READ_ACCESS)
     project = create_test_project_via_repo(test_repo, org.id, name="P")
-    cap = ProjectWriteCapability(test_repo, reader)
+    cap = OrgProjectWriteCapability(test_repo, reader)
     assert_denied(cap.load_for_archive, project.id)
 
 
@@ -158,5 +158,5 @@ def test_project_write_unarchive_denies_pm(test_repo: Repository) -> None:
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     pm = make_user(test_repo, org, UserRole.PROJECT_MANAGER)
     project = create_test_project_via_repo(test_repo, org.id, name="P")
-    cap = ProjectWriteCapability(test_repo, pm)
+    cap = OrgProjectWriteCapability(test_repo, pm)
     assert_denied(cap.load_for_unarchive, project.id)

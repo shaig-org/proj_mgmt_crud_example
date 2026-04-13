@@ -1,10 +1,10 @@
-"""Unit tests for WorkflowReadCapability and WorkflowWriteCapability."""
+"""Unit tests for WorkflowReadCapability and OrgWorkflowWriteCapability."""
 
 from __future__ import annotations
 
 from project_management_crud_example.capabilities.workflows_capability import (
+    OrgWorkflowWriteCapability,
     WorkflowReadCapability,
-    WorkflowWriteCapability,
 )
 from project_management_crud_example.dal.sqlite.repository import Repository
 from project_management_crud_example.domain_models import UserRole, WorkflowData, WorkflowUpdateCommand
@@ -52,7 +52,7 @@ def test_workflow_read_list_scopes_to_user_org(test_repo: Repository) -> None:
 def test_workflow_write_create_allows_pm(test_repo: Repository) -> None:
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     pm = make_user(test_repo, org, UserRole.PROJECT_MANAGER)
-    cap = WorkflowWriteCapability(test_repo, pm)
+    cap = OrgWorkflowWriteCapability(test_repo, pm)
     cmd = cap.build_create_command(WorkflowData(name="Custom", statuses=["A", "B"]))
     wf = cap.create(cmd)
     assert wf.organization_id == org.id
@@ -61,7 +61,7 @@ def test_workflow_write_create_allows_pm(test_repo: Repository) -> None:
 def test_workflow_write_create_denies_write_user(test_repo: Repository) -> None:
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     writer = make_user(test_repo, org, UserRole.WRITE_ACCESS)
-    cap = WorkflowWriteCapability(test_repo, writer)
+    cap = OrgWorkflowWriteCapability(test_repo, writer)
     assert_denied(cap.build_create_command, WorkflowData(name="x", statuses=["A", "B"]))
 
 
@@ -69,7 +69,7 @@ def test_workflow_write_load_for_update_allows_admin(test_repo: Repository) -> N
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     admin = make_user(test_repo, org, UserRole.ADMIN)
     wid = _default_workflow_id(test_repo, org.id)
-    cap = WorkflowWriteCapability(test_repo, admin)
+    cap = OrgWorkflowWriteCapability(test_repo, admin)
     assert cap.load_for_update(wid) is not None
 
 
@@ -78,7 +78,7 @@ def test_workflow_write_load_for_update_denies_cross_org(test_repo: Repository) 
     org_b = create_test_org_with_workflow_via_repo(test_repo, name="Org B")
     admin_b = make_user(test_repo, org_b, UserRole.ADMIN, username="admin_b")
     wid = _default_workflow_id(test_repo, org_a.id)
-    cap = WorkflowWriteCapability(test_repo, admin_b)
+    cap = OrgWorkflowWriteCapability(test_repo, admin_b)
     assert_denied(cap.load_for_update, wid)
 
 
@@ -86,7 +86,7 @@ def test_workflow_write_update_returns_updated(test_repo: Repository) -> None:
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     admin = make_user(test_repo, org, UserRole.ADMIN)
     wid = _default_workflow_id(test_repo, org.id)
-    cap = WorkflowWriteCapability(test_repo, admin)
+    cap = OrgWorkflowWriteCapability(test_repo, admin)
     updated = cap.update(wid, WorkflowUpdateCommand(name="Renamed"))
     assert updated is not None and updated.name == "Renamed"
 
@@ -95,7 +95,7 @@ def test_workflow_write_load_for_delete_denies_pm(test_repo: Repository) -> None
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     pm = make_user(test_repo, org, UserRole.PROJECT_MANAGER)
     wid = _default_workflow_id(test_repo, org.id)
-    cap = WorkflowWriteCapability(test_repo, pm)
+    cap = OrgWorkflowWriteCapability(test_repo, pm)
     assert_denied(cap.load_for_delete, wid)
 
 
@@ -103,5 +103,5 @@ def test_workflow_write_load_for_delete_denies_read_user(test_repo: Repository) 
     org = create_test_org_with_workflow_via_repo(test_repo, name="Org A")
     reader = make_user(test_repo, org, UserRole.READ_ACCESS)
     wid = _default_workflow_id(test_repo, org.id)
-    cap = WorkflowWriteCapability(test_repo, reader)
+    cap = OrgWorkflowWriteCapability(test_repo, reader)
     assert_denied(cap.load_for_delete, wid)

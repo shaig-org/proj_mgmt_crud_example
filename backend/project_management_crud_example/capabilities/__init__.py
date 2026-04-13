@@ -15,20 +15,23 @@ from project_management_crud_example.capabilities.comments_capability import (
     OrgCommentModerationCapability,
     OwnCommentWriteCapability,
 )
-from project_management_crud_example.capabilities.epics_capability import EpicReadCapability, EpicWriteCapability
+from project_management_crud_example.capabilities.epics_capability import EpicReadCapability, OrgEpicWriteCapability
 from project_management_crud_example.capabilities.errors import CapabilityPermissionError
-from project_management_crud_example.capabilities.organizations_capability import OrganizationCapability
+from project_management_crud_example.capabilities.organizations_capability import (
+    GlobalOrganizationWriteCapability,
+    OrganizationReadCapability,
+)
 from project_management_crud_example.capabilities.password_capability import (
     PasswordChangeCapability,
     PasswordChangeError,
 )
 from project_management_crud_example.capabilities.projects_capability import (
+    OrgProjectWriteCapability,
     ProjectReadCapability,
-    ProjectWriteCapability,
 )
 from project_management_crud_example.capabilities.tickets_capability import (
+    OrgTicketWriteCapability,
     TicketReadCapability,
-    TicketWriteCapability,
 )
 from project_management_crud_example.capabilities.users_capability import (
     OrgUserWriteCapability,
@@ -36,8 +39,8 @@ from project_management_crud_example.capabilities.users_capability import (
     UserReadCapability,
 )
 from project_management_crud_example.capabilities.workflows_capability import (
+    OrgWorkflowWriteCapability,
     WorkflowReadCapability,
-    WorkflowWriteCapability,
 )
 
 __all__ = [
@@ -47,17 +50,18 @@ __all__ = [
     "OrgCommentModerationCapability",
     "OwnCommentWriteCapability",
     "EpicReadCapability",
-    "EpicWriteCapability",
-    "OrganizationCapability",
+    "OrgEpicWriteCapability",
+    "GlobalOrganizationWriteCapability",
+    "OrganizationReadCapability",
     "PasswordChangeCapability",
     "PasswordChangeError",
     "ProjectReadCapability",
-    "ProjectWriteCapability",
+    "OrgProjectWriteCapability",
     "TicketReadCapability",
-    "TicketWriteCapability",
+    "OrgTicketWriteCapability",
     "OrgUserWriteCapability",
     "SelfUserWriteCapability",
     "UserReadCapability",
     "WorkflowReadCapability",
-    "WorkflowWriteCapability",
+    "OrgWorkflowWriteCapability",
 ]

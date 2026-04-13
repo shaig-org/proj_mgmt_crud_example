@@ -5,10 +5,10 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from project_management_crud_example.capabilities import WorkflowReadCapability, WorkflowWriteCapability
+from project_management_crud_example.capabilities import OrgWorkflowWriteCapability, WorkflowReadCapability
 from project_management_crud_example.dependencies import (
+    get_org_workflow_write_capability,
     get_workflow_read_capability,
-    get_workflow_write_capability,
 )
 from project_management_crud_example.domain_models import (
     Workflow,
@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api/workflows", tags=["workflows"])
 @router.post("", response_model=Workflow, status_code=status.HTTP_201_CREATED)
 async def create_workflow(
     workflow_data: WorkflowData,
-    cap: WorkflowWriteCapability = Depends(get_workflow_write_capability),  # noqa: B008
+    cap: OrgWorkflowWriteCapability = Depends(get_org_workflow_write_capability),  # noqa: B008
 ) -> Workflow:
     try:
         command = cap.build_create_command(workflow_data)
@@ -68,7 +68,7 @@ async def list_workflows(
 async def update_workflow(
     workflow_id: str,
     update_data: WorkflowUpdateCommand,
-    cap: WorkflowWriteCapability = Depends(get_workflow_write_capability),  # noqa: B008
+    cap: OrgWorkflowWriteCapability = Depends(get_org_workflow_write_capability),  # noqa: B008
 ) -> Workflow:
     workflow = cap.load_for_update(workflow_id)
     if not workflow:
@@ -107,7 +107,7 @@ async def update_workflow(
 @router.delete("/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_workflow(
     workflow_id: str,
-    cap: WorkflowWriteCapability = Depends(get_workflow_write_capability),  # noqa: B008
+    cap: OrgWorkflowWriteCapability = Depends(get_org_workflow_write_capability),  # noqa: B008
 ) -> None:
     workflow = cap.load_for_delete(workflow_id)
     if not workflow:
