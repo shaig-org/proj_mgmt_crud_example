@@ -32,7 +32,23 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testDir: './e2e',
+      testIgnore: ['**/scenarios/**'],
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'scenarios',
+      testDir: './e2e/scenarios',
+      outputDir: './evidence/.playwright-output',
+      use: {
+        ...devices['Desktop Chrome'],
+        video: 'on',
+        // Trace is started and stopped manually inside the scenarioTest
+        // fixture so we can flush trace.zip to a stable path before
+        // Playwright's async reporter phase.
+        trace: 'off',
+        screenshot: 'off',
+      },
     },
   ],
 

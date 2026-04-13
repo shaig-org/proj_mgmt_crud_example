@@ -33,3 +33,6 @@ test-results
 
 # Vite
 .vite/
+
+# Scenario evidence (generated)
+evidence/

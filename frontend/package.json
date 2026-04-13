@@ -11,9 +11,12 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "e2e": "playwright test --reporter=list",
+    "e2e:scenarios": "playwright test --project=scenarios --reporter=list",
     "e2e:headed": "playwright test --headed --reporter=list",
     "e2e:ui": "playwright test --ui",
-    "e2e:debug": "playwright test --debug"
+    "e2e:debug": "playwright test --debug",
+    "evidence:generate": "tsx scripts/generate-evidence.ts",
+    "evidence:serve": "npx --yes serve evidence/gallery -l 4173"
   },
   "dependencies": {
     "axios": "^1.7.9",
@@ -24,6 +27,7 @@
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@playwright/test": "^1.56.1",
+    "@types/node": "^25.6.0",
     "@types/react": "^19.0.6",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
@@ -32,6 +36,7 @@
     "eslint-plugin-react-refresh": "^0.4.16",
     "globals": "^15.14.0",
     "playwright": "^1.56.1",
+    "tsx": "^4.21.0",
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.18.2",
     "vite": "^6.0.5"

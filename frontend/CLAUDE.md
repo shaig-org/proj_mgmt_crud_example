@@ -24,6 +24,9 @@ React 19 + TypeScript (strict) · Vite · Axios · Playwright · ESLint
 - Parallel-safe (4 workers). Each test creates its own data.
 - Tests have descriptive names.
 
+## Scenario tests (evidence visualization)
+Scenario tests live in `e2e/scenarios/` and use the `scenarioTest` fixture from `e2e/helpers/scenario.ts`. They run under the `scenarios` Playwright project (video + trace always on) and produce per-scenario evidence under the gitignored `evidence/` tree. Do not put regular specs under `e2e/scenarios/`. To generate the static viewer locally run `npm run e2e:scenarios && npm run evidence:generate && npm run evidence:serve` (requires `ffmpeg` on PATH; dev-only, not part of CI).
+
 ## Backend integration
 Dev backend runs at `http://localhost:8000`. Playwright starts the backend automatically during `npm run e2e`.
 
