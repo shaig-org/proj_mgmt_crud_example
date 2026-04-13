@@ -93,10 +93,18 @@ scenarioTest('scenario_create_epic_in_project', async ({ page, step }) => {
 
   await step('submit epic form', async () => {
     await page.getByRole('button', { name: 'Create Epic' }).click();
+    // Wait for modal to close AND the new epic to appear in the list. This
+    // is the "submitted, project page with new epic row" UI state.
     await expect(page.getByRole('heading', { name: 'Create New Epic' })).not.toBeVisible();
+    await expect(page.getByRole('link', { name: epicName })).toBeVisible();
   });
 
-  await step('verify epic on project page', async () => {
-    await expect(page.getByText(epicName)).toBeVisible();
+  await step('open new epic details', async () => {
+    // Click into the epic to land on its details page — a meaningfully
+    // different UI state (epic header, status, Tickets section) so the
+    // final flipbook frame is not a duplicate of the previous one.
+    await page.getByRole('link', { name: epicName }).click();
+    await expect(page).toHaveURL(/\/epics\/[^/]+$/);
+    await expect(page.getByRole('heading', { name: epicName })).toBeVisible();
   });
 });

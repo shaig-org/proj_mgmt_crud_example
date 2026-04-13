@@ -1,15 +1,15 @@
 #!/usr/bin/env tsx
 /**
- * Evidence generator — dev-time tooling.
+ * Walkthroughs generator — dev-time tooling.
  *
- * Reads per-scenario metadata JSONs from `frontend/evidence/metadata/`,
- * videos from `frontend/evidence/videos/`, and produces:
- *   - `frontend/evidence/gallery/gifs/<slug>.gif`         (flipbook, 5 fps, one frame per step)
- *   - `frontend/evidence/gallery/gifs/<slug>-motion.gif`  (video-derived, 5 fps, slowed down)
- *   - `frontend/evidence/gallery/videos/<slug>.webm`      (original Playwright recording)
- *   - `frontend/evidence/gallery/manifest.json`
- *   - `frontend/evidence/gallery/index.html`, `viewer.js`, `viewer.css`
- *     (copied from `frontend/src-evidence-gallery/`)
+ * Reads per-scenario metadata JSONs from `frontend/walkthroughs/metadata/`,
+ * videos from `frontend/walkthroughs/videos/`, and produces:
+ *   - `frontend/walkthroughs/gallery/gifs/<slug>.gif`         (flipbook, 5 fps, one frame per step)
+ *   - `frontend/walkthroughs/gallery/gifs/<slug>-motion.gif`  (video-derived, 5 fps, slowed down)
+ *   - `frontend/walkthroughs/gallery/videos/<slug>.webm`      (original Playwright recording)
+ *   - `frontend/walkthroughs/gallery/manifest.json`
+ *   - `frontend/walkthroughs/gallery/index.html`, `viewer.js`, `viewer.css`
+ *     (copied from `frontend/src-walkthroughs-dashboard/`)
  *
  * Requires `ffmpeg` and `ffprobe` on PATH. Exits 1 on ffmpeg failure.
  */
@@ -25,14 +25,14 @@ const execFileP = promisify(execFile);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const FRONTEND_ROOT = path.resolve(__dirname, '..');
-const EVIDENCE_DIR = path.join(FRONTEND_ROOT, 'evidence');
-const METADATA_DIR = path.join(EVIDENCE_DIR, 'metadata');
-const SCREENSHOTS_DIR = path.join(EVIDENCE_DIR, 'screenshots');
-const GALLERY_DIR = path.join(EVIDENCE_DIR, 'gallery');
+const WALKTHROUGHS_DIR = path.join(FRONTEND_ROOT, 'walkthroughs');
+const METADATA_DIR = path.join(WALKTHROUGHS_DIR, 'metadata');
+const SCREENSHOTS_DIR = path.join(WALKTHROUGHS_DIR, 'screenshots');
+const GALLERY_DIR = path.join(WALKTHROUGHS_DIR, 'gallery');
 const GALLERY_GIFS_DIR = path.join(GALLERY_DIR, 'gifs');
 const GALLERY_SCREENSHOTS_DIR = path.join(GALLERY_DIR, 'screenshots');
 const GALLERY_VIDEOS_DIR = path.join(GALLERY_DIR, 'videos');
-const VIEWER_SOURCE_DIR = path.join(FRONTEND_ROOT, 'src-evidence-gallery');
+const VIEWER_SOURCE_DIR = path.join(FRONTEND_ROOT, 'src-walkthroughs-dashboard');
 
 // GIF rendering constants — tune here for comfort.
 // Motion GIF: output frame rate and real-time slowdown factor.
@@ -99,7 +99,7 @@ async function readMetadataFiles(): Promise<RawMetadata[]> {
     try {
       results.push(JSON.parse(raw) as RawMetadata);
     } catch (err) {
-      console.warn(`[evidence] skipping malformed metadata ${f}: ${String(err)}`);
+      console.warn(`[walkthroughs] skipping malformed metadata ${f}: ${String(err)}`);
     }
   }
   return results;
@@ -122,7 +122,7 @@ async function probeVideoDurationSec(videoPath: string): Promise<number | null> 
 
 function handleFfmpegMissing(err: NodeJS.ErrnoException): void {
   if (err.code === 'ENOENT') {
-    console.error('[evidence] ffmpeg not found on PATH. Install ffmpeg; this is a dev-only tool.');
+    console.error('[walkthroughs] ffmpeg not found on PATH. Install ffmpeg; this is a dev-only tool.');
     process.exit(1);
   }
 }
@@ -149,7 +149,7 @@ async function renderMotionGif(videoAbsPath: string, gifAbsPath: string, slug: s
     ]);
     const renderedDuration = await probeVideoDurationSec(gifAbsPath);
     console.log(
-      `[evidence] motion GIF ${slug}: ${MOTION_FPS} fps, ${MOTION_SLOWDOWN}x slowdown, ` +
+      `[walkthroughs] motion GIF ${slug}: ${MOTION_FPS} fps, ${MOTION_SLOWDOWN}x slowdown, ` +
       `source=${sourceDuration ? sourceDuration.toFixed(2) : '?'}s, ` +
       `gif=${renderedDuration ? renderedDuration.toFixed(2) : '?'}s`
     );
@@ -157,7 +157,7 @@ async function renderMotionGif(videoAbsPath: string, gifAbsPath: string, slug: s
   } catch (err) {
     const e = err as NodeJS.ErrnoException & { stderr?: string };
     handleFfmpegMissing(e);
-    console.warn(`[evidence] motion ffmpeg failed for ${videoAbsPath}: ${e.stderr ?? e.message}`);
+    console.warn(`[walkthroughs] motion ffmpeg failed for ${videoAbsPath}: ${e.stderr ?? e.message}`);
     return false;
   }
 }
@@ -197,7 +197,7 @@ async function renderFlipbookGif(
     ]);
     const renderedDuration = await probeVideoDurationSec(gifAbsPath);
     console.log(
-      `[evidence] flipbook GIF ${slug}: ${FLIPBOOK_FPS} fps, ` +
+      `[walkthroughs] flipbook GIF ${slug}: ${FLIPBOOK_FPS} fps, ` +
       `${screenshotAbsPaths.length} steps × ${FLIPBOOK_HOLD_SECONDS}s, ` +
       `gif=${renderedDuration ? renderedDuration.toFixed(2) : '?'}s`
     );
@@ -205,7 +205,7 @@ async function renderFlipbookGif(
   } catch (err) {
     const e = err as NodeJS.ErrnoException & { stderr?: string };
     handleFfmpegMissing(e);
-    console.warn(`[evidence] flipbook ffmpeg failed for ${slug}: ${e.stderr ?? e.message}`);
+    console.warn(`[walkthroughs] flipbook ffmpeg failed for ${slug}: ${e.stderr ?? e.message}`);
     return false;
   } finally {
     await fs.rm(concatFile, { force: true });
@@ -234,7 +234,7 @@ async function copyDirContents(src: string, dest: string): Promise<void> {
 async function main(): Promise<void> {
   const metadataEntries = await readMetadataFiles();
   if (metadataEntries.length === 0) {
-    console.error('[evidence] No metadata found under evidence/metadata/. Run `npm run e2e:scenarios` first.');
+    console.error('[walkthroughs] No metadata found under walkthroughs/metadata/. Run `npm run e2e:scenarios` first.');
     process.exit(1);
   }
 
@@ -249,7 +249,7 @@ async function main(): Promise<void> {
   try {
     await copyDirContents(VIEWER_SOURCE_DIR, GALLERY_DIR);
   } catch (err) {
-    console.error(`[evidence] failed to copy viewer source from ${VIEWER_SOURCE_DIR}: ${String(err)}`);
+    console.error(`[walkthroughs] failed to copy viewer source from ${VIEWER_SOURCE_DIR}: ${String(err)}`);
     process.exit(1);
   }
 
@@ -271,7 +271,7 @@ async function main(): Promise<void> {
 
     // Copy original video into gallery for direct playback.
     if (meta.videoPath) {
-      const videoSrcAbs = path.join(EVIDENCE_DIR, meta.videoPath);
+      const videoSrcAbs = path.join(WALKTHROUGHS_DIR, meta.videoPath);
       const videoDestAbs = path.join(GALLERY_VIDEOS_DIR, `${meta.slug}.webm`);
       try {
         await fs.access(videoSrcAbs);
@@ -286,15 +286,15 @@ async function main(): Promise<void> {
           motionRendered += 1;
         }
       } catch {
-        console.warn(`[evidence] video missing for slug ${meta.slug}, skipping motion GIF`);
+        console.warn(`[walkthroughs] video missing for slug ${meta.slug}, skipping motion GIF`);
       }
     } else {
-      console.warn(`[evidence] no video recorded for slug ${meta.slug}`);
+      console.warn(`[walkthroughs] no video recorded for slug ${meta.slug}`);
     }
 
     // Flipbook GIF (built from per-step screenshots — primary comprehension aid).
     if (meta.steps && meta.steps.length > 0) {
-      const screenshotAbsPaths = meta.steps.map((st) => path.join(EVIDENCE_DIR, st.screenshot));
+      const screenshotAbsPaths = meta.steps.map((st) => path.join(WALKTHROUGHS_DIR, st.screenshot));
       // Verify all exist; drop those that don't.
       const existing: string[] = [];
       for (const p of screenshotAbsPaths) {
@@ -330,12 +330,12 @@ async function main(): Promise<void> {
     'utf8',
   );
 
-  console.log(`[evidence] wrote manifest with ${manifest.length} scenario(s) to ${GALLERY_DIR}`);
-  console.log(`[evidence] ${flipbooksRendered} flipbook GIFs, ${motionRendered} motion GIFs, ${videosCopied} videos copied`);
-  console.log(`[evidence] open ${path.join(GALLERY_DIR, 'index.html')} or run \`npm run evidence:serve\``);
+  console.log(`[walkthroughs] wrote manifest with ${manifest.length} scenario(s) to ${GALLERY_DIR}`);
+  console.log(`[walkthroughs] ${flipbooksRendered} flipbook GIFs, ${motionRendered} motion GIFs, ${videosCopied} videos copied`);
+  console.log(`[walkthroughs] open ${path.join(GALLERY_DIR, 'index.html')} or run \`npm run walkthroughs:serve\``);
 }
 
 main().catch((err: unknown) => {
-  console.error('[evidence] fatal:', err);
+  console.error('[walkthroughs] fatal:', err);
   process.exit(1);
 });

@@ -402,6 +402,117 @@ only; no backend, no production FE. Static viewer served over HTTP via
   affordance.
 - Size control has three presets rather than a continuous slider.
 
+## Deviations (round 4) — 2026-04-12
+
+Fourth-pass UX polish + project-wide rename. Still frontend-only; no backend
+or production FE changes.
+
+1. **Size control is now a range slider with snap stops.** Replaced the
+   discrete Small/Medium/Large buttons with a `<input type="range">` bound to
+   a `<datalist>` of stops `[160, 240, 320, 480, 640, 800, 1000, 1200]`. The
+   slider snaps to the nearest stop on both `input` (live) and `change`
+   (commit to `localStorage`). Current value is shown in px next to the
+   slider (`<span class="size-px">320</span>px`). Key `evidence.tileSize`
+   now stores a numeric string (e.g. `"480"`); legacy values (`small` /
+   `medium` / `large`) are migrated transparently on read to `240/320/480`.
+   The default is 320. Applies to gallery, screenshots, and flow pages —
+   same `--tile-size` CSS variable drives all of them.
+
+2. **Strip-row layout: left header, right filmstrip.** `.strip-row` is now
+   `display: flex; flex-direction: row` with a fixed-width (`220px`) left
+   column holding title + status + feature + step count / duration + pills
+   stacked vertically; the filmstrip occupies the remaining width and
+   vertical-centres its frames. Title/metadata no longer sits above the
+   filmstrip.
+
+3. **Stronger row-background contrast.** Alternating row tones bumped from
+   `#111c32` / `#0f172a` (subtle tint) to `#13213f` / `#0b1426` — noticeably
+   more pronounced, still tasteful for a dark UI.
+
+4. **Horizontal scroll affordance.** Strip-row filmstrip now uses
+   `overflow-x: scroll` + `scrollbar-width: thin` + WebKit pseudo-element
+   styling (`::-webkit-scrollbar` height 10px, themed track + thumb) so mouse
+   users see the scrollbar even when content barely overflows. In addition,
+   left/right chevron buttons (`.strip-scroll-btn`) are absolutely
+   positioned over the strip edges, hidden by default, revealed on
+   `.strip-row-scroll-wrap:hover` (or keyboard focus), and scroll the strip
+   by ~80% of viewport (`clientWidth * 0.8`) with `behavior: 'smooth'`.
+   Native touch / trackpad behaviour is unchanged.
+
+5. **"Dev Dashboard" rebrand.** `index.html` `<title>`, header `h1` link,
+   and frontend CLAUDE.md pointer all now say **Dev Dashboard**. The CLI
+   scripts and folder names were renamed separately (item 6).
+
+6. **Project-wide rename: evidence → walkthroughs.**
+   - `frontend/evidence/` (gitignored output) → `frontend/walkthroughs/`.
+   - `frontend/src-evidence-gallery/` (committed source) →
+     `frontend/src-walkthroughs-dashboard/`.
+   - `npm run evidence:generate` → `npm run walkthroughs:generate`;
+     `npm run evidence:serve` → `npm run walkthroughs:serve`.
+   - `frontend/scripts/generate-evidence.ts` →
+     `frontend/scripts/generate-walkthroughs.ts`; internal log prefix
+     changed from `[evidence]` to `[walkthroughs]`.
+   - Playwright `outputDir: './walkthroughs/.playwright-output'`.
+   - `EVIDENCE_DIR` constant in `e2e/helpers/scenario.ts` and its consumer
+     `_fixture-smoketest.scenario.spec.ts` → `WALKTHROUGHS_DIR` pointing at
+     the new path.
+   - `frontend/.gitignore` now ignores `walkthroughs/` (was `evidence/`).
+   - Frontend CLAUDE.md updated.
+   - The `localStorage` KEY `evidence.tileSize` / `evidence.galleryView`
+     is intentionally kept (the task specified replacing the VALUE and
+     migrating gracefully, not renaming the key — preserves existing
+     users' prefs).
+   - Manifest filename unchanged (`manifest.json`); it lives inside the
+     renamed `walkthroughs/gallery/` directory.
+
+7. **Bug fix: `scenario_create_epic_in_project` flipbook had two identical
+   frames.** Root cause: the previous scenario's final two steps (`submit
+   epic form` and `verify epic on project page`) landed on the SAME DOM
+   state — once the modal closed, the epic was already visible in the
+   project's epic list, so the screenshot taken at the end of step 6 was
+   byte-identical to step 5's. (Confirmed by `md5 *.png` on the last
+   published run: steps 05 and 06 shared hash
+   `fd72eede6f9d2140a4311c595c64cae8`.) No bug in the fixture,
+   generator, slug numbering, or concat-demuxer pipeline — purely a
+   scenario-design problem: the last step didn't advance the UI. **Fix:**
+   replaced step 6 with `open new epic details` — click into the newly
+   created epic's link and land on the Epic Details page
+   (`/epics/<id>`), asserting the epic-name heading is visible. This
+   produces a visibly distinct final frame (full epic detail page with
+   Tickets section, Epic Information panel, etc.). Step 5 still asserts
+   modal-closed-and-epic-visible so the pre-click state is captured.
+   Verified post-fix: all 6 frames have distinct md5s; flipbook GIF now
+   shows genuine motion.
+
+### Files touched (round 4)
+- `frontend/src-walkthroughs-dashboard/index.html` — title / h1 rebrand.
+- `frontend/src-walkthroughs-dashboard/viewer.js` — size slider with snap
+  stops + migration, chevron scroll handlers, new strip-row markup.
+- `frontend/src-walkthroughs-dashboard/viewer.css` — slider styling,
+  strip-row row layout, stronger alternating tones, custom
+  scrollbar, chevron overlay styling.
+- `frontend/scripts/generate-walkthroughs.ts` (renamed from
+  `generate-evidence.ts`) — path + log-prefix rename.
+- `frontend/e2e/helpers/scenario.ts` — `EVIDENCE_DIR` → `WALKTHROUGHS_DIR`,
+  path targets `frontend/walkthroughs/`.
+- `frontend/e2e/scenarios/_fixture-smoketest.scenario.spec.ts` — import
+  rename.
+- `frontend/e2e/scenarios/create-epic-in-project.scenario.spec.ts` —
+  last step restructured for distinct final frame.
+- `frontend/playwright.config.ts` — `outputDir` rename.
+- `frontend/package.json` — npm script renames.
+- `frontend/.gitignore` — `evidence/` → `walkthroughs/`.
+- `frontend/CLAUDE.md` — terminology + Dev Dashboard pointer.
+
+### Validation (round 4)
+- `npm run lint` — clean.
+- `npm run typecheck` — clean.
+- `npm run e2e` — 109 passed (1.4 min).
+- `npm run walkthroughs:generate` — 4 flipbook GIFs, 4 motion GIFs, 4
+  videos copied; manifest written to `walkthroughs/gallery/`.
+- `md5 frontend/walkthroughs/screenshots/scenario-create-epic-in-project-*/*.png`
+  — all 6 frames distinct.
+
 ## 9. Sign-off
 
 - [ ] User approved plan — date/note

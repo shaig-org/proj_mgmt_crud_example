@@ -3,9 +3,9 @@
  *
  * Wraps Playwright `test` with a `step(name, fn)` helper that auto-numbers
  * and captures a screenshot after each step, and emits one metadata JSON
- * per scenario run under `frontend/evidence/metadata/<slug>.json`.
+ * per scenario run under `frontend/walkthroughs/metadata/<slug>.json`.
  *
- * Outputs (all under `frontend/evidence/`):
+ * Outputs (all under `frontend/walkthroughs/`):
  *   screenshots/<slug>/NN-<step>.png
  *   videos/<slug>.webm
  *   traces/<slug>.zip
@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const EVIDENCE_DIR = path.resolve(__dirname, '..', '..', 'evidence');
+export const WALKTHROUGHS_DIR = path.resolve(__dirname, '..', '..', 'walkthroughs');
 
 export interface ScenarioStepRecord {
   index: number;
@@ -113,7 +113,7 @@ class StepCollector {
     const stepSlug = slugify(name);
     const nn = String(index).padStart(2, '0');
     const screenshotRel = path.posix.join('screenshots', this.scenarioSlug, `${nn}-${stepSlug}.png`);
-    const screenshotAbs = path.join(EVIDENCE_DIR, 'screenshots', this.scenarioSlug, `${nn}-${stepSlug}.png`);
+    const screenshotAbs = path.join(WALKTHROUGHS_DIR, 'screenshots', this.scenarioSlug, `${nn}-${stepSlug}.png`);
     const startedAtMs = Date.now();
     const startedAt = new Date(startedAtMs).toISOString();
     let status: 'passed' | 'failed' = 'passed';
@@ -161,8 +161,8 @@ async function collectVideoAndTrace(
   testInfo: TestInfo,
   scenarioSlug: string,
 ): Promise<{ videoPath: string | null; tracePath: string | null }> {
-  const videosDir = path.join(EVIDENCE_DIR, 'videos');
-  const tracesDir = path.join(EVIDENCE_DIR, 'traces');
+  const videosDir = path.join(WALKTHROUGHS_DIR, 'videos');
+  const tracesDir = path.join(WALKTHROUGHS_DIR, 'traces');
   await ensureDir(videosDir);
   await ensureDir(tracesDir);
 
@@ -201,7 +201,7 @@ async function collectVideoAndTrace(
 }
 
 async function writeMetadata(metadata: ScenarioMetadata): Promise<void> {
-  const metadataDir = path.join(EVIDENCE_DIR, 'metadata');
+  const metadataDir = path.join(WALKTHROUGHS_DIR, 'metadata');
   await ensureDir(metadataDir);
   const outPath = path.join(metadataDir, `${metadata.slug}.json`);
   await fs.writeFile(outPath, JSON.stringify(metadata, null, 2), 'utf8');
@@ -301,10 +301,10 @@ export const scenarioTest = base.extend<ScenarioFixtures>({
     await use(stepFn);
 
     // Stop tracing and flush to stable path BEFORE context close / fixture
-    // teardown so `evidence/traces/<slug>.zip` is available for in-run
+    // teardown so `walkthroughs/traces/<slug>.zip` is available for in-run
     // assertions and downstream tooling.
     try {
-      const tracesDir = path.join(EVIDENCE_DIR, 'traces');
+      const tracesDir = path.join(WALKTHROUGHS_DIR, 'traces');
       await ensureDir(tracesDir);
       const traceDest = path.join(tracesDir, `${scenarioSlug}.zip`);
       await page.context().tracing.stop({ path: traceDest });

@@ -79,6 +79,22 @@ a:hover { text-decoration: underline; }
 }
 .toolbar-btn:hover { background: #475569; }
 .toolbar-btn.active { background: #2563eb; border-color: #3b82f6; color: #fff; }
+.size-group { gap: 0.6rem; flex: 1 1 auto; max-width: 520px; }
+.size-slider {
+  flex: 1 1 auto;
+  min-width: 160px;
+  height: 4px;
+  accent-color: #3b82f6;
+  cursor: pointer;
+}
+.size-readout {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+  font-variant-numeric: tabular-nums;
+  min-width: 4.5ch;
+  text-align: right;
+}
+.size-readout .size-px { font-weight: 600; color: #e2e8f0; }
 
 .grid {
   display: grid;
@@ -97,36 +113,106 @@ a:hover { text-decoration: underline; }
   gap: 0;
   padding: 0;
 }
+/*
+ * Strip-row: horizontal layout — fixed left header column + filmstrip on the
+ * right. Row tone alternates more strongly than a subtle tint so rows are
+ * clearly delineated even at tight vertical spacing.
+ */
 .strip-row {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 1rem 1.25rem 1.25rem;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 1rem;
+  padding: 0.85rem 1.25rem;
   border-bottom: 1px solid #334155;
-  background: #111c32;
+  background: #13213f;
 }
-.strip-row + .strip-row { /* alternating subtle tone for separation */ }
-.strip-row:nth-child(even) { background: #0f172a; }
+.strip-row:nth-child(even) { background: #0b1426; }
 .strip-row-header {
+  flex: 0 0 220px;
+  width: 220px;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.45rem;
+  min-width: 0;
 }
-.strip-row-heading { min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
-.strip-row-title { font-weight: 600; font-size: 1rem; color: #e2e8f0; }
-.strip-row-sub { color: #94a3b8; font-size: 0.85rem; }
-.strip-row-header .pills { margin-top: 0; }
+.strip-row-heading { min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; width: 100%; }
+.strip-row-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #e2e8f0;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.strip-row-sub {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.strip-row-meta-line { display: block; }
+.strip-row-header .pills { margin-top: 0.15rem; }
+
+/* Scroll wrapper hosts the filmstrip plus the hover chevrons. */
+.strip-row-scroll-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
 .strip-row-scroll {
   display: flex;
   gap: 0.5rem;
-  overflow-x: auto;
-  padding: 0.25rem 0;
+  /*
+   * Always-visible thin custom scrollbar — `overflow-x: scroll` (not `auto`)
+   * ensures the track is rendered even when content barely overflows, giving
+   * mouse users a clear affordance. `scrollbar-width: thin` + WebKit rules
+   * below pick a ~10px height. Touch/trackpad native scrolling is unaffected.
+   */
+  overflow-x: scroll;
+  overflow-y: hidden;
+  padding: 0.15rem 0 0.4rem;
+  width: 100%;
   background: transparent;
   scrollbar-width: thin;
-  align-items: flex-start;
+  scrollbar-color: #475569 #1e293b;
+  align-items: center;
+  scroll-behavior: smooth;
 }
+.strip-row-scroll::-webkit-scrollbar { height: 10px; }
+.strip-row-scroll::-webkit-scrollbar-track { background: #1e293b; border-radius: 5px; }
+.strip-row-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 5px; }
+.strip-row-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+.strip-scroll-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 32px;
+  height: 48px;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #e2e8f0;
+  font-size: 1rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.strip-row-scroll-wrap:hover .strip-scroll-btn,
+.strip-scroll-btn:focus { opacity: 1; }
+.strip-scroll-btn:hover { background: rgba(37, 99, 235, 0.9); border-color: #3b82f6; }
+.strip-scroll-prev { left: 2px; }
+.strip-scroll-next { right: 2px; }
 .strip-frame-row {
   /* Grow to fill available width; fall back to tile-size as basis so many
      frames overflow into horizontal scroll rather than shrinking. */

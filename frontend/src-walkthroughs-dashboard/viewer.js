@@ -5,21 +5,39 @@
 
   var LS_SIZE_KEY = 'evidence.tileSize';
   var LS_VIEW_KEY = 'evidence.galleryView';
-  var SIZE_PRESETS = {
-    small: '180px',
-    medium: '320px',
-    large: '480px',
-  };
+  // Snap stops in px for the tile-size slider. Wide range so strip frames
+  // can go from thumbnail (160) to nearly full-viewport (1200).
+  var SIZE_STOPS = [160, 240, 320, 480, 640, 800, 1000, 1200];
+  var SIZE_DEFAULT = 320;
+  // Legacy string-keyed values from earlier rounds, migrated on read.
+  var LEGACY_SIZE_MAP = { small: 240, medium: 320, large: 480 };
+
+  function clampToStop(n) {
+    var best = SIZE_STOPS[0];
+    var bestD = Math.abs(n - best);
+    for (var i = 1; i < SIZE_STOPS.length; i++) {
+      var d = Math.abs(n - SIZE_STOPS[i]);
+      if (d < bestD) { best = SIZE_STOPS[i]; bestD = d; }
+    }
+    return best;
+  }
 
   function readSize() {
     try {
       var v = localStorage.getItem(LS_SIZE_KEY);
-      if (v === 'small' || v === 'medium' || v === 'large') return v;
+      if (v == null) return SIZE_DEFAULT;
+      if (Object.prototype.hasOwnProperty.call(LEGACY_SIZE_MAP, v)) {
+        var migrated = LEGACY_SIZE_MAP[v];
+        try { localStorage.setItem(LS_SIZE_KEY, String(migrated)); } catch (e) { /* ignore */ }
+        return migrated;
+      }
+      var n = parseInt(v, 10);
+      if (Number.isFinite(n) && n > 0) return clampToStop(n);
     } catch (e) { /* ignore */ }
-    return 'medium';
+    return SIZE_DEFAULT;
   }
-  function writeSize(v) {
-    try { localStorage.setItem(LS_SIZE_KEY, v); } catch (e) { /* ignore */ }
+  function writeSize(n) {
+    try { localStorage.setItem(LS_SIZE_KEY, String(n)); } catch (e) { /* ignore */ }
   }
   function readGalleryView() {
     try {
@@ -32,8 +50,8 @@
     try { localStorage.setItem(LS_VIEW_KEY, v); } catch (e) { /* ignore */ }
   }
 
-  function applyTileSize(size) {
-    document.documentElement.style.setProperty('--tile-size', SIZE_PRESETS[size] || SIZE_PRESETS.medium);
+  function applyTileSize(n) {
+    document.documentElement.style.setProperty('--tile-size', n + 'px');
   }
 
   var state = {
@@ -119,10 +137,16 @@
   // ---------- Toolbar (size + view mode) ----------
 
   function sizeControlHtml(includeViewToggle) {
-    var sizeBtns = ['small', 'medium', 'large'].map(function (s) {
-      var active = state.tileSize === s ? ' active' : '';
-      return '<button type="button" class="toolbar-btn' + active + '" data-size="' + s + '">' + s.charAt(0).toUpperCase() + s.slice(1) + '</button>';
-    }).join('');
+    var minStop = SIZE_STOPS[0];
+    var maxStop = SIZE_STOPS[SIZE_STOPS.length - 1];
+    // Datalist provides visual snap marks; step=1 with JS snap-to-stop on input.
+    var datalistOpts = SIZE_STOPS.map(function (s) { return '<option value="' + s + '"></option>'; }).join('');
+    var sizeSlider =
+      '<div class="toolbar-group size-group"><span class="toolbar-label">Size</span>' +
+        '<input type="range" class="size-slider" min="' + minStop + '" max="' + maxStop + '" step="1" value="' + state.tileSize + '" list="size-stops" aria-label="Tile size" />' +
+        '<datalist id="size-stops">' + datalistOpts + '</datalist>' +
+        '<span class="size-readout"><span class="size-px">' + state.tileSize + '</span>px</span>' +
+      '</div>';
     var viewToggle = '';
     if (includeViewToggle) {
       viewToggle =
@@ -133,7 +157,7 @@
     }
     return (
       '<div class="toolbar">' +
-        '<div class="toolbar-group"><span class="toolbar-label">Size</span>' + sizeBtns + '</div>' +
+        sizeSlider +
         viewToggle +
       '</div>'
     );
@@ -141,17 +165,24 @@
 
   function wireToolbar(root, onChange) {
     if (!root) return;
-    root.querySelectorAll('[data-size]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        state.tileSize = b.getAttribute('data-size');
-        writeSize(state.tileSize);
-        applyTileSize(state.tileSize);
-        root.querySelectorAll('[data-size]').forEach(function (x) {
-          x.classList.toggle('active', x.getAttribute('data-size') === state.tileSize);
-        });
+    var slider = root.querySelector('.size-slider');
+    var readout = root.querySelector('.size-px');
+    if (slider) {
+      // During drag, update readout live without committing localStorage.
+      slider.addEventListener('input', function () {
+        var raw = parseInt(slider.value, 10);
+        var snapped = clampToStop(Number.isFinite(raw) ? raw : SIZE_DEFAULT);
+        if (readout) readout.textContent = String(snapped);
+        state.tileSize = snapped;
+        applyTileSize(snapped);
         if (onChange) onChange('size');
       });
-    });
+      slider.addEventListener('change', function () {
+        // Commit final snapped value on release.
+        slider.value = String(state.tileSize);
+        writeSize(state.tileSize);
+      });
+    }
     root.querySelectorAll('[data-view]').forEach(function (b) {
       b.addEventListener('click', function () {
         state.galleryView = b.getAttribute('data-view');
@@ -296,14 +327,17 @@
             '<div class="strip-row-title">' + escapeHtml(s.name) + '</div>' +
             '<div class="strip-row-sub">' +
               '<span class="' + statusClass(s.status) + '">' + escapeHtml(s.status) + '</span>' +
-              ' &middot; ' + escapeHtml(s.feature) +
-              ' &middot; ' + steps.length + ' steps' +
-              ' &middot; ' + (s.durationMs || 0) + ' ms' +
+              '<span class="strip-row-meta-line">' + escapeHtml(s.feature) + '</span>' +
+              '<span class="strip-row-meta-line">' + steps.length + ' steps &middot; ' + (s.durationMs || 0) + ' ms</span>' +
             '</div>' +
           '</div>' +
           cardLinks(s) +
         '</header>' +
-        '<div class="strip-row-scroll">' + (frames || '<div class="empty">No steps</div>') + '</div>' +
+        '<div class="strip-row-scroll-wrap">' +
+          '<button type="button" class="strip-scroll-btn strip-scroll-prev" aria-label="Scroll left" data-scroll="prev">&#10094;</button>' +
+          '<div class="strip-row-scroll">' + (frames || '<div class="empty">No steps</div>') + '</div>' +
+          '<button type="button" class="strip-scroll-btn strip-scroll-next" aria-label="Scroll right" data-scroll="next">&#10095;</button>' +
+        '</div>' +
       '</section>'
     );
   }
@@ -327,6 +361,22 @@
       container.addEventListener('click', function (e) {
         var t = e.target;
         var walker = t;
+        // Chevron scroll buttons
+        while (walker && walker !== container) {
+          if (walker.getAttribute && walker.getAttribute('data-scroll')) {
+            e.preventDefault();
+            e.stopPropagation();
+            var dir = walker.getAttribute('data-scroll');
+            var scroller = container.querySelector('.strip-row-scroll');
+            if (scroller) {
+              var delta = Math.round(scroller.clientWidth * 0.8) * (dir === 'next' ? 1 : -1);
+              scroller.scrollBy({ left: delta, behavior: 'smooth' });
+            }
+            return;
+          }
+          walker = walker.parentNode;
+        }
+        walker = t;
         // Strip-frame clicks → jump to that step in screenshots lightbox
         while (walker && walker !== container) {
           if (walker.getAttribute && walker.getAttribute('data-strip-idx') != null) {

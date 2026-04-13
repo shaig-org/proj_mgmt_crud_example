@@ -39,7 +39,7 @@ export default defineConfig({
     {
       name: 'scenarios',
       testDir: './e2e/scenarios',
-      outputDir: './evidence/.playwright-output',
+      outputDir: './walkthroughs/.playwright-output',
       use: {
         ...devices['Desktop Chrome'],
         // Bumped to 1600x900 (from Desktop Chrome's default 1280x720) so
