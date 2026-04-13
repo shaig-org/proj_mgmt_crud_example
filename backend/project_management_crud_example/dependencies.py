@@ -185,6 +185,7 @@ from project_management_crud_example.capabilities import (  # noqa: E402
     EpicReadCapability,
     EpicWriteCapability,
     OrganizationCapability,
+    PasswordChangeCapability,
     ProjectReadCapability,
     ProjectWriteCapability,
     TicketReadCapability,
@@ -194,6 +195,13 @@ from project_management_crud_example.capabilities import (  # noqa: E402
     WorkflowReadCapability,
     WorkflowWriteCapability,
 )
+
+
+def get_password_change_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> PasswordChangeCapability:
+    return PasswordChangeCapability(repo, user)
 
 
 def get_project_read_capability(

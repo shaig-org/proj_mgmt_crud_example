@@ -30,10 +30,10 @@ def orm_stub_entity_to_business_stub_entity(
     """
     return domain_models.StubEntity(
         id=str(orm_stub_entity.id),
-        name=orm_stub_entity.name,  # type: ignore[arg-type]
-        description=orm_stub_entity.description,  # type: ignore[arg-type]
-        created_at=orm_stub_entity.created_at,  # type: ignore[arg-type]
-        updated_at=orm_stub_entity.updated_at,  # type: ignore[arg-type]
+        name=orm_stub_entity.name,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        description=orm_stub_entity.description,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        created_at=orm_stub_entity.created_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        updated_at=orm_stub_entity.updated_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
     )
 
 
@@ -53,11 +53,11 @@ def orm_organization_to_domain_organization(
     """Convert an ORM Organization model to a domain Organization model."""
     return domain_models.Organization(
         id=str(orm_organization.id),
-        name=orm_organization.name,  # type: ignore[arg-type]
-        description=orm_organization.description,  # type: ignore[arg-type]
-        is_active=orm_organization.is_active,  # type: ignore[arg-type]
-        created_at=orm_organization.created_at,  # type: ignore[arg-type]
-        updated_at=orm_organization.updated_at,  # type: ignore[arg-type]
+        name=orm_organization.name,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        description=orm_organization.description,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        is_active=orm_organization.is_active,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        created_at=orm_organization.created_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        updated_at=orm_organization.updated_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
     )
 
 
@@ -67,15 +67,15 @@ def orm_project_to_domain_project(
     """Convert an ORM Project model to a domain Project model."""
     return domain_models.Project(
         id=str(orm_project.id),
-        name=orm_project.name,  # type: ignore[arg-type]
-        description=orm_project.description,  # type: ignore[arg-type]
+        name=orm_project.name,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        description=orm_project.description,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
         organization_id=str(orm_project.organization_id),
         workflow_id=str(orm_project.workflow_id),
-        is_active=orm_project.is_active,  # type: ignore[arg-type]
-        is_archived=orm_project.is_archived,  # type: ignore[arg-type]
-        archived_at=orm_project.archived_at,  # type: ignore[arg-type]
-        created_at=orm_project.created_at,  # type: ignore[arg-type]
-        updated_at=orm_project.updated_at,  # type: ignore[arg-type]
+        is_active=orm_project.is_active,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        is_archived=orm_project.is_archived,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        archived_at=orm_project.archived_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        created_at=orm_project.created_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        updated_at=orm_project.updated_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
     )
 
 
@@ -85,11 +85,11 @@ def orm_epic_to_domain_epic(
     """Convert an ORM Epic model to a domain Epic model."""
     return domain_models.Epic(
         id=str(orm_epic.id),
-        name=orm_epic.name,  # type: ignore[arg-type]
-        description=orm_epic.description,  # type: ignore[arg-type]
+        name=orm_epic.name,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        description=orm_epic.description,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
         organization_id=str(orm_epic.organization_id),
-        created_at=orm_epic.created_at,  # type: ignore[arg-type]
-        updated_at=orm_epic.updated_at,  # type: ignore[arg-type]
+        created_at=orm_epic.created_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        updated_at=orm_epic.updated_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
     )
 
 
@@ -99,13 +99,13 @@ def orm_workflow_to_domain_workflow(
     """Convert an ORM Workflow model to a domain Workflow model."""
     return domain_models.Workflow(
         id=str(orm_workflow.id),
-        name=orm_workflow.name,  # type: ignore[arg-type]
-        description=orm_workflow.description,  # type: ignore[arg-type]
-        statuses=json.loads(orm_workflow.statuses),  # type: ignore[arg-type]
+        name=orm_workflow.name,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        description=orm_workflow.description,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        statuses=json.loads(orm_workflow.statuses),  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
         organization_id=str(orm_workflow.organization_id),
-        is_default=orm_workflow.is_default,  # type: ignore[arg-type]
-        created_at=orm_workflow.created_at,  # type: ignore[arg-type]
-        updated_at=orm_workflow.updated_at,  # type: ignore[arg-type]
+        is_default=orm_workflow.is_default,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        created_at=orm_workflow.created_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        updated_at=orm_workflow.updated_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
     )
 
 
@@ -122,15 +122,15 @@ def orm_ticket_to_domain_ticket(
     """Convert an ORM Ticket model to a domain Ticket model."""
     return domain_models.Ticket(
         id=str(orm_ticket.id),
-        title=orm_ticket.title,  # type: ignore[arg-type]
-        description=orm_ticket.description,  # type: ignore[arg-type]
-        status=orm_ticket.status,  # type: ignore[arg-type]
+        title=orm_ticket.title,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        description=orm_ticket.description,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        status=orm_ticket.status,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
         priority=domain_models.TicketPriority(orm_ticket.priority) if orm_ticket.priority else None,  # type: ignore[arg-type]
         assignee_id=str(orm_ticket.assignee_id) if orm_ticket.assignee_id else None,
         reporter_id=str(orm_ticket.reporter_id),
         project_id=str(orm_ticket.project_id),
-        created_at=orm_ticket.created_at,  # type: ignore[arg-type]
-        updated_at=orm_ticket.updated_at,  # type: ignore[arg-type]
+        created_at=orm_ticket.created_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        updated_at=orm_ticket.updated_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
     )
 
 
@@ -144,14 +144,14 @@ def orm_user_to_domain_user(
     """
     return domain_models.User(
         id=str(orm_user.id),
-        username=orm_user.username,  # type: ignore[arg-type]
-        email=orm_user.email,  # type: ignore[arg-type]
-        full_name=orm_user.full_name,  # type: ignore[arg-type]
-        organization_id=orm_user.organization_id,  # type: ignore[arg-type]
+        username=orm_user.username,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        email=orm_user.email,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        full_name=orm_user.full_name,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        organization_id=orm_user.organization_id,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
         role=domain_models.UserRole(orm_user.role),  # type: ignore[arg-type]
-        is_active=orm_user.is_active,  # type: ignore[arg-type]
-        created_at=orm_user.created_at,  # type: ignore[arg-type]
-        updated_at=orm_user.updated_at,  # type: ignore[arg-type]
+        is_active=orm_user.is_active,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        created_at=orm_user.created_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        updated_at=orm_user.updated_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
     )
 
 
@@ -167,11 +167,11 @@ def orm_user_to_user_auth_data(
     """
     return domain_models.UserAuthData(
         id=str(orm_user.id),
-        username=orm_user.username,  # type: ignore[arg-type]
-        password_hash=orm_user.password_hash,  # type: ignore[arg-type]
-        organization_id=orm_user.organization_id,  # type: ignore[arg-type]
+        username=orm_user.username,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        password_hash=orm_user.password_hash,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        organization_id=orm_user.organization_id,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
         role=domain_models.UserRole(orm_user.role),  # type: ignore[arg-type]
-        is_active=orm_user.is_active,  # type: ignore[arg-type]
+        is_active=orm_user.is_active,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
     )
 
 
@@ -184,14 +184,14 @@ def orm_activity_log_to_domain_activity_log(
     """
     return domain_models.ActivityLog(
         id=str(orm_activity_log.id),
-        entity_type=orm_activity_log.entity_type,  # type: ignore[arg-type]
-        entity_id=orm_activity_log.entity_id,  # type: ignore[arg-type]
+        entity_type=orm_activity_log.entity_type,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        entity_id=orm_activity_log.entity_id,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
         action=domain_models.ActionType(orm_activity_log.action),  # type: ignore[arg-type]
-        actor_id=orm_activity_log.actor_id,  # type: ignore[arg-type]
-        organization_id=orm_activity_log.organization_id,  # type: ignore[arg-type]
-        timestamp=orm_activity_log.timestamp,  # type: ignore[arg-type]
-        changes=json.loads(orm_activity_log.changes),  # type: ignore[arg-type]
-        metadata=json.loads(orm_activity_log.extra_metadata) if orm_activity_log.extra_metadata else None,  # type: ignore[arg-type]
+        actor_id=orm_activity_log.actor_id,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        organization_id=orm_activity_log.organization_id,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        timestamp=orm_activity_log.timestamp,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        changes=json.loads(orm_activity_log.changes),  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        metadata=json.loads(orm_activity_log.extra_metadata) if orm_activity_log.extra_metadata else None,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
     )
 
 
@@ -210,7 +210,7 @@ def orm_comment_to_domain_comment(
         id=str(orm_comment.id),
         ticket_id=str(orm_comment.ticket_id),
         author_id=str(orm_comment.author_id),
-        content=orm_comment.content,  # type: ignore[arg-type]
-        created_at=orm_comment.created_at,  # type: ignore[arg-type]
-        updated_at=orm_comment.updated_at,  # type: ignore[arg-type]
+        content=orm_comment.content,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        created_at=orm_comment.created_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
+        updated_at=orm_comment.updated_at,  # type: ignore[arg-type]  # ty:ignore[invalid-argument-type]
     )

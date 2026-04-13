@@ -351,6 +351,14 @@
       "handler": "workflow_api.update_workflow",
       "method": "PUT",
       "path": "/api/workflows/{workflow_id}"
+    },
+    {
+      "capabilities": [
+        "PasswordChangeCapability"
+      ],
+      "handler": "auth_api.change_password",
+      "method": "POST",
+      "path": "/auth/change-password"
     }
   ]
 }

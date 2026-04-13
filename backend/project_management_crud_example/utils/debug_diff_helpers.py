@@ -242,7 +242,7 @@ def _get_nested_value(data: Dict[str, Any], field_path: str) -> object:
     value: Any = data
     for key in keys:
         if key.isdigit():
-            value = value[int(key)]  # type: ignore[index]
+            value = value[int(key)]  # type: ignore[index]  # ty:ignore[invalid-argument-type]
         else:
             value = value[key]
     return value

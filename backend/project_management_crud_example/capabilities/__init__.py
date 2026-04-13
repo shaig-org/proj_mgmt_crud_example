@@ -14,6 +14,10 @@ from project_management_crud_example.capabilities.comments_capability import Com
 from project_management_crud_example.capabilities.epics_capability import EpicReadCapability, EpicWriteCapability
 from project_management_crud_example.capabilities.errors import CapabilityPermissionError
 from project_management_crud_example.capabilities.organizations_capability import OrganizationCapability
+from project_management_crud_example.capabilities.password_capability import (
+    PasswordChangeCapability,
+    PasswordChangeError,
+)
 from project_management_crud_example.capabilities.projects_capability import (
     ProjectReadCapability,
     ProjectWriteCapability,
@@ -35,6 +39,8 @@ __all__ = [
     "EpicReadCapability",
     "EpicWriteCapability",
     "OrganizationCapability",
+    "PasswordChangeCapability",
+    "PasswordChangeError",
     "ProjectReadCapability",
     "ProjectWriteCapability",
     "TicketReadCapability",

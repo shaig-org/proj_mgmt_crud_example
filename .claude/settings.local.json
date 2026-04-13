@@ -64,7 +64,14 @@
       "Bash(xargs ps:*)",
       "Bash(python -m project_management_crud_example.bootstrap_rich_data:*)",
       "Bash(time python:*)",
-      "Bash(chmod +x:*)"
+      "Bash(chmod +x:*)",
+      "Bash(git stash:*)",
+      "Bash(./devtools/run_with_env.sh uv:*)",
+      "Bash(python3 -c ':*)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(uv run:*)",
+      "Bash(git checkout:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": [],

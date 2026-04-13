@@ -51,7 +51,7 @@ def get_settings() -> Settings:
     This function loads settings from environment variables and caches the result.
     Using a function allows the type checker to understand the initialization pattern.
     """
-    return Settings()  # type: ignore[call-arg]
+    return Settings()  # type: ignore[call-arg]  # ty:ignore[missing-argument]
 
 
 # Global settings instance for convenience

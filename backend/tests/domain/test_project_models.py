@@ -40,7 +40,7 @@ class TestProjectDataValidation:
     def test_name_is_required(self) -> None:
         """Test that name field is required."""
         with pytest.raises(ValidationError) as exc_info:
-            ProjectData()  # type: ignore
+            ProjectData()
 
         assert isinstance(exc_info.value, ValidationError)
         errors = exc_info.value.errors()
@@ -168,7 +168,7 @@ class TestProjectModel:
                 name="Backend",
                 created_at=now,
                 updated_at=now,
-            )  # type: ignore
+            )
 
         assert isinstance(exc_info.value, ValidationError)
         errors = exc_info.value.errors()
@@ -207,7 +207,7 @@ class TestProjectCreateCommand:
         project_data = ProjectData(name="Backend")
 
         with pytest.raises(ValidationError) as exc_info:
-            ProjectCreateCommand(project_data=project_data)  # type: ignore
+            ProjectCreateCommand(project_data=project_data)
 
         assert isinstance(exc_info.value, ValidationError)
         errors = exc_info.value.errors()
@@ -216,7 +216,7 @@ class TestProjectCreateCommand:
     def test_create_command_requires_project_data(self) -> None:
         """Test that project_data is required in create command."""
         with pytest.raises(ValidationError) as exc_info:
-            ProjectCreateCommand(organization_id="org-123")  # type: ignore
+            ProjectCreateCommand(organization_id="org-123")  # ty: ignore[missing-argument]
 
         assert isinstance(exc_info.value, ValidationError)
         errors = exc_info.value.errors()

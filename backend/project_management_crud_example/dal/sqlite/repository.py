@@ -717,7 +717,7 @@ class Repository:
                 # Validate existing tickets have valid statuses for new workflow
                 import json
 
-                new_workflow_statuses = json.loads(workflow.statuses)
+                new_workflow_statuses = json.loads(workflow.statuses)  # ty:ignore[invalid-argument-type]
 
                 # Check if any tickets in this project have statuses not in the new workflow
                 from project_management_crud_example.dal.sqlite.orm_data_models import TicketORM
@@ -1125,7 +1125,7 @@ class Repository:
             # Parse workflow statuses from JSON
             import json
 
-            workflow_statuses = json.loads(workflow_orm.statuses)
+            workflow_statuses = json.loads(workflow_orm.statuses)  # ty:ignore[invalid-argument-type]
 
             # Determine status: use provided or default to first workflow status
             if ticket_data.status:
@@ -1283,7 +1283,7 @@ class Repository:
             # Parse workflow statuses from JSON
             import json
 
-            workflow_statuses = json.loads(workflow_orm.statuses)
+            workflow_statuses = json.loads(workflow_orm.statuses)  # ty:ignore[invalid-argument-type]
 
             # Validate status is in workflow
             if status not in workflow_statuses:
@@ -1336,7 +1336,7 @@ class Repository:
             # Parse workflow statuses from JSON
             import json
 
-            target_workflow_statuses = json.loads(target_workflow_orm.statuses)
+            target_workflow_statuses = json.loads(target_workflow_orm.statuses)  # ty:ignore[invalid-argument-type]
 
             # Validate ticket's current status is in target workflow
             current_status = orm_ticket.status

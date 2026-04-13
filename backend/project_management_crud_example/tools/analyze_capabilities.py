@@ -29,9 +29,11 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 # Exception list: routes that intentionally do NOT use a capability. The
 # analyzer skips these (they do not appear in report.json at all).
-EXCLUDED_PATH_PREFIXES: Tuple[str, ...] = (
-    "/auth/",
+EXCLUDED_PATHS: Tuple[str, ...] = (
+    "/auth/login",
     "/health",
+)
+EXCLUDED_PATH_PREFIXES: Tuple[str, ...] = (
     "/e2e/",
     "/stub_entities",  # stub entity template endpoints (legacy path, intentionally excluded)
 )
@@ -151,6 +153,8 @@ def extract_capabilities_from_route(route: object) -> Tuple[str, ...]:
 
 def is_excluded_path(path: str) -> bool:
     """Return True if the path is on the analyzer exception list."""
+    if path in EXCLUDED_PATHS:
+        return True
     return any(path.startswith(prefix) for prefix in EXCLUDED_PATH_PREFIXES)
 
 
