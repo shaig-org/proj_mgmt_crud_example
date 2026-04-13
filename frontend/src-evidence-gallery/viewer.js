@@ -1,15 +1,58 @@
 (function () {
   'use strict';
 
+  // ---------- Persistent UI prefs (size + gallery view mode) ----------
+
+  var LS_SIZE_KEY = 'evidence.tileSize';
+  var LS_VIEW_KEY = 'evidence.galleryView';
+  var SIZE_PRESETS = {
+    small: '180px',
+    medium: '320px',
+    large: '480px',
+  };
+
+  function readSize() {
+    try {
+      var v = localStorage.getItem(LS_SIZE_KEY);
+      if (v === 'small' || v === 'medium' || v === 'large') return v;
+    } catch (e) { /* ignore */ }
+    return 'medium';
+  }
+  function writeSize(v) {
+    try { localStorage.setItem(LS_SIZE_KEY, v); } catch (e) { /* ignore */ }
+  }
+  function readGalleryView() {
+    try {
+      var v = localStorage.getItem(LS_VIEW_KEY);
+      if (v === 'gif' || v === 'strip') return v;
+    } catch (e) { /* ignore */ }
+    return 'gif';
+  }
+  function writeGalleryView(v) {
+    try { localStorage.setItem(LS_VIEW_KEY, v); } catch (e) { /* ignore */ }
+  }
+
+  function applyTileSize(size) {
+    document.documentElement.style.setProperty('--tile-size', SIZE_PRESETS[size] || SIZE_PRESETS.medium);
+  }
+
   var state = {
     scenarios: [],
     generatedAt: '',
     selectedFeature: '__all__',
     search: '',
+    tileSize: readSize(),
+    galleryView: readGalleryView(),
     // Lightbox
     lbSlug: null,
     lbIndex: 0,
+    // Non-screenshot lightbox mode: 'screenshots' | 'gif' | 'video'
+    lbMode: 'screenshots',
+    lbMediaSrc: null,
+    lbMediaTitle: '',
   };
+
+  applyTileSize(state.tileSize);
 
   function escapeHtml(str) {
     return String(str == null ? '' : str)
@@ -58,7 +101,6 @@
 
   function parseRoute() {
     var h = window.location.hash || '#/';
-    // supported: #/, #/scenario/<slug>/screenshots, #/scenario/<slug>/flow, #/scenario/<slug>
     var m = h.match(/^#\/scenario\/([^/]+)(?:\/(screenshots|flow))?\/?$/);
     if (m) {
       return { name: 'scenario', slug: decodeURIComponent(m[1]), view: m[2] || 'detail' };
@@ -72,6 +114,54 @@
     } else {
       window.location.hash = hash;
     }
+  }
+
+  // ---------- Toolbar (size + view mode) ----------
+
+  function sizeControlHtml(includeViewToggle) {
+    var sizeBtns = ['small', 'medium', 'large'].map(function (s) {
+      var active = state.tileSize === s ? ' active' : '';
+      return '<button type="button" class="toolbar-btn' + active + '" data-size="' + s + '">' + s.charAt(0).toUpperCase() + s.slice(1) + '</button>';
+    }).join('');
+    var viewToggle = '';
+    if (includeViewToggle) {
+      viewToggle =
+        '<div class="toolbar-group"><span class="toolbar-label">View</span>' +
+          '<button type="button" class="toolbar-btn' + (state.galleryView === 'gif' ? ' active' : '') + '" data-view="gif">GIF cards</button>' +
+          '<button type="button" class="toolbar-btn' + (state.galleryView === 'strip' ? ' active' : '') + '" data-view="strip">Screenshot strips</button>' +
+        '</div>';
+    }
+    return (
+      '<div class="toolbar">' +
+        '<div class="toolbar-group"><span class="toolbar-label">Size</span>' + sizeBtns + '</div>' +
+        viewToggle +
+      '</div>'
+    );
+  }
+
+  function wireToolbar(root, onChange) {
+    if (!root) return;
+    root.querySelectorAll('[data-size]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.tileSize = b.getAttribute('data-size');
+        writeSize(state.tileSize);
+        applyTileSize(state.tileSize);
+        root.querySelectorAll('[data-size]').forEach(function (x) {
+          x.classList.toggle('active', x.getAttribute('data-size') === state.tileSize);
+        });
+        if (onChange) onChange('size');
+      });
+    });
+    root.querySelectorAll('[data-view]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.galleryView = b.getAttribute('data-view');
+        writeGalleryView(state.galleryView);
+        root.querySelectorAll('[data-view]').forEach(function (x) {
+          x.classList.toggle('active', x.getAttribute('data-view') === state.galleryView);
+        });
+        if (onChange) onChange('view');
+      });
+    });
   }
 
   // ---------- Gallery view ----------
@@ -90,7 +180,10 @@
             '<ul id="feature-list"></ul>' +
           '</section>' +
         '</aside>' +
-        '<main class="grid" id="grid"></main>' +
+        '<main class="main-col">' +
+          sizeControlHtml(true) +
+          '<div class="grid" id="grid"></div>' +
+        '</main>' +
       '</div>'
     );
 
@@ -99,6 +192,10 @@
     searchEl.addEventListener('input', function (e) {
       state.search = e.target.value || '';
       renderGrid();
+    });
+
+    wireToolbar(app.querySelector('.toolbar'), function (kind) {
+      if (kind === 'view') renderGrid();
     });
 
     renderSidebar();
@@ -137,6 +234,50 @@
     return '<div class="pills">' + parts.join('') + '</div>';
   }
 
+  function renderGifCard(s) {
+    var thumb;
+    if (s.gifPath) {
+      thumb = '<img class="thumb" src="' + escapeHtml(s.gifPath) + '" alt="" loading="lazy" />';
+    } else if (s.steps && s.steps.length) {
+      var lastStep = s.steps[s.steps.length - 1];
+      thumb = '<img class="thumb" src="' + escapeHtml(stepScreenshotUrl(s.slug, lastStep)) + '" alt="" loading="lazy" />';
+    } else {
+      thumb = '<div class="thumb"></div>';
+    }
+    return (
+      '<article class="card" data-slug="' + escapeHtml(s.slug) + '">' +
+      thumb +
+      '<div class="body">' +
+      '<div class="title">' + escapeHtml(s.name) + '</div>' +
+      '<div class="sub"><span class="' + statusClass(s.status) + '">' + escapeHtml(s.status) + '</span> &middot; ' + (s.steps ? s.steps.length : 0) + ' steps &middot; ' + (s.durationMs || 0) + ' ms</div>' +
+      cardLinks(s) +
+      '</div></article>'
+    );
+  }
+
+  function renderStripCard(s) {
+    var steps = s.steps || [];
+    var frames = steps.map(function (st) {
+      var url = stepScreenshotUrl(s.slug, st);
+      return (
+        '<button type="button" class="strip-frame" data-strip-idx="' + (st.index - 1) + '" aria-label="Step ' + st.index + ': ' + escapeHtml(st.name) + '">' +
+          '<img src="' + escapeHtml(url) + '" alt="" loading="lazy" />' +
+          '<span class="strip-n">' + pad2(st.index) + '</span>' +
+        '</button>'
+      );
+    }).join('');
+    return (
+      '<article class="card card-strip" data-slug="' + escapeHtml(s.slug) + '">' +
+        '<div class="strip-scroll">' + (frames || '<div class="empty">No steps</div>') + '</div>' +
+        '<div class="body">' +
+          '<div class="title">' + escapeHtml(s.name) + '</div>' +
+          '<div class="sub"><span class="' + statusClass(s.status) + '">' + escapeHtml(s.status) + '</span> &middot; ' + steps.length + ' steps &middot; ' + (s.durationMs || 0) + ' ms</div>' +
+          cardLinks(s) +
+        '</div>' +
+      '</article>'
+    );
+  }
+
   function renderGrid() {
     var el = document.getElementById('grid');
     if (!el) return;
@@ -145,33 +286,34 @@
       el.innerHTML = '<div class="empty">No scenarios match.</div>';
       return;
     }
+    el.classList.toggle('grid-strip', state.galleryView === 'strip');
     el.innerHTML = list.map(function (s) {
-      var thumb;
-      if (s.gifPath) {
-        thumb = '<img class="thumb" src="' + escapeHtml(s.gifPath) + '" alt="" loading="lazy" />';
-      } else if (s.steps && s.steps.length) {
-        var lastStep = s.steps[s.steps.length - 1];
-        thumb = '<img class="thumb" src="' + escapeHtml(stepScreenshotUrl(s.slug, lastStep)) + '" alt="" loading="lazy" />';
-      } else {
-        thumb = '<div class="thumb"></div>';
-      }
-      return (
-        '<article class="card" data-slug="' + escapeHtml(s.slug) + '">' +
-        thumb +
-        '<div class="body">' +
-        '<div class="title">' + escapeHtml(s.name) + '</div>' +
-        '<div class="sub"><span class="' + statusClass(s.status) + '">' + escapeHtml(s.status) + '</span> &middot; ' + (s.steps ? s.steps.length : 0) + ' steps &middot; ' + (s.durationMs || 0) + ' ms</div>' +
-        cardLinks(s) +
-        '</div></article>'
-      );
+      return state.galleryView === 'strip' ? renderStripCard(s) : renderGifCard(s);
     }).join('');
-    // Card body (non-pill) click → detail view.
     el.querySelectorAll('.card').forEach(function (card) {
       card.addEventListener('click', function (e) {
         var t = e.target;
-        while (t && t !== card) {
-          if (t.getAttribute && (t.getAttribute('data-nav') === '1' || t.getAttribute('data-stop') === '1')) return;
-          t = t.parentNode;
+        // Strip-frame clicks → jump to that step in screenshots lightbox
+        var frameBtn = null;
+        var walker = t;
+        while (walker && walker !== card) {
+          if (walker.getAttribute && walker.getAttribute('data-strip-idx') != null) {
+            frameBtn = walker;
+            break;
+          }
+          walker = walker.parentNode;
+        }
+        if (frameBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          openScreenshotsLightbox(card.getAttribute('data-slug'), Number(frameBtn.getAttribute('data-strip-idx')));
+          return;
+        }
+        // Ignore pill/nav clicks
+        walker = t;
+        while (walker && walker !== card) {
+          if (walker.getAttribute && (walker.getAttribute('data-nav') === '1' || walker.getAttribute('data-stop') === '1')) return;
+          walker = walker.parentNode;
         }
         var slug = card.getAttribute('data-slug');
         navigate('#/scenario/' + encodeURIComponent(slug));
@@ -184,13 +326,33 @@
   function renderScenarioDetail(s) {
     var app = document.getElementById('app');
     var flipbook = s.gifPath
-      ? '<figure class="gif-figure"><figcaption>Flipbook GIF (one frame per step, 5 fps)</figcaption><img class="detail-gif" src="' + escapeHtml(s.gifPath) + '" alt="" /></figure>'
+      ? '<figure class="gif-figure clickable-media" data-media="gif" data-src="' + escapeHtml(s.gifPath) + '" data-title="Flipbook GIF" tabindex="0" role="button" aria-label="Open flipbook GIF fullscreen">' +
+          '<figcaption>Flipbook GIF (one frame per step) &middot; click to enlarge</figcaption>' +
+          '<img class="detail-gif" src="' + escapeHtml(s.gifPath) + '" alt="" />' +
+        '</figure>'
       : '';
     var motion = s.motionGifPath
-      ? '<figure class="gif-figure"><figcaption>Motion GIF (video, 5 fps)</figcaption><img class="detail-gif" src="' + escapeHtml(s.motionGifPath) + '" alt="" /></figure>'
+      ? '<figure class="gif-figure clickable-media" data-media="gif" data-src="' + escapeHtml(s.motionGifPath) + '" data-title="Motion GIF" tabindex="0" role="button" aria-label="Open motion GIF fullscreen">' +
+          '<figcaption>Motion GIF (slowed 2x) &middot; click to enlarge</figcaption>' +
+          '<img class="detail-gif" src="' + escapeHtml(s.motionGifPath) + '" alt="" />' +
+        '</figure>'
       : '';
     var video = s.videoGalleryPath
-      ? '<figure class="gif-figure"><figcaption>Original Playwright video</figcaption><video class="detail-video" src="' + escapeHtml(s.videoGalleryPath) + '" controls preload="metadata"></video><div><a href="' + escapeHtml(s.videoGalleryPath) + '" download>Download .webm</a></div></figure>'
+      ? '<figure class="gif-figure clickable-media" data-media="video" data-src="' + escapeHtml(s.videoGalleryPath) + '" data-title="Playwright recording" tabindex="0" role="button" aria-label="Open video fullscreen">' +
+          '<figcaption>Playwright recording &middot; click to enlarge</figcaption>' +
+          '<video class="detail-video" src="' + escapeHtml(s.videoGalleryPath) + '" preload="metadata" muted></video>' +
+          '<div class="detail-video-links"><a href="' + escapeHtml(s.videoGalleryPath) + '" download data-stop-click="1">Download .webm</a></div>' +
+        '</figure>'
+      : '';
+    // Screenshots preview (small filmstrip, clickable → screenshots page)
+    var firstFew = (s.steps || []).slice(0, 5).map(function (st) {
+      return '<img src="' + escapeHtml(stepScreenshotUrl(s.slug, st)) + '" alt="" loading="lazy" />';
+    }).join('');
+    var screenshotsPreview = (s.steps && s.steps.length > 0)
+      ? '<figure class="gif-figure clickable-media" data-media="screenshots" tabindex="0" role="button" aria-label="Open screenshots grid">' +
+          '<figcaption>Screenshots (' + s.steps.length + ' steps) &middot; click to view all</figcaption>' +
+          '<div class="screenshots-preview">' + firstFew + '</div>' +
+        '</figure>'
       : '';
     var trace = s.tracePath
       ? '<a href="' + escapeHtml('../' + s.tracePath) + '" target="_blank" rel="noopener">trace.zip</a>'
@@ -202,13 +364,8 @@
       '<div class="detail">' +
         '<nav class="breadcrumb"><a href="#/">&larr; Back to gallery</a></nav>' +
         '<h2>' + escapeHtml(s.name) + '</h2>' +
-        '<div class="pills pills-lg">' +
-          '<a class="pill" href="#/scenario/' + encodeURIComponent(s.slug) + '/screenshots">Screenshots</a>' +
-          '<a class="pill" href="#/scenario/' + encodeURIComponent(s.slug) + '/flow">Flow overview</a>' +
-          (s.videoGalleryPath ? '<a class="pill" href="' + escapeHtml(s.videoGalleryPath) + '" target="_blank" rel="noopener">Play video</a>' : '') +
-          (s.motionGifPath ? '<a class="pill" href="' + escapeHtml(s.motionGifPath) + '" target="_blank" rel="noopener">Motion GIF</a>' : '') +
-        '</div>' +
-        '<div class="gifs-row">' + flipbook + motion + video + '</div>' +
+        '<p class="hint">Click any preview below to view it fullscreen.</p>' +
+        '<div class="gifs-row">' + screenshotsPreview + flipbook + motion + video + '</div>' +
         '<dl class="kv">' +
           '<dt>Status</dt><dd class="' + statusClass(s.status) + '">' + escapeHtml(s.status) + '</dd>' +
           '<dt>Feature</dt><dd>' + escapeHtml(s.feature) + '</dd>' +
@@ -221,6 +378,35 @@
         '<section class="steps"><h3>Steps</h3><ol>' + stepsList + '</ol></section>' +
       '</div>'
     );
+
+    function handleMediaActivation(fig, e) {
+      var t = e.target;
+      // Let download links work without hijack.
+      while (t && t !== fig) {
+        if (t.getAttribute && t.getAttribute('data-stop-click') === '1') return;
+        t = t.parentNode;
+      }
+      if (e && e.preventDefault) e.preventDefault();
+      var media = fig.getAttribute('data-media');
+      if (media === 'screenshots') {
+        navigate('#/scenario/' + encodeURIComponent(s.slug) + '/screenshots');
+        return;
+      }
+      var src = fig.getAttribute('data-src');
+      var title = fig.getAttribute('data-title') || '';
+      if (media === 'gif') openMediaLightbox('gif', src, title);
+      else if (media === 'video') openMediaLightbox('video', src, title);
+    }
+
+    app.querySelectorAll('.clickable-media').forEach(function (fig) {
+      fig.addEventListener('click', function (e) { handleMediaActivation(fig, e); });
+      fig.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleMediaActivation(fig, e);
+        }
+      });
+    });
   }
 
   // ---------- Screenshots page ----------
@@ -246,17 +432,19 @@
         '</nav>' +
         '<h2>Screenshots: ' + escapeHtml(s.name) + '</h2>' +
         '<div class="pills"><a class="pill" href="#/scenario/' + encodeURIComponent(s.slug) + '/flow">Flow overview</a></div>' +
+        sizeControlHtml(false) +
         '<div class="shot-grid">' + tiles + '</div>' +
       '</div>'
     );
+    wireToolbar(app.querySelector('.toolbar'));
     app.querySelectorAll('.shot-tile').forEach(function (tile) {
       tile.addEventListener('click', function () {
-        openLightbox(s.slug, Number(tile.getAttribute('data-idx')));
+        openScreenshotsLightbox(s.slug, Number(tile.getAttribute('data-idx')));
       });
       tile.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          openLightbox(s.slug, Number(tile.getAttribute('data-idx')));
+          openScreenshotsLightbox(s.slug, Number(tile.getAttribute('data-idx')));
         }
       });
     });
@@ -287,66 +475,131 @@
         '<h2>Flow: ' + escapeHtml(s.name) + '</h2>' +
         '<p class="hint">All ' + steps.length + ' steps in reading order. Click any frame to open full-size.</p>' +
         '<div class="pills"><a class="pill" href="#/scenario/' + encodeURIComponent(s.slug) + '/screenshots">Screenshot grid</a></div>' +
+        sizeControlHtml(false) +
         '<div class="flow-strip">' + frames + '</div>' +
       '</div>'
     );
+    wireToolbar(app.querySelector('.toolbar'));
     app.querySelectorAll('.flow-frame').forEach(function (frame) {
       frame.addEventListener('click', function () {
-        openLightbox(s.slug, Number(frame.getAttribute('data-idx')));
+        openScreenshotsLightbox(s.slug, Number(frame.getAttribute('data-idx')));
       });
       frame.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          openLightbox(s.slug, Number(frame.getAttribute('data-idx')));
+          openScreenshotsLightbox(s.slug, Number(frame.getAttribute('data-idx')));
         }
       });
     });
   }
 
-  // ---------- Lightbox ----------
+  // ---------- Lightbox (screenshots) ----------
 
-  function openLightbox(slug, idx) {
+  function openScreenshotsLightbox(slug, idx) {
     var s = findScenario(slug);
     if (!s || !s.steps || s.steps.length === 0) return;
+    state.lbMode = 'screenshots';
     state.lbSlug = slug;
     state.lbIndex = Math.max(0, Math.min(idx, s.steps.length - 1));
-    updateLightbox();
-    document.getElementById('lightbox').classList.remove('hidden');
+    state.lbMediaSrc = null;
+    state.lbMediaTitle = '';
+    renderLightbox();
+  }
+
+  function openMediaLightbox(mode, src, title) {
+    state.lbMode = mode;
+    state.lbMediaSrc = src;
+    state.lbMediaTitle = title || '';
+    state.lbSlug = null;
+    renderLightbox();
   }
 
   function closeLightbox() {
-    document.getElementById('lightbox').classList.add('hidden');
+    var lb = document.getElementById('lightbox');
+    // Pause any playing video before hiding so audio/decoding stops.
+    var v = lb.querySelector('video');
+    if (v) { try { v.pause(); } catch (e) { /* ignore */ } }
+    lb.classList.add('hidden');
+    lb.innerHTML = '';
     state.lbSlug = null;
+    state.lbMode = 'screenshots';
+    state.lbMediaSrc = null;
   }
 
-  function updateLightbox() {
-    var s = findScenario(state.lbSlug);
-    if (!s) return;
-    var st = s.steps[state.lbIndex];
-    var img = document.getElementById('lightbox-img');
-    img.src = stepScreenshotUrl(s.slug, st);
-    img.alt = 'Step ' + st.index + ': ' + st.name;
-    document.getElementById('lightbox-cap').textContent =
-      pad2(st.index) + ' / ' + pad2(s.steps.length) + ' — ' + st.name;
+  function renderLightbox() {
+    var lb = document.getElementById('lightbox');
+    lb.classList.remove('hidden');
+    if (state.lbMode === 'screenshots') {
+      var s = findScenario(state.lbSlug);
+      if (!s) { closeLightbox(); return; }
+      var st = s.steps[state.lbIndex];
+      lb.innerHTML = (
+        '<button class="lightbox-close" data-lb-close="1" aria-label="Close">&times;</button>' +
+        '<button class="lightbox-nav lightbox-prev" data-lb-prev="1" aria-label="Previous">&#10094;</button>' +
+        '<button class="lightbox-nav lightbox-next" data-lb-next="1" aria-label="Next">&#10095;</button>' +
+        '<figure class="lightbox-figure">' +
+          '<img class="lightbox-media" src="' + escapeHtml(stepScreenshotUrl(s.slug, st)) + '" alt="Step ' + st.index + ': ' + escapeHtml(st.name) + '" />' +
+          '<figcaption>' + pad2(st.index) + ' / ' + pad2(s.steps.length) + ' &mdash; ' + escapeHtml(st.name) + '</figcaption>' +
+        '</figure>'
+      );
+    } else if (state.lbMode === 'gif') {
+      lb.innerHTML = (
+        '<button class="lightbox-close" data-lb-close="1" aria-label="Close">&times;</button>' +
+        '<figure class="lightbox-figure">' +
+          '<img class="lightbox-media" src="' + escapeHtml(state.lbMediaSrc) + '" alt="' + escapeHtml(state.lbMediaTitle) + '" />' +
+          '<figcaption>' + escapeHtml(state.lbMediaTitle) + '</figcaption>' +
+        '</figure>'
+      );
+    } else if (state.lbMode === 'video') {
+      var speedOpts = [0.25, 0.5, 1, 1.5, 2].map(function (r) {
+        var sel = r === 1 ? ' selected' : '';
+        return '<option value="' + r + '"' + sel + '>' + r + 'x</option>';
+      }).join('');
+      lb.innerHTML = (
+        '<button class="lightbox-close" data-lb-close="1" aria-label="Close">&times;</button>' +
+        '<figure class="lightbox-figure lightbox-figure-video">' +
+          '<div class="video-toolbar">' +
+            '<label>Speed <select id="lb-speed">' + speedOpts + '</select></label>' +
+            '<a class="pill" href="' + escapeHtml(state.lbMediaSrc) + '" download>Download .webm</a>' +
+          '</div>' +
+          '<video class="lightbox-media lightbox-video" src="' + escapeHtml(state.lbMediaSrc) + '" controls autoplay preload="metadata"></video>' +
+          '<figcaption>' + escapeHtml(state.lbMediaTitle) + '</figcaption>' +
+        '</figure>'
+      );
+      var sel = lb.querySelector('#lb-speed');
+      var vid = lb.querySelector('video');
+      if (sel && vid) {
+        sel.addEventListener('change', function () {
+          vid.playbackRate = parseFloat(sel.value);
+        });
+      }
+    }
+    // Focus the lightbox so the document-level keydown doesn't bubble to buttons (no beep).
+    try { lb.focus(); } catch (e) { /* ignore */ }
   }
 
   function lbNext() {
+    if (state.lbMode !== 'screenshots') return;
     var s = findScenario(state.lbSlug);
     if (!s) return;
     state.lbIndex = (state.lbIndex + 1) % s.steps.length;
-    updateLightbox();
+    renderLightbox();
   }
   function lbPrev() {
+    if (state.lbMode !== 'screenshots') return;
     var s = findScenario(state.lbSlug);
     if (!s) return;
     state.lbIndex = (state.lbIndex - 1 + s.steps.length) % s.steps.length;
-    updateLightbox();
+    renderLightbox();
   }
 
   // ---------- Render dispatch ----------
 
   function render() {
     document.getElementById('meta').textContent = state.generatedAt ? 'Generated ' + state.generatedAt : '';
+    // Close any open lightbox when routing.
+    var lb = document.getElementById('lightbox');
+    if (lb && !lb.classList.contains('hidden')) closeLightbox();
     var route = parseRoute();
     if (route.name === 'scenario') {
       var s = findScenario(route.slug);
@@ -388,13 +641,23 @@
       else if (t === lb) closeLightbox();
     });
 
+    // Keyboard handler attached to document in capture phase; preventDefault
+    // stops macOS Chrome/Safari from emitting the "invalid action" beep that
+    // fires when arrow keys hit a focused button inside the lightbox.
     document.addEventListener('keydown', function (e) {
       var lbOpen = !document.getElementById('lightbox').classList.contains('hidden');
       if (!lbOpen) return;
-      if (e.key === 'Escape') closeLightbox();
-      else if (e.key === 'ArrowRight') lbNext();
-      else if (e.key === 'ArrowLeft') lbPrev();
-    });
+      var key = e.key;
+      if (key === 'Escape' || key === 'ArrowRight' || key === 'ArrowLeft' || key === 'ArrowUp' || key === 'ArrowDown') {
+        // Tag event as handled even for modes that ignore arrow navigation,
+        // so no default browser behaviour / system beep fires.
+        e.preventDefault();
+        e.stopPropagation();
+        if (key === 'Escape') closeLightbox();
+        else if (key === 'ArrowRight') lbNext();
+        else if (key === 'ArrowLeft') lbPrev();
+      }
+    }, true);
   }
 
   document.addEventListener('DOMContentLoaded', init);

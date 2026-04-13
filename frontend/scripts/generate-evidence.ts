@@ -34,8 +34,16 @@ const GALLERY_SCREENSHOTS_DIR = path.join(GALLERY_DIR, 'screenshots');
 const GALLERY_VIDEOS_DIR = path.join(GALLERY_DIR, 'videos');
 const VIEWER_SOURCE_DIR = path.join(FRONTEND_ROOT, 'src-evidence-gallery');
 
-// GIF rendering constants (per task: humans need ~100-200ms per frame).
-const GIF_FPS = 5; // 200ms / frame
+// GIF rendering constants — tune here for comfort.
+// Motion GIF: output frame rate and real-time slowdown factor.
+// MOTION_SLOWDOWN=2.0 stretches wall-clock time 2x (setpts=2.0*PTS) so
+// reviewers can actually follow what happened. MOTION_FPS=3 yields
+// ~333ms per frame, comfortable for reading short scenarios.
+const MOTION_FPS = 3; // 333ms / frame
+const MOTION_SLOWDOWN = 2.0; // 2x slower than real time (setpts multiplier)
+// Flipbook GIF: 1.5 s per step screenshot (~0.67 fps) — comfortable scan.
+const FLIPBOOK_HOLD_SECONDS = 1.5;
+const FLIPBOOK_FPS = 5; // output frame rate for palette/render step
 const GIF_WIDTH = 640;
 
 interface StepRecord {
@@ -125,8 +133,12 @@ function handleFfmpegMissing(err: NodeJS.ErrnoException): void {
  */
 async function renderMotionGif(videoAbsPath: string, gifAbsPath: string, slug: string): Promise<boolean> {
   const sourceDuration = await probeVideoDurationSec(videoAbsPath);
-  // Resample to GIF_FPS preserving the original wall-clock duration.
-  const vf = `fps=${GIF_FPS},scale=${GIF_WIDTH}:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5`;
+  // Stretch time by MOTION_SLOWDOWN (setpts=<N>*PTS), then resample to MOTION_FPS.
+  // Order matters: setpts first so fps sees the slowed stream.
+  const vf =
+    `setpts=${MOTION_SLOWDOWN.toFixed(2)}*PTS,fps=${MOTION_FPS},` +
+    `scale=${GIF_WIDTH}:-1:flags=lanczos,split[a][b];` +
+    `[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5`;
   try {
     await execFileP('ffmpeg', [
       '-y',
@@ -137,7 +149,7 @@ async function renderMotionGif(videoAbsPath: string, gifAbsPath: string, slug: s
     ]);
     const renderedDuration = await probeVideoDurationSec(gifAbsPath);
     console.log(
-      `[evidence] motion GIF ${slug}: ${GIF_FPS} fps, ` +
+      `[evidence] motion GIF ${slug}: ${MOTION_FPS} fps, ${MOTION_SLOWDOWN}x slowdown, ` +
       `source=${sourceDuration ? sourceDuration.toFixed(2) : '?'}s, ` +
       `gif=${renderedDuration ? renderedDuration.toFixed(2) : '?'}s`
     );
@@ -164,16 +176,15 @@ async function renderFlipbookGif(
   // Use ffmpeg's concat demuxer with explicit per-frame durations (1s each).
   // This is more reliable than relying on input -framerate alone for stills.
   const concatLines: string[] = [];
-  const HOLD_SECONDS = 1.0; // 1s per step → eminently scannable.
   for (const p of screenshotAbsPaths) {
     concatLines.push(`file '${p.replace(/'/g, "'\\''")}'`);
-    concatLines.push(`duration ${HOLD_SECONDS.toFixed(3)}`);
+    concatLines.push(`duration ${FLIPBOOK_HOLD_SECONDS.toFixed(3)}`);
   }
   // Concat demuxer requires the last file to be repeated without a duration.
   concatLines.push(`file '${screenshotAbsPaths[screenshotAbsPaths.length - 1].replace(/'/g, "'\\''")}'`);
   const concatFile = gifAbsPath + '.concat.txt';
   await fs.writeFile(concatFile, concatLines.join('\n'), 'utf8');
-  const vf = `fps=${GIF_FPS},scale=${GIF_WIDTH}:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5`;
+  const vf = `fps=${FLIPBOOK_FPS},scale=${GIF_WIDTH}:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5`;
   try {
     await execFileP('ffmpeg', [
       '-y',
@@ -186,8 +197,8 @@ async function renderFlipbookGif(
     ]);
     const renderedDuration = await probeVideoDurationSec(gifAbsPath);
     console.log(
-      `[evidence] flipbook GIF ${slug}: ${GIF_FPS} fps, ` +
-      `${screenshotAbsPaths.length} steps × ${HOLD_SECONDS}s, ` +
+      `[evidence] flipbook GIF ${slug}: ${FLIPBOOK_FPS} fps, ` +
+      `${screenshotAbsPaths.length} steps × ${FLIPBOOK_HOLD_SECONDS}s, ` +
       `gif=${renderedDuration ? renderedDuration.toFixed(2) : '?'}s`
     );
     return true;
