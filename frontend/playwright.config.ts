@@ -32,7 +32,28 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testDir: './e2e',
+      testIgnore: ['**/scenarios/**'],
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'scenarios',
+      testDir: './e2e/scenarios',
+      outputDir: './walkthroughs/.playwright-output',
+      use: {
+        ...devices['Desktop Chrome'],
+        // Bumped to 1600x900 (from Desktop Chrome's default 1280x720) so
+        // GIFs/videos/screenshots have enough pixels to zoom into in the
+        // lightbox. Motion GIFs scale to 640px wide; screenshots are full-
+        // page and render crisp at 1600.
+        viewport: { width: 1600, height: 900 },
+        video: { mode: 'on', size: { width: 1600, height: 900 } },
+        // Trace is started and stopped manually inside the scenarioTest
+        // fixture so we can flush trace.zip to a stable path before
+        // Playwright's async reporter phase.
+        trace: 'off',
+        screenshot: 'off',
+      },
     },
   ],
 

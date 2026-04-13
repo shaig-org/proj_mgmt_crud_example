@@ -371,6 +371,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-testmon" },
+    { name = "pytest-tracer" },
     { name = "pytest-watch" },
     { name = "ruff" },
     { name = "ty" },
@@ -397,6 +398,7 @@ dev = [
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pytest-testmon", specifier = ">=2.1.3" },
+    { name = "pytest-tracer", directory = "../../../../../../../agent_tracer/projects/pytest_tracer_python" },
     { name = "pytest-watch", specifier = ">=4.2.0" },
     { name = "ruff", specifier = ">=0.11.12" },
     { name = "ty", specifier = ">=0.0.1a21" },
@@ -515,6 +517,33 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/4d/1d/3e4230cc67cd6205bbe03c3527500c0ccaf7f0c78b436537eac71590ee4a/pytest_testmon-2.2.0.tar.gz", hash = "sha256:01f488e955ed0e0049777bee598bf1f647dd524e06f544c31a24e68f8d775a51", size = 23108, upload-time = "2025-12-01T07:30:24.76Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/61/55/ebb3c2f59fb089f08d00f764830d35780fc4e4c41dffcadafa3264682b65/pytest_testmon-2.2.0-py3-none-any.whl", hash = "sha256:2604ca44a54d61a2e830d9ce828b41a837075e4ebc1f81b148add8e90d34815b", size = 25199, upload-time = "2025-12-01T07:30:23.623Z" },
+]
+
+[[package]]
+name = "pytest-tracer"
+version = "0.1.0"
+source = { directory = "../../../../../../../agent_tracer/projects/pytest_tracer_python" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2.0" },
+    { name = "pytest", specifier = ">=7.0" },
+    { name = "pytest-cov", specifier = ">=4.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.3.5" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
+    { name = "pytest-testmon", specifier = ">=2.1.3" },
+    { name = "pytest-watch", specifier = ">=4.2.0" },
+    { name = "ruff", specifier = ">=0.11.12" },
+    { name = "ty", specifier = ">=0.0.1a21" },
 ]
 
 [[package]]
