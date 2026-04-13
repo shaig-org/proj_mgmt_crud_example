@@ -167,3 +167,121 @@ async def get_admin_user(
 def get_stub_entity_repo(session: Session = Depends(get_db_session)) -> StubEntityRepository:  # noqa: B008
     """Dependency to get stub entity repository - template for creating real repository dependencies."""
     return StubEntityRepository(session)
+
+
+# ---------------------------------------------------------------------------
+# Capability factories
+#
+# These are the only new places allowed to reference `get_repository` outside
+# the documented exception list (see docs/tasks/capability-di/plan.md). Every
+# route handler should depend on a capability rather than on Repository
+# directly.
+# ---------------------------------------------------------------------------
+
+
+from project_management_crud_example.capabilities import (  # noqa: E402
+    ActivityLogReadCapability,
+    CommentCapability,
+    EpicReadCapability,
+    EpicWriteCapability,
+    OrganizationCapability,
+    ProjectReadCapability,
+    ProjectWriteCapability,
+    TicketReadCapability,
+    TicketWriteCapability,
+    UserReadCapability,
+    UserWriteCapability,
+    WorkflowReadCapability,
+    WorkflowWriteCapability,
+)
+
+
+def get_project_read_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> ProjectReadCapability:
+    return ProjectReadCapability(repo, user)
+
+
+def get_project_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> ProjectWriteCapability:
+    return ProjectWriteCapability(repo, user)
+
+
+def get_user_read_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> UserReadCapability:
+    return UserReadCapability(repo, user)
+
+
+def get_user_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> UserWriteCapability:
+    return UserWriteCapability(repo, user)
+
+
+def get_organization_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> OrganizationCapability:
+    return OrganizationCapability(repo, user)
+
+
+def get_epic_read_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> EpicReadCapability:
+    return EpicReadCapability(repo, user)
+
+
+def get_epic_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> EpicWriteCapability:
+    return EpicWriteCapability(repo, user)
+
+
+def get_workflow_read_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> WorkflowReadCapability:
+    return WorkflowReadCapability(repo, user)
+
+
+def get_workflow_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> WorkflowWriteCapability:
+    return WorkflowWriteCapability(repo, user)
+
+
+def get_ticket_read_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> TicketReadCapability:
+    return TicketReadCapability(repo, user)
+
+
+def get_ticket_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> TicketWriteCapability:
+    return TicketWriteCapability(repo, user)
+
+
+def get_comment_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> CommentCapability:
+    return CommentCapability(repo, user)
+
+
+def get_activity_log_read_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> ActivityLogReadCapability:
+    return ActivityLogReadCapability(repo, user)
