@@ -5,6 +5,14 @@
 
   var LS_SIZE_KEY = 'evidence.tileSize';
   var LS_VIEW_KEY = 'evidence.galleryView';
+  var LS_SIDEBAR_KEY = 'evidence.sidebarCollapsed';
+
+  function readSidebarCollapsed() {
+    try { return localStorage.getItem(LS_SIDEBAR_KEY) === '1'; } catch (e) { return false; }
+  }
+  function writeSidebarCollapsed(v) {
+    try { localStorage.setItem(LS_SIDEBAR_KEY, v ? '1' : '0'); } catch (e) { /* ignore */ }
+  }
   // Snap stops in px for the tile-size slider. Wide range so strip frames
   // can go from thumbnail (160) to nearly full-viewport (1200).
   var SIZE_STOPS = [160, 240, 320, 480, 640, 800, 1000, 1200];
@@ -61,6 +69,7 @@
     search: '',
     tileSize: readSize(),
     galleryView: readGalleryView(),
+    sidebarCollapsed: readSidebarCollapsed(),
     // Lightbox
     lbSlug: null,
     lbIndex: 0,
@@ -199,17 +208,21 @@
 
   function renderGallery() {
     var app = document.getElementById('app');
+    var collapsedCls = state.sidebarCollapsed ? ' sidebar-collapsed' : '';
     app.innerHTML = (
-      '<div class="layout">' +
-        '<aside class="sidebar">' +
-          '<section>' +
-            '<h2>Search</h2>' +
-            '<input id="search" type="search" placeholder="Search scenarios..." />' +
-          '</section>' +
-          '<section>' +
-            '<h2>Feature</h2>' +
-            '<ul id="feature-list"></ul>' +
-          '</section>' +
+      '<div class="layout' + collapsedCls + '" id="layout">' +
+        '<aside class="sidebar" id="sidebar">' +
+          '<button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar" title="Toggle sidebar">&#9776;</button>' +
+          '<div class="sidebar-body">' +
+            '<section>' +
+              '<h2>Search</h2>' +
+              '<input id="search" type="search" placeholder="Search scenarios..." />' +
+            '</section>' +
+            '<section>' +
+              '<h2>Feature</h2>' +
+              '<ul id="feature-list"></ul>' +
+            '</section>' +
+          '</div>' +
         '</aside>' +
         '<main class="main-col">' +
           sizeControlHtml(true) +
@@ -224,6 +237,16 @@
       state.search = e.target.value || '';
       renderGrid();
     });
+
+    var toggle = document.getElementById('sidebar-toggle');
+    if (toggle) {
+      toggle.addEventListener('click', function () {
+        state.sidebarCollapsed = !state.sidebarCollapsed;
+        writeSidebarCollapsed(state.sidebarCollapsed);
+        var layout = document.getElementById('layout');
+        if (layout) layout.classList.toggle('sidebar-collapsed', state.sidebarCollapsed);
+      });
+    }
 
     wireToolbar(app.querySelector('.toolbar'), function (kind) {
       if (kind === 'view') renderGrid();
@@ -252,19 +275,6 @@
     });
   }
 
-  function cardLinks(s) {
-    var parts = [];
-    parts.push('<a class="pill" href="#/scenario/' + encodeURIComponent(s.slug) + '/screenshots" data-nav="1">Screenshots</a>');
-    parts.push('<a class="pill" href="#/scenario/' + encodeURIComponent(s.slug) + '/flow" data-nav="1">Flow</a>');
-    if (s.motionGifPath) {
-      parts.push('<a class="pill" href="' + escapeHtml(s.motionGifPath) + '" target="_blank" rel="noopener" data-stop="1">Motion GIF</a>');
-    }
-    if (s.videoGalleryPath) {
-      parts.push('<a class="pill" href="' + escapeHtml(s.videoGalleryPath) + '" target="_blank" rel="noopener" data-stop="1">Video</a>');
-    }
-    return '<div class="pills">' + parts.join('') + '</div>';
-  }
-
   function renderGifCard(s) {
     var thumb;
     if (s.gifPath) {
@@ -276,12 +286,11 @@
       thumb = '<div class="thumb"></div>';
     }
     return (
-      '<article class="card" data-slug="' + escapeHtml(s.slug) + '">' +
+      '<article class="card" data-slug="' + escapeHtml(s.slug) + '" title="' + escapeHtml(s.slug) + '">' +
       thumb +
       '<div class="body">' +
       '<div class="title">' + escapeHtml(s.name) + '</div>' +
-      '<div class="sub"><span class="' + statusClass(s.status) + '">' + escapeHtml(s.status) + '</span> &middot; ' + (s.steps ? s.steps.length : 0) + ' steps &middot; ' + (s.durationMs || 0) + ' ms</div>' +
-      cardLinks(s) +
+      '<div class="sub"><span class="' + statusClass(s.status) + '">' + escapeHtml(s.status) + '</span> &middot; ' + (s.steps ? s.steps.length : 0) + ' steps</div>' +
       '</div></article>'
     );
   }
@@ -298,12 +307,11 @@
       );
     }).join('');
     return (
-      '<article class="card card-strip" data-slug="' + escapeHtml(s.slug) + '">' +
+      '<article class="card card-strip" data-slug="' + escapeHtml(s.slug) + '" title="' + escapeHtml(s.slug) + '">' +
         '<div class="strip-scroll">' + (frames || '<div class="empty">No steps</div>') + '</div>' +
         '<div class="body">' +
           '<div class="title">' + escapeHtml(s.name) + '</div>' +
-          '<div class="sub"><span class="' + statusClass(s.status) + '">' + escapeHtml(s.status) + '</span> &middot; ' + steps.length + ' steps &middot; ' + (s.durationMs || 0) + ' ms</div>' +
-          cardLinks(s) +
+          '<div class="sub"><span class="' + statusClass(s.status) + '">' + escapeHtml(s.status) + '</span> &middot; ' + steps.length + ' steps</div>' +
         '</div>' +
       '</article>'
     );
@@ -321,17 +329,15 @@
       );
     }).join('');
     return (
-      '<section class="strip-row" data-slug="' + escapeHtml(s.slug) + '">' +
+      '<section class="strip-row" data-slug="' + escapeHtml(s.slug) + '" title="' + escapeHtml(s.slug) + '">' +
         '<header class="strip-row-header">' +
           '<div class="strip-row-heading">' +
-            '<div class="strip-row-title">' + escapeHtml(s.name) + '</div>' +
+            '<a class="strip-row-title" href="#/scenario/' + encodeURIComponent(s.slug) + '" data-nav="1">' + escapeHtml(s.name) + '</a>' +
             '<div class="strip-row-sub">' +
-              '<span class="' + statusClass(s.status) + '">' + escapeHtml(s.status) + '</span>' +
-              '<span class="strip-row-meta-line">' + escapeHtml(s.feature) + '</span>' +
-              '<span class="strip-row-meta-line">' + steps.length + ' steps &middot; ' + (s.durationMs || 0) + ' ms</span>' +
+              '<span class="' + statusClass(s.status) + '">' + escapeHtml(s.status) + '</span> &middot; ' +
+              '<span class="strip-row-meta-line">' + steps.length + ' steps</span>' +
             '</div>' +
           '</div>' +
-          cardLinks(s) +
         '</header>' +
         '<div class="strip-row-scroll-wrap">' +
           '<button type="button" class="strip-scroll-btn strip-scroll-prev" aria-label="Scroll left" data-scroll="prev">&#10094;</button>' +
@@ -448,6 +454,7 @@
       '<div class="detail">' +
         '<nav class="breadcrumb"><a href="#/">&larr; Back to gallery</a></nav>' +
         '<h2>' + escapeHtml(s.name) + '</h2>' +
+        '<div class="detail-slug"><code>' + escapeHtml(s.slug) + '</code></div>' +
         '<p class="hint">Click any preview below to view it fullscreen.</p>' +
         '<div class="gifs-row">' + screenshotsPreview + flipbook + motion + video + '</div>' +
         '<dl class="kv">' +

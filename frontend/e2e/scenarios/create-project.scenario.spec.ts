@@ -44,7 +44,7 @@ scenarioTest.beforeAll(async ({ request }) => {
   pm = { username: pmUsername, password: userBody.generated_password };
 });
 
-scenarioTest('scenario_create_project_full_flow', async ({ page, step }) => {
+scenarioTest('Create project full flow', async ({ page, step }) => {
   const projectName = generateTestProjectName('WebApp');
 
   await step('login as project manager', async () => {

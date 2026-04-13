@@ -63,7 +63,7 @@ scenarioTest.beforeAll(async ({ request }) => {
   setup = { username: pmUsername, password, projectId: project.id, projectName };
 });
 
-scenarioTest('scenario_create_epic_in_project', async ({ page, step }) => {
+scenarioTest('Create epic in project', async ({ page, step }) => {
   const epicName = generateTestEpicTitle('LaunchPrep');
 
   await step('login as project manager', async () => {

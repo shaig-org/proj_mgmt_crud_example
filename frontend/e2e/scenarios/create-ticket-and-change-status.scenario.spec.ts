@@ -72,7 +72,7 @@ scenarioTest.beforeAll(async ({ request }) => {
   };
 });
 
-scenarioTest('scenario_create_ticket_and_change_status', async ({ page, step }) => {
+scenarioTest('Create ticket and change status', async ({ page, step }) => {
   const ticketTitle = generateTestTicketTitle('ShipIt');
 
   await step('login as project manager', async () => {
