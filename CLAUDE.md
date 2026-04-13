@@ -37,5 +37,8 @@ If the user asks for something directly without naming an agent, apply the routi
 ## Commits
 Commit freely on the current branch/worktree. Natural checkpoints: plan written, tests written, implementation passing, validations green. No approval gate.
 
+## pytest-tracer (test coverage traces)
+Backend tests marked with `@pytest.mark.scenario` are indexed into `backend/.trace-index` by pytest-tracer. Query the index with the `trace` CLI to find which tests cover which code **before editing backend code**. Full CLI reference and rebuild steps live in the `trace-analyzer` skill — invoke it when working with traces. Markers (`scenario`, `behavior`, `error`) are registered in `backend/pytest.ini`.
+
 ## Validations
 Any completed backend work must pass `cd backend && ./devtools/run_all_agent_validations.sh`. Any completed frontend work must pass `npm run lint && npm run typecheck && npm run e2e`. Zero errors, zero warnings. See principles.md for the full contract.

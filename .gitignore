@@ -52,3 +52,9 @@ htmlcov/
 coverage.xml
 *.cover
 .claude/worktrees
+
+# pytest-tracer artifacts (generated; regenerated via `trace build`)
+.trace-index/
+.trace-artifacts/
+scenarios.json
+call_traces.json

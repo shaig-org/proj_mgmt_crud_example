@@ -207,6 +207,23 @@ cd backend
 uv run pytest tests/api/test_auth_api.py
 ```
 
+### Test coverage traces (pytest-tracer)
+
+Backend tests marked with `@pytest.mark.scenario` are indexed for per-test coverage and call-trace queries. The tracer is primarily an aid for AI coding agents (see the `trace-analyzer` skill in `.claude/skills/`), but the `trace` CLI is useful to humans too — e.g. `trace affected <file>` to find which tests cover a file, or `trace flamegraph <scenario-id> --format png > flame.png` for a visual call graph.
+
+**Generated artifacts** (all under `backend/`, all gitignored):
+
+| Path | Produced by |
+|---|---|
+| `.coverage` | `pytest --cov-context=test` |
+| `scenarios.json` | `uv run pytest-tracer collect .` |
+| `call_traces.json` | `uv run pytest-tracer trace .` |
+| `.trace-index/` | `trace build` — the queryable index |
+
+**One-shot rebuild + sample artifacts**: `backend/devtools/build_trace_artifacts.sh` runs the whole pipeline and writes `summary.json`, `folded-compact.txt`, `mermaid.md`, `flame.png`, and `flame.html` per scenario into `backend/.trace-artifacts/<scenario>/`. Open `flame.html` in a browser for an interactive flame graph, or `mermaid.md` on GitHub for the sequence diagram.
+
+Full rebuild pipeline and CLI reference: `.claude/skills/trace-analyzer/SKILL.md`. The `trace` binary lives at `/Users/shai/proj/shaig/learn/agent_tracer/projects/trace_analyzer/target/release/trace`.
+
 ### Validation
 
 Run all validations (lint, format, type check, tests):

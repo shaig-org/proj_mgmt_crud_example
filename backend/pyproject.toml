@@ -24,6 +24,7 @@ dev = [
     "pytest>=8.3.5",
     "pytest-cov>=7.0.0",
     "pytest-testmon>=2.1.3",
+    "pytest-tracer",
     "pytest-watch>=4.2.0",
     "ruff>=0.11.12",
     "ty>=0.0.1a21",
@@ -67,3 +68,6 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["F811"]  # Ignore redefinition warnings in test files (pytest fixtures)
+
+[tool.uv.sources]
+pytest-tracer = { path = "../../../../../../../agent_tracer/projects/pytest_tracer_python" }

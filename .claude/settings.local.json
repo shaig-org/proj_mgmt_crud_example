@@ -1,6 +1,7 @@
 {
   "permissions": {
-    "allow": ["Bash(./devtools/run_all_agent_validations.sh:*)",
+    "allow": [
+      "Bash(./devtools/run_all_agent_validations.sh:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(pytest:*)",
@@ -110,7 +111,14 @@
       "TaskList(**)",
       "TaskGet(**)",
       "TaskOutput(**)",
-      "TaskStop(**)"
+      "TaskStop(**)",
+      "Bash(/Users/shai/proj/shaig/learn/agent_tracer/projects/trace_analyzer/target/release/trace build:*)",
+      "Bash(/Users/shai/proj/shaig/learn/agent_tracer/projects/trace_analyzer/target/release/trace list:*)",
+      "Bash(/Users/shai/proj/shaig/learn/agent_tracer/projects/trace_analyzer/target/release/trace affected:*)",
+      "Bash(/Users/shai/proj/shaig/learn/agent_tracer/projects/trace_analyzer/target/release/trace flamegraph:*)",
+      "Bash(cargo build:*)",
+      "Bash(../backend/devtools/build_trace_artifacts.sh)",
+      "Bash(./devtools/build_trace_artifacts.sh)"
     ],
     "deny": [],
     "ask": [],

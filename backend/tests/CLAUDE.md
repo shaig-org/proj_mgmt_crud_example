@@ -17,6 +17,9 @@ This file is the index. Detailed rules for writing tests are in the architectura
 - Fast feedback during development: invoke the `run-targeted-tests-backend` skill.
 - Full validation before done: invoke the `validate-backend` skill.
 
+## Coverage traces
+Tests marked with `@pytest.mark.scenario` are indexed by pytest-tracer. To find which tests cover a file/line or to inspect a scenario's call chain, invoke the `trace-analyzer` skill. Markers (`scenario`, `behavior`, `error`) are registered in `backend/pytest.ini`.
+
 ## Non-negotiables (one-line summary — see principles for detail)
 - Explicit fixture imports with `# noqa: F401`.
 - Use role-specific helpers; use repository helpers; no inline duplication.

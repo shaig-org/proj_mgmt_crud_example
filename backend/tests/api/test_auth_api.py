@@ -48,6 +48,8 @@ def test_super_admin(client: TestClient, super_admin_token: str) -> tuple[str, s
 class TestLogin:
     """Tests for POST /auth/login endpoint."""
 
+    @pytest.mark.scenario
+    @pytest.mark.behavior("authentication")
     def test_login_with_valid_credentials_succeeds(self, client: TestClient, test_user: tuple[str, str]) -> None:
         """Test login with valid credentials returns 200 with token."""
         user_id, password = test_user
@@ -85,6 +87,9 @@ class TestLogin:
         assert "role" in data
         assert data["role"] == "admin"
 
+    @pytest.mark.scenario
+    @pytest.mark.behavior("authentication")
+    @pytest.mark.error
     def test_login_with_wrong_password_fails(self, client: TestClient, test_user: tuple[str, str]) -> None:
         """Test login with wrong password returns 401 INVALID_CREDENTIALS."""
         response = client.post(
