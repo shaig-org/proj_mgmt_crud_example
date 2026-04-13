@@ -66,12 +66,9 @@ scenarioTest('Create project full flow', async ({ page, step }) => {
     await expect(page.getByLabel('Project Name *')).toHaveValue(projectName);
   });
 
-  await step('submit project form', async () => {
+  await step('submit and see project in list', async () => {
     await page.getByRole('button', { name: 'Create Project' }).click();
     await expect(page.getByRole('heading', { name: 'Create New Project' })).not.toBeVisible();
-  });
-
-  await step('verify project in list', async () => {
     await expect(page.getByText(projectName)).toBeVisible();
   });
 });

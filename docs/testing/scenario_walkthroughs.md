@@ -28,6 +28,10 @@ Rule of thumb: **if a PM would demo it, it deserves a scenario.**
 
 Edge cases, validation errors, permission boundaries, and business invariants stay in unit + PBT + API + regular E2E tests.
 
+### Scope of the scenario-coverage rule
+
+The "every major user-facing feature requires at least one scenario" rule applies to **new** user-facing features introduced from this PR onward. Existing features without a scenario may be backfilled opportunistically over time — a missing scenario on a pre-existing feature is not a blocker for unrelated work. If a change materially alters a flow that already has a scenario, update that scenario in the same PR.
+
 ---
 
 ## How to author a scenario
@@ -109,6 +113,8 @@ npm run walkthroughs:serve      # http://localhost:4173
 ```
 
 Typical loop: `npm run e2e:scenarios && npm run walkthroughs:generate && npm run walkthroughs:serve`.
+
+> If you're updating from before the `evidence`→`walkthroughs` rename, wipe `frontend/walkthroughs/` once to remove stale entries.
 
 ### What the generator does
 

@@ -3,9 +3,34 @@
 
   // ---------- Persistent UI prefs (size + gallery view mode) ----------
 
-  var LS_SIZE_KEY = 'evidence.tileSize';
-  var LS_VIEW_KEY = 'evidence.galleryView';
-  var LS_SIDEBAR_KEY = 'evidence.sidebarCollapsed';
+  var LS_SIZE_KEY = 'walkthroughs.tileSize';
+  var LS_VIEW_KEY = 'walkthroughs.galleryView';
+  var LS_SIDEBAR_KEY = 'walkthroughs.sidebarCollapsed';
+
+  // One-time migration from the old `evidence.*` keys. Copy value to new key
+  // and remove the legacy entry so this only runs once per browser profile.
+  (function migrateLegacyKeys() {
+    try {
+      var pairs = [
+        ['walkthroughs.tileSize', 'evidence.tileSize'],
+        ['walkthroughs.galleryView', 'evidence.galleryView'],
+        ['walkthroughs.sidebarCollapsed', 'evidence.sidebarCollapsed'],
+      ];
+      for (var i = 0; i < pairs.length; i++) {
+        var nk = pairs[i][0];
+        var ok = pairs[i][1];
+        if (localStorage.getItem(nk) == null) {
+          var old = localStorage.getItem(ok);
+          if (old != null) {
+            localStorage.setItem(nk, old);
+            localStorage.removeItem(ok);
+          }
+        } else if (localStorage.getItem(ok) != null) {
+          localStorage.removeItem(ok);
+        }
+      }
+    } catch (e) { /* ignore */ }
+  })();
 
   function readSidebarCollapsed() {
     try { return localStorage.getItem(LS_SIDEBAR_KEY) === '1'; } catch (e) { return false; }
