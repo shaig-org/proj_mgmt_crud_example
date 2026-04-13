@@ -18,15 +18,23 @@
     },
     {
       "capabilities": [
-        "CommentCapability"
+        "OrgCommentModerationCapability"
       ],
-      "handler": "comment_api.delete_comment",
+      "handler": "comment_api.moderate_delete_comment",
+      "method": "DELETE",
+      "path": "/api/admin/comments/{comment_id}"
+    },
+    {
+      "capabilities": [
+        "OwnCommentWriteCapability"
+      ],
+      "handler": "comment_api.delete_own_comment",
       "method": "DELETE",
       "path": "/api/comments/{comment_id}"
     },
     {
       "capabilities": [
-        "CommentCapability"
+        "CommentReadCapability"
       ],
       "handler": "comment_api.get_comment",
       "method": "GET",
@@ -34,7 +42,7 @@
     },
     {
       "capabilities": [
-        "CommentCapability"
+        "OwnCommentWriteCapability"
       ],
       "handler": "comment_api.update_comment",
       "method": "PUT",
@@ -242,7 +250,7 @@
     },
     {
       "capabilities": [
-        "CommentCapability"
+        "CommentReadCapability"
       ],
       "handler": "comment_api.list_ticket_comments",
       "method": "GET",
@@ -250,7 +258,7 @@
     },
     {
       "capabilities": [
-        "CommentCapability"
+        "OwnCommentWriteCapability"
       ],
       "handler": "comment_api.create_comment",
       "method": "POST",

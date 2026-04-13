@@ -10,7 +10,11 @@ See docs/tasks/capability-di/plan.md for the design.
 """
 
 from project_management_crud_example.capabilities.activity_logs_capability import ActivityLogReadCapability
-from project_management_crud_example.capabilities.comments_capability import CommentCapability
+from project_management_crud_example.capabilities.comments_capability import (
+    CommentReadCapability,
+    OrgCommentModerationCapability,
+    OwnCommentWriteCapability,
+)
 from project_management_crud_example.capabilities.epics_capability import EpicReadCapability, EpicWriteCapability
 from project_management_crud_example.capabilities.errors import CapabilityPermissionError
 from project_management_crud_example.capabilities.organizations_capability import OrganizationCapability
@@ -39,7 +43,9 @@ from project_management_crud_example.capabilities.workflows_capability import (
 __all__ = [
     "ActivityLogReadCapability",
     "CapabilityPermissionError",
-    "CommentCapability",
+    "CommentReadCapability",
+    "OrgCommentModerationCapability",
+    "OwnCommentWriteCapability",
     "EpicReadCapability",
     "EpicWriteCapability",
     "OrganizationCapability",

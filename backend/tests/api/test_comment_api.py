@@ -585,7 +585,7 @@ class TestUpdateComment:
         )
 
         assert response.status_code == 403
-        assert "only comment author can update" in response.json()["detail"]
+        assert "comment author" in response.json()["detail"]
 
     def test_update_comment_not_found(self, client: TestClient, shared_org_admin_token: tuple[str, str]) -> None:
         """Test updating non-existent comment returns 404."""
@@ -716,8 +716,9 @@ class TestDeleteComment:
         )
         comment_id = comment_response.json()["id"]
 
-        # Admin deletes comment
-        response = client.delete(f"/api/comments/{comment_id}", headers=admin_headers)
+        # Admin deletes comment via the moderation endpoint (DELETE /api/comments/{id}
+        # is now author-only; admin moderation uses /api/admin/comments/{id}).
+        response = client.delete(f"/api/admin/comments/{comment_id}", headers=admin_headers)
 
         assert response.status_code == 204
 
@@ -759,7 +760,7 @@ class TestDeleteComment:
         response = client.delete(f"/api/comments/{comment_id}", headers=pm_headers)
 
         assert response.status_code == 403
-        assert "only comment author or admins can delete" in response.json()["detail"]
+        assert "comment author" in response.json()["detail"]
 
     def test_delete_comment_not_found(self, client: TestClient, shared_org_admin_token: tuple[str, str]) -> None:
         """Test deleting non-existent comment returns 404."""

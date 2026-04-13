@@ -181,11 +181,13 @@ def get_stub_entity_repo(session: Session = Depends(get_db_session)) -> StubEnti
 
 from project_management_crud_example.capabilities import (  # noqa: E402
     ActivityLogReadCapability,
-    CommentCapability,
+    CommentReadCapability,
     EpicReadCapability,
     EpicWriteCapability,
     OrganizationCapability,
+    OrgCommentModerationCapability,
     OrgUserWriteCapability,
+    OwnCommentWriteCapability,
     PasswordChangeCapability,
     ProjectReadCapability,
     ProjectWriteCapability,
@@ -297,11 +299,33 @@ def get_ticket_write_capability(
     return TicketWriteCapability(repo, user)
 
 
-def get_comment_capability(
+def get_comment_read_capability(
     repo: Repository = Depends(get_repository),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
-) -> CommentCapability:
-    return CommentCapability(repo, user)
+) -> CommentReadCapability:
+    return CommentReadCapability(repo, user)
+
+
+def get_own_comment_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> OwnCommentWriteCapability:
+    """Self-authored comment writes. Scope is baked in — author_id = caller.id."""
+    return OwnCommentWriteCapability(repo, user)
+
+
+def get_org_comment_moderation_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> OrgCommentModerationCapability:
+    """Admin-only moderation. Admin role enforced at the factory so non-admins
+    cannot construct it; they 403 before the handler runs."""
+    from project_management_crud_example.capabilities.errors import CapabilityPermissionError
+    from project_management_crud_example.domain_models import UserRole
+
+    if user.role not in {UserRole.SUPER_ADMIN, UserRole.ADMIN}:
+        raise CapabilityPermissionError("Admin access required")
+    return OrgCommentModerationCapability(repo, user)
 
 
 def get_activity_log_read_capability(
