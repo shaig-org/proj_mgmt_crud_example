@@ -65,6 +65,13 @@ API (FastAPI routers) → Domain (Pydantic models + commands) → Repository (DA
 - The plan enumerates every test (by name, by layer, by what it verifies) BEFORE code is written.
 - The implementer does not invent tests not in the plan. If a gap is found, return to planning.
 
+## Capability layer (backend authorization)
+- FastAPI route handlers MUST depend on a narrow capability object (e.g. `ProjectWriteCapability`) — NOT on `Repository` directly. Capabilities live in `backend/project_management_crud_example/capabilities/` and own all role/org authorization.
+- On deny, capabilities raise `CapabilityPermissionError`; the handler never raises `HTTPException(403, ...)` for authorization. A single exception handler in `app.py` maps it to HTTP 403 with the standard `{"detail": ...}` envelope.
+- Documented exceptions (routes that may still take `Depends(get_repository)`): `POST /auth/login` (no authenticated user at login time), `/health`, `/e2e/**` (test harness). Adding to this list requires a plan update with rationale.
+- Every capability-bearing change should be accompanied by a run of the capability analyzer. See `backend/evidence/capabilities/README.md` for the workflow. The analyzer's `baseline.json` is the committed source of truth; the generated `report.json` and `index.html` are gitignored.
+- A capability-set *expansion* on any route is a review signal, not a bug. It must be explained in the PR and the updated `baseline.json` committed alongside the code change so reviewers see the diff.
+
 ## Commits
 - Commit freely — work happens on branches/worktrees.
 - Commit at natural checkpoints (planning done, tests written, implementation complete, validations passing).

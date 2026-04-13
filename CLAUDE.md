@@ -39,3 +39,9 @@ Commit freely on the current branch/worktree. Natural checkpoints: plan written,
 
 ## Validations
 Any completed backend work must pass `cd backend && ./devtools/run_all_agent_validations.sh`. Any completed frontend work must pass `npm run lint && npm run typecheck && npm run e2e`. Zero errors, zero warnings. See principles.md for the full contract.
+
+## Capability layer
+Backend route handlers depend on narrow **Capability** objects, not on the full `Repository`. See `docs/architecture/principles.md` §Capability layer for the rule. When a change alters a route's capability set:
+1. Run `cd backend && ./devtools/run_with_env.sh uv run python -m project_management_crud_example.tools.analyze_capabilities` — exit 0 means unchanged/reduced; exit 1 means expansion vs baseline.
+2. If the expansion is intentional, run the same command with `--update-baseline` and commit the updated `backend/evidence/capabilities/baseline.json` as part of the change (reviewers see the diff).
+3. Read `backend/evidence/capabilities/README.md` for the full workflow and how to open the static viewer.
