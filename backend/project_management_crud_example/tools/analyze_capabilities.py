@@ -4,12 +4,16 @@ Enumerates every FastAPI route, extracts which Capability dependency classes
 it depends on (directly or transitively), and emits:
 
 - evidence/capabilities/report.json   — structured snapshot + diff summary
-- evidence/capabilities/index.html    — self-contained HTML viewer
 - evidence/capabilities/baseline.json — committed snapshot to diff against
+- evidence/capabilities/index.html    — self-contained HTML viewer (opt-in via --emit-html)
+
+The standalone HTML viewer is superseded by the dev dashboard (tools/dev-dashboard),
+which reads report.json directly. HTML emission is therefore opt-in.
 
 Usage (from backend/):
     python -m project_management_crud_example.tools.analyze_capabilities
     python -m project_management_crud_example.tools.analyze_capabilities --update-baseline
+    python -m project_management_crud_example.tools.analyze_capabilities --emit-html
 
 Exit codes:
     0  — no route expanded, no new route (and --update-baseline always returns 0)
@@ -390,6 +394,14 @@ def run_cli(argv: Optional[List[str]] = None, *, app: object = None, out_dir: Op
         action="store_true",
         help="Overwrite evidence/capabilities/baseline.json with the current snapshot.",
     )
+    parser.add_argument(
+        "--emit-html",
+        action="store_true",
+        help=(
+            "Also write evidence/capabilities/index.html (self-contained viewer). "
+            "Off by default; the dev dashboard renders report.json directly."
+        ),
+    )
     args = parser.parse_args(argv)
 
     if app is None:
@@ -403,17 +415,19 @@ def run_cli(argv: Optional[List[str]] = None, *, app: object = None, out_dir: Op
 
     if args.update_baseline:
         write_baseline(baseline_path, entries)
-        # Also write report/html so CI artifacts stay fresh.
+        # Also write report so CI artifacts stay fresh.
         diff = diff_entries(entries, entries)
         write_report(report_path, entries, diff)
-        write_html(html_path, diff)
+        if args.emit_html:
+            write_html(html_path, diff)
         print(f"Baseline updated: {baseline_path} ({len(entries)} routes)")
         return 0
 
     baseline = load_baseline(baseline_path)
     diff = diff_entries(baseline, entries)
     write_report(report_path, entries, diff)
-    write_html(html_path, diff)
+    if args.emit_html:
+        write_html(html_path, diff)
 
     summary = diff.summary()
     print(
