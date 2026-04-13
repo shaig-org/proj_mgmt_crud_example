@@ -70,4 +70,4 @@ select = [
 "tests/*" = ["F811"]  # Ignore redefinition warnings in test files (pytest fixtures)
 
 [tool.uv.sources]
-pytest-tracer = { path = "../../../../../../../agent_tracer/projects/pytest_tracer_python" }
+pytest-tracer = { path = "/Users/shai/proj/shaig/learn/agent_tracer/projects/pytest_tracer_python" }
