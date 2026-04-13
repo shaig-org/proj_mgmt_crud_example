@@ -73,7 +73,9 @@
       "Bash(git checkout:*)",
       "Bash(git rm:*)",
       "Bash(sed -n '548,605p' tests/api/test_comment_api.py)",
-      "Bash(sed -n '729,770p' tests/api/test_comment_api.py)"
+      "Bash(sed -n '729,770p' tests/api/test_comment_api.py)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)"
     ],
     "deny": [],
     "ask": [],
