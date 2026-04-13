@@ -14,6 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from project_management_crud_example.capabilities import CapabilityPermissionError, PasswordChangeError
 from project_management_crud_example.dependencies import get_database
 from project_management_crud_example.exceptions import AuthHTTPException
 from project_management_crud_example.routers import (
@@ -150,6 +151,20 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=422,
         content={"detail": errors},
     )
+
+
+@app.exception_handler(CapabilityPermissionError)
+async def capability_permission_handler(request: Request, exc: CapabilityPermissionError) -> JSONResponse:
+    """Map CapabilityPermissionError to HTTP 403 with standard envelope."""
+    logger.warning(f"Capability permission denied on {request.method} {request.url}: {exc.detail}")
+    return JSONResponse(status_code=403, content={"detail": exc.detail})
+
+
+@app.exception_handler(PasswordChangeError)
+async def password_change_error_handler(request: Request, exc: PasswordChangeError) -> JSONResponse:
+    """Map PasswordChangeError (invalid new password, persistence failure) to HTTP 400."""
+    logger.warning(f"Password change rejected on {request.method} {request.url}: {exc.detail}")
+    return JSONResponse(status_code=400, content={"detail": exc.detail})
 
 
 @app.exception_handler(HTTPException)

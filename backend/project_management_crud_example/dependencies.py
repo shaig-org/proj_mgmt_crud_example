@@ -167,3 +167,184 @@ async def get_admin_user(
 def get_stub_entity_repo(session: Session = Depends(get_db_session)) -> StubEntityRepository:  # noqa: B008
     """Dependency to get stub entity repository - template for creating real repository dependencies."""
     return StubEntityRepository(session)
+
+
+# ---------------------------------------------------------------------------
+# Capability factories
+#
+# These are the only new places allowed to reference `get_repository` outside
+# the documented exception list (see docs/tasks/capability-di/plan.md). Every
+# route handler should depend on a capability rather than on Repository
+# directly.
+# ---------------------------------------------------------------------------
+
+
+from project_management_crud_example.capabilities import (  # noqa: E402
+    ActivityLogReadCapability,
+    CommentReadCapability,
+    EpicReadCapability,
+    GlobalOrganizationWriteCapability,
+    OrganizationReadCapability,
+    OrgCommentModerationCapability,
+    OrgEpicWriteCapability,
+    OrgProjectWriteCapability,
+    OrgTicketWriteCapability,
+    OrgUserWriteCapability,
+    OrgWorkflowWriteCapability,
+    OwnCommentWriteCapability,
+    PasswordChangeCapability,
+    ProjectReadCapability,
+    SelfUserWriteCapability,
+    TicketReadCapability,
+    UserReadCapability,
+    WorkflowReadCapability,
+)
+
+
+def get_password_change_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> PasswordChangeCapability:
+    return PasswordChangeCapability(repo, user)
+
+
+def get_project_read_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> ProjectReadCapability:
+    return ProjectReadCapability(repo, user)
+
+
+def get_org_project_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> OrgProjectWriteCapability:
+    return OrgProjectWriteCapability(repo, user)
+
+
+def get_user_read_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> UserReadCapability:
+    return UserReadCapability(repo, user)
+
+
+def get_self_user_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> SelfUserWriteCapability:
+    """Self-only user writes. No authorization gate needed — scope is baked in."""
+    return SelfUserWriteCapability(repo, user)
+
+
+def get_org_user_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> OrgUserWriteCapability:
+    """Org-scoped user writes. Admin gate enforced at the factory so non-admins
+    cannot even construct the capability; they get 403 before the handler runs."""
+    from project_management_crud_example.capabilities.errors import CapabilityPermissionError
+    from project_management_crud_example.domain_models import UserRole
+
+    if user.role not in {UserRole.SUPER_ADMIN, UserRole.ADMIN}:
+        raise CapabilityPermissionError("Admin access required")
+    return OrgUserWriteCapability(repo, user)
+
+
+def get_organization_read_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> OrganizationReadCapability:
+    return OrganizationReadCapability(repo, user)
+
+
+def get_global_organization_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> GlobalOrganizationWriteCapability:
+    """Super-admin-only global writes on organizations. Role enforced at the
+    factory so non-super-admins cannot construct it; they 403 before handler."""
+    from project_management_crud_example.capabilities.errors import CapabilityPermissionError
+    from project_management_crud_example.domain_models import UserRole
+
+    if user.role != UserRole.SUPER_ADMIN:
+        raise CapabilityPermissionError("Super Admin access required")
+    return GlobalOrganizationWriteCapability(repo, user)
+
+
+def get_epic_read_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> EpicReadCapability:
+    return EpicReadCapability(repo, user)
+
+
+def get_org_epic_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> OrgEpicWriteCapability:
+    return OrgEpicWriteCapability(repo, user)
+
+
+def get_workflow_read_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> WorkflowReadCapability:
+    return WorkflowReadCapability(repo, user)
+
+
+def get_org_workflow_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> OrgWorkflowWriteCapability:
+    return OrgWorkflowWriteCapability(repo, user)
+
+
+def get_ticket_read_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> TicketReadCapability:
+    return TicketReadCapability(repo, user)
+
+
+def get_org_ticket_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> OrgTicketWriteCapability:
+    return OrgTicketWriteCapability(repo, user)
+
+
+def get_comment_read_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> CommentReadCapability:
+    return CommentReadCapability(repo, user)
+
+
+def get_own_comment_write_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> OwnCommentWriteCapability:
+    """Self-authored comment writes. Scope is baked in — author_id = caller.id."""
+    return OwnCommentWriteCapability(repo, user)
+
+
+def get_org_comment_moderation_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> OrgCommentModerationCapability:
+    """Admin-only moderation. Admin role enforced at the factory so non-admins
+    cannot construct it; they 403 before the handler runs."""
+    from project_management_crud_example.capabilities.errors import CapabilityPermissionError
+    from project_management_crud_example.domain_models import UserRole
+
+    if user.role not in {UserRole.SUPER_ADMIN, UserRole.ADMIN}:
+        raise CapabilityPermissionError("Admin access required")
+    return OrgCommentModerationCapability(repo, user)
+
+
+def get_activity_log_read_capability(
+    repo: Repository = Depends(get_repository),  # noqa: B008
+    user: User = Depends(get_current_user),  # noqa: B008
+) -> ActivityLogReadCapability:
+    return ActivityLogReadCapability(repo, user)

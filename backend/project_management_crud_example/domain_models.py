@@ -640,6 +640,22 @@ class UserUpdateCommand(AuditableCommand):
     is_active: Optional[bool] = Field(None, description="Whether user is active")
 
 
+class SelfUserUpdateCommand(AuditableCommand):
+    """Command for self-update: deliberately narrower than UserUpdateCommand.
+
+    Omits `role` and `is_active` — those are privileged fields an admin can set
+    on behalf of a user. A user editing their own profile cannot change either.
+    This is enforced at the type level: the /api/users/me endpoint accepts this
+    command shape and nothing wider.
+    """
+
+    _entity_type: ClassVar[str] = "user"
+    _action_type: ClassVar[ActionType] = ActionType.USER_UPDATED
+
+    email: Optional[EmailStr] = Field(None, description="User email address")
+    full_name: Optional[str] = Field(None, min_length=1, max_length=255, description="User full name")
+
+
 class UserDeleteCommand(AuditableCommand):
     """Command model for deleting a user."""
 

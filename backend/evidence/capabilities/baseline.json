@@ -1,0 +1,380 @@
+{
+  "routes": [
+    {
+      "capabilities": [
+        "ActivityLogReadCapability"
+      ],
+      "handler": "activity_log_api.list_activity_logs",
+      "method": "GET",
+      "path": "/api/activity-logs"
+    },
+    {
+      "capabilities": [
+        "ActivityLogReadCapability"
+      ],
+      "handler": "activity_log_api.get_activity_log",
+      "method": "GET",
+      "path": "/api/activity-logs/{log_id}"
+    },
+    {
+      "capabilities": [
+        "OrgCommentModerationCapability"
+      ],
+      "handler": "comment_api.moderate_delete_comment",
+      "method": "DELETE",
+      "path": "/api/admin/comments/{comment_id}"
+    },
+    {
+      "capabilities": [
+        "OwnCommentWriteCapability"
+      ],
+      "handler": "comment_api.delete_own_comment",
+      "method": "DELETE",
+      "path": "/api/comments/{comment_id}"
+    },
+    {
+      "capabilities": [
+        "CommentReadCapability"
+      ],
+      "handler": "comment_api.get_comment",
+      "method": "GET",
+      "path": "/api/comments/{comment_id}"
+    },
+    {
+      "capabilities": [
+        "OwnCommentWriteCapability"
+      ],
+      "handler": "comment_api.update_comment",
+      "method": "PUT",
+      "path": "/api/comments/{comment_id}"
+    },
+    {
+      "capabilities": [
+        "EpicReadCapability"
+      ],
+      "handler": "epic_api.list_epics",
+      "method": "GET",
+      "path": "/api/epics"
+    },
+    {
+      "capabilities": [
+        "OrgEpicWriteCapability"
+      ],
+      "handler": "epic_api.create_epic",
+      "method": "POST",
+      "path": "/api/epics"
+    },
+    {
+      "capabilities": [
+        "OrgEpicWriteCapability"
+      ],
+      "handler": "epic_api.delete_epic",
+      "method": "DELETE",
+      "path": "/api/epics/{epic_id}"
+    },
+    {
+      "capabilities": [
+        "EpicReadCapability"
+      ],
+      "handler": "epic_api.get_epic",
+      "method": "GET",
+      "path": "/api/epics/{epic_id}"
+    },
+    {
+      "capabilities": [
+        "OrgEpicWriteCapability"
+      ],
+      "handler": "epic_api.update_epic",
+      "method": "PUT",
+      "path": "/api/epics/{epic_id}"
+    },
+    {
+      "capabilities": [
+        "EpicReadCapability"
+      ],
+      "handler": "epic_api.get_epic_tickets",
+      "method": "GET",
+      "path": "/api/epics/{epic_id}/tickets"
+    },
+    {
+      "capabilities": [
+        "OrgEpicWriteCapability"
+      ],
+      "handler": "epic_api.add_ticket_to_epic",
+      "method": "POST",
+      "path": "/api/epics/{epic_id}/tickets"
+    },
+    {
+      "capabilities": [
+        "OrgEpicWriteCapability"
+      ],
+      "handler": "epic_api.remove_ticket_from_epic",
+      "method": "DELETE",
+      "path": "/api/epics/{epic_id}/tickets/{ticket_id}"
+    },
+    {
+      "capabilities": [
+        "OrganizationReadCapability"
+      ],
+      "handler": "organization_api.list_organizations",
+      "method": "GET",
+      "path": "/api/organizations"
+    },
+    {
+      "capabilities": [
+        "GlobalOrganizationWriteCapability"
+      ],
+      "handler": "organization_api.create_organization",
+      "method": "POST",
+      "path": "/api/organizations"
+    },
+    {
+      "capabilities": [
+        "OrganizationReadCapability"
+      ],
+      "handler": "organization_api.get_organization",
+      "method": "GET",
+      "path": "/api/organizations/{organization_id}"
+    },
+    {
+      "capabilities": [
+        "GlobalOrganizationWriteCapability"
+      ],
+      "handler": "organization_api.update_organization",
+      "method": "PUT",
+      "path": "/api/organizations/{organization_id}"
+    },
+    {
+      "capabilities": [
+        "ProjectReadCapability"
+      ],
+      "handler": "project_api.list_projects",
+      "method": "GET",
+      "path": "/api/projects"
+    },
+    {
+      "capabilities": [
+        "OrgProjectWriteCapability"
+      ],
+      "handler": "project_api.create_project",
+      "method": "POST",
+      "path": "/api/projects"
+    },
+    {
+      "capabilities": [
+        "OrgProjectWriteCapability"
+      ],
+      "handler": "project_api.delete_project",
+      "method": "DELETE",
+      "path": "/api/projects/{project_id}"
+    },
+    {
+      "capabilities": [
+        "ProjectReadCapability"
+      ],
+      "handler": "project_api.get_project",
+      "method": "GET",
+      "path": "/api/projects/{project_id}"
+    },
+    {
+      "capabilities": [
+        "OrgProjectWriteCapability"
+      ],
+      "handler": "project_api.update_project",
+      "method": "PUT",
+      "path": "/api/projects/{project_id}"
+    },
+    {
+      "capabilities": [
+        "OrgProjectWriteCapability"
+      ],
+      "handler": "project_api.archive_project",
+      "method": "PATCH",
+      "path": "/api/projects/{project_id}/archive"
+    },
+    {
+      "capabilities": [
+        "OrgProjectWriteCapability"
+      ],
+      "handler": "project_api.unarchive_project",
+      "method": "PATCH",
+      "path": "/api/projects/{project_id}/unarchive"
+    },
+    {
+      "capabilities": [
+        "TicketReadCapability"
+      ],
+      "handler": "ticket_api.list_tickets",
+      "method": "GET",
+      "path": "/api/tickets"
+    },
+    {
+      "capabilities": [
+        "OrgTicketWriteCapability"
+      ],
+      "handler": "ticket_api.create_ticket",
+      "method": "POST",
+      "path": "/api/tickets"
+    },
+    {
+      "capabilities": [
+        "OrgTicketWriteCapability"
+      ],
+      "handler": "ticket_api.delete_ticket",
+      "method": "DELETE",
+      "path": "/api/tickets/{ticket_id}"
+    },
+    {
+      "capabilities": [
+        "TicketReadCapability"
+      ],
+      "handler": "ticket_api.get_ticket",
+      "method": "GET",
+      "path": "/api/tickets/{ticket_id}"
+    },
+    {
+      "capabilities": [
+        "OrgTicketWriteCapability"
+      ],
+      "handler": "ticket_api.update_ticket",
+      "method": "PUT",
+      "path": "/api/tickets/{ticket_id}"
+    },
+    {
+      "capabilities": [
+        "OrgTicketWriteCapability"
+      ],
+      "handler": "ticket_api.update_ticket_assignee",
+      "method": "PUT",
+      "path": "/api/tickets/{ticket_id}/assignee"
+    },
+    {
+      "capabilities": [
+        "CommentReadCapability"
+      ],
+      "handler": "comment_api.list_ticket_comments",
+      "method": "GET",
+      "path": "/api/tickets/{ticket_id}/comments"
+    },
+    {
+      "capabilities": [
+        "OwnCommentWriteCapability"
+      ],
+      "handler": "comment_api.create_comment",
+      "method": "POST",
+      "path": "/api/tickets/{ticket_id}/comments"
+    },
+    {
+      "capabilities": [
+        "OrgTicketWriteCapability"
+      ],
+      "handler": "ticket_api.move_ticket_to_project",
+      "method": "PUT",
+      "path": "/api/tickets/{ticket_id}/project"
+    },
+    {
+      "capabilities": [
+        "OrgTicketWriteCapability"
+      ],
+      "handler": "ticket_api.update_ticket_status",
+      "method": "PUT",
+      "path": "/api/tickets/{ticket_id}/status"
+    },
+    {
+      "capabilities": [
+        "UserReadCapability"
+      ],
+      "handler": "user_api.list_users",
+      "method": "GET",
+      "path": "/api/users"
+    },
+    {
+      "capabilities": [
+        "OrgUserWriteCapability"
+      ],
+      "handler": "user_api.create_user",
+      "method": "POST",
+      "path": "/api/users"
+    },
+    {
+      "capabilities": [
+        "SelfUserWriteCapability"
+      ],
+      "handler": "user_api.update_own_profile",
+      "method": "PUT",
+      "path": "/api/users/me"
+    },
+    {
+      "capabilities": [
+        "OrgUserWriteCapability"
+      ],
+      "handler": "user_api.delete_user",
+      "method": "DELETE",
+      "path": "/api/users/{user_id}"
+    },
+    {
+      "capabilities": [
+        "UserReadCapability"
+      ],
+      "handler": "user_api.get_user",
+      "method": "GET",
+      "path": "/api/users/{user_id}"
+    },
+    {
+      "capabilities": [
+        "OrgUserWriteCapability"
+      ],
+      "handler": "user_api.update_user",
+      "method": "PUT",
+      "path": "/api/users/{user_id}"
+    },
+    {
+      "capabilities": [
+        "WorkflowReadCapability"
+      ],
+      "handler": "workflow_api.list_workflows",
+      "method": "GET",
+      "path": "/api/workflows"
+    },
+    {
+      "capabilities": [
+        "OrgWorkflowWriteCapability"
+      ],
+      "handler": "workflow_api.create_workflow",
+      "method": "POST",
+      "path": "/api/workflows"
+    },
+    {
+      "capabilities": [
+        "OrgWorkflowWriteCapability"
+      ],
+      "handler": "workflow_api.delete_workflow",
+      "method": "DELETE",
+      "path": "/api/workflows/{workflow_id}"
+    },
+    {
+      "capabilities": [
+        "WorkflowReadCapability"
+      ],
+      "handler": "workflow_api.get_workflow",
+      "method": "GET",
+      "path": "/api/workflows/{workflow_id}"
+    },
+    {
+      "capabilities": [
+        "OrgWorkflowWriteCapability"
+      ],
+      "handler": "workflow_api.update_workflow",
+      "method": "PUT",
+      "path": "/api/workflows/{workflow_id}"
+    },
+    {
+      "capabilities": [
+        "PasswordChangeCapability"
+      ],
+      "handler": "auth_api.change_password",
+      "method": "POST",
+      "path": "/auth/change-password"
+    }
+  ]
+}

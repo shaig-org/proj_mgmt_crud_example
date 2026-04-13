@@ -53,6 +53,11 @@ coverage.xml
 *.cover
 .claude/worktrees
 
+# Capability analyzer: baseline.json is the committed source of truth.
+# report.json and index.html are regenerated artifacts.
+backend/evidence/capabilities/report.json
+backend/evidence/capabilities/index.html
+
 # pytest-tracer artifacts (generated; regenerated via `trace build`)
 .trace-index/
 .trace-artifacts/

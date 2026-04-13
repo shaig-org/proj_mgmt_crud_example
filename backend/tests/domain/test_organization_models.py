@@ -70,7 +70,7 @@ class TestOrganizationData:
     def test_organization_data_without_name_fails(self) -> None:
         """Test that name is required."""
         with pytest.raises(ValidationError) as exc_info:
-            OrganizationData(description="No name provided")  # type: ignore
+            OrganizationData(description="No name provided")
 
         assert isinstance(exc_info.value, ValidationError)
         errors = exc_info.value.errors()

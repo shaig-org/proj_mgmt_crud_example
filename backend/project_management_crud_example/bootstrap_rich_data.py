@@ -58,7 +58,7 @@ def create_organization(
 
 
 def create_user_with_password(
-    db: "Database",  # type: ignore
+    db: "Database",
     org_id: str,
     username: str,
     email: str,
