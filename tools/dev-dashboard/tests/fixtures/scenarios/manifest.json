@@ -1,0 +1,37 @@
+{
+  "scenarios": [
+    {
+      "id": "org_create",
+      "title": "Create an organization",
+      "tags": ["auth", "org"],
+      "status": "passing",
+      "correlationId": "abc-123",
+      "gif": "media/org_create.gif",
+      "video": "media/org_create.webm",
+      "steps": [
+        { "index": 1, "label": "Open signup" },
+        { "index": 2, "label": "Fill form" },
+        { "index": 3, "label": "Submit" }
+      ]
+    },
+    {
+      "id": "project_create",
+      "title": "Create a project",
+      "tags": ["project"],
+      "status": "passing",
+      "gif": "media/project_create.gif",
+      "video": "media/project_create.webm",
+      "steps": [
+        { "index": 1, "label": "Open org" },
+        { "index": 2, "label": "Create project" }
+      ]
+    },
+    {
+      "id": "member_invite",
+      "title": "Invite a member",
+      "tags": ["auth", "org"],
+      "status": "passing",
+      "steps": [{ "index": 1, "label": "Invite" }]
+    }
+  ]
+}

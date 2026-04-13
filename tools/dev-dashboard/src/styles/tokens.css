@@ -1,0 +1,55 @@
+:root {
+  --bg: #fafafa;
+  --bg-panel: #ffffff;
+  --border: #e4e4e7;
+  --text: #18181b;
+  --text-muted: #71717a;
+  --accent: #2563eb;
+  --stale: #d97706;
+  --stale-bg: #fef3c7;
+  --fresh: #16a34a;
+  --fresh-bg: #dcfce7;
+  --removed: #dc2626;
+  --reduced: #0ea5e9;
+  --expanded: #d97706;
+  --new: #16a34a;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --radius: 6px;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--sans);
+  color: var(--text);
+  background: var(--bg);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+code,
+pre,
+.mono {
+  font-family: var(--mono);
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

@@ -1,0 +1,253 @@
+.app {
+  display: grid;
+  grid-template-rows: 56px 1fr;
+  grid-template-columns: 220px 1fr;
+  grid-template-areas:
+    'topbar topbar'
+    'rail   main';
+  height: 100vh;
+}
+
+.topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-4);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar__title {
+  font-weight: 600;
+}
+
+.topbar__path {
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.topbar__right {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.rail {
+  grid-area: rail;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  padding: var(--space-2) 0;
+}
+
+.rail__tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  background: transparent;
+  text-align: left;
+  color: var(--text);
+  border-left: 3px solid transparent;
+}
+
+.rail__tab[aria-selected='true'] {
+  border-left-color: var(--accent);
+  background: #f4f4f5;
+  font-weight: 600;
+}
+
+.rail__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--stale);
+  display: inline-block;
+}
+
+.main {
+  grid-area: main;
+  overflow: auto;
+  padding: var(--space-6);
+}
+
+.shell__header {
+  margin-bottom: var(--space-4);
+}
+
+.shell__title-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.shell__title {
+  margin: 0;
+  font-size: 20px;
+}
+
+.shell__last-gen {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge--stale {
+  color: var(--stale);
+  background: var(--stale-bg);
+}
+
+.badge--fresh {
+  color: var(--fresh);
+  background: var(--fresh-bg);
+}
+
+.cmd-block {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.cmd-block__label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-1);
+}
+
+.cmd-block__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--mono);
+}
+
+.cmd-block__cmd {
+  flex: 1;
+  background: #f4f4f5;
+  padding: var(--space-2);
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.cmd-block__meta {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: var(--space-2);
+}
+
+.empty {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.cap-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.cap-table th,
+.cap-table td {
+  text-align: left;
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.cap-table td.mono {
+  font-family: var(--mono);
+}
+
+.cap-table tr[data-status='expanded'] {
+  background: #fffbeb;
+}
+.cap-table tr[data-status='reduced'] {
+  background: #eff6ff;
+}
+.cap-table tr[data-status='new'] {
+  background: #f0fdf4;
+}
+.cap-table tr[data-status='removed'] {
+  background: #fef2f2;
+  text-decoration: line-through;
+}
+
+.scen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.scen-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.scen-card__media {
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  background: #f4f4f5;
+  display: block;
+}
+
+.scen-card__title {
+  padding: var(--space-2) var(--space-3);
+  font-weight: 600;
+}
+
+.trace-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: var(--space-4);
+}
+
+.trace-list {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  background: var(--bg-panel);
+}
+
+.trace-list button {
+  display: block;
+  width: 100%;
+  padding: var(--space-2);
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+
+.trace-list button[aria-selected='true'] {
+  background: #f4f4f5;
+  font-weight: 600;
+}
+
+.trace-iframe {
+  width: 100%;
+  height: 480px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+}

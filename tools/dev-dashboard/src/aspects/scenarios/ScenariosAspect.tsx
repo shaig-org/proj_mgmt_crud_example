@@ -1,0 +1,257 @@
+import { useMemo, useState } from 'react';
+import type { Aspect } from '../types';
+import { ArtifactSchemaError, loadArtifact } from '../../lib/loadArtifact';
+import type { ScenarioEntry, ScenariosManifest } from './types';
+
+const ARTIFACT_URL = '/artifacts/scenarios/manifest.json';
+
+function resolveMediaUrl(rel: string | undefined): string | undefined {
+  if (!rel) return undefined;
+  if (rel.startsWith('/') || rel.startsWith('http')) return rel;
+  return `/artifacts/scenarios/${rel.replace(/^\.?\//, '')}`;
+}
+
+function validate(doc: unknown): ScenariosManifest {
+  if (typeof doc !== 'object' || doc === null) {
+    throw new ArtifactSchemaError(ARTIFACT_URL, 'root');
+  }
+  const d = doc as { scenarios?: unknown };
+  if (!Array.isArray(d.scenarios)) {
+    throw new ArtifactSchemaError(ARTIFACT_URL, 'scenarios');
+  }
+  const scenarios: ScenarioEntry[] = [];
+  for (let i = 0; i < d.scenarios.length; i++) {
+    const raw = d.scenarios[i];
+    if (typeof raw !== 'object' || raw === null) {
+      throw new ArtifactSchemaError(ARTIFACT_URL, `scenarios[${i}]`);
+    }
+    const r = raw as Record<string, unknown>;
+    if (typeof r.id !== 'string') {
+      throw new ArtifactSchemaError(ARTIFACT_URL, `scenarios[${i}].id`);
+    }
+    if (typeof r.title !== 'string') {
+      throw new ArtifactSchemaError(ARTIFACT_URL, `scenarios[${i}].title`);
+    }
+    scenarios.push({
+      id: r.id,
+      title: r.title,
+      tags: Array.isArray(r.tags) ? (r.tags as string[]) : undefined,
+      status:
+        r.status === 'passing' || r.status === 'failing' ? r.status : undefined,
+      correlationId:
+        typeof r.correlationId === 'string' ? r.correlationId : undefined,
+      gif: resolveMediaUrl(typeof r.gif === 'string' ? r.gif : undefined),
+      video: resolveMediaUrl(typeof r.video === 'string' ? r.video : undefined),
+      thumbnail: resolveMediaUrl(
+        typeof r.thumbnail === 'string' ? r.thumbnail : undefined,
+      ),
+      steps: Array.isArray(r.steps)
+        ? (r.steps as Record<string, unknown>[]).map((s, idx) => ({
+            index: typeof s.index === 'number' ? s.index : idx,
+            label: typeof s.label === 'string' ? s.label : '',
+            screenshot: resolveMediaUrl(
+              typeof s.screenshot === 'string' ? s.screenshot : undefined,
+            ),
+          }))
+        : undefined,
+    });
+  }
+  return { scenarios };
+}
+
+export interface ScenariosData extends ScenariosManifest {
+  traceScenarioIds: Set<string>;
+}
+
+async function fetchTraceIndex(): Promise<Set<string>> {
+  try {
+    const resp = await fetch('/artifacts/traces/');
+    if (!resp.ok) return new Set();
+    const body = (await resp.json()) as {
+      entries?: Array<{ name: string; type: string }>;
+    };
+    const ids = (body.entries ?? [])
+      .filter((e) => e.type === 'dir')
+      .map((e) => slugify(e.name));
+    return new Set(ids);
+  } catch {
+    return new Set();
+  }
+}
+
+function slugify(id: string): string {
+  return id.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function Detail({
+  entry,
+  traceScenarioIds,
+  onBack,
+  onViewTrace,
+}: {
+  entry: ScenarioEntry;
+  traceScenarioIds: Set<string>;
+  onBack: () => void;
+  onViewTrace: (slug: string) => void;
+}) {
+  const slug = slugify(entry.id);
+  const hasTrace = traceScenarioIds.has(slug);
+  return (
+    <div data-testid="scenario-detail">
+      <button type="button" onClick={onBack}>
+        ← back
+      </button>
+      <h3>{entry.title}</h3>
+      {entry.video ? (
+        <video
+          data-testid="scenario-video"
+          src={entry.video}
+          controls
+          style={{ maxWidth: '100%' }}
+        />
+      ) : entry.thumbnail ? (
+        <img src={entry.thumbnail} alt={entry.title} style={{ maxWidth: '100%' }} />
+      ) : null}
+      {entry.steps && entry.steps.length > 0 && (
+        <ol data-testid="scenario-steps">
+          {entry.steps.map((s) => (
+            <li key={s.index}>{s.label}</li>
+          ))}
+        </ol>
+      )}
+      {entry.correlationId && (
+        <div>
+          Correlation ID: <code>{entry.correlationId}</code>
+        </div>
+      )}
+      {hasTrace && (
+        <button
+          type="button"
+          data-testid="view-trace-link"
+          onClick={() => onViewTrace(slug)}
+        >
+          View trace →
+        </button>
+      )}
+    </div>
+  );
+}
+
+function Grid({
+  manifest,
+  traceScenarioIds,
+  onSelect,
+}: {
+  manifest: ScenariosManifest;
+  traceScenarioIds: Set<string>;
+  onSelect: (id: string) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return manifest.scenarios;
+    return manifest.scenarios.filter(
+      (s) =>
+        s.title.toLowerCase().includes(q) ||
+        s.id.toLowerCase().includes(q) ||
+        (s.tags ?? []).some((t) => t.toLowerCase().includes(q)),
+    );
+  }, [manifest, query]);
+
+  void traceScenarioIds; // used in detail view
+  return (
+    <div>
+      <div style={{ marginBottom: 'var(--space-3)' }}>
+        <input
+          data-testid="scenario-search"
+          placeholder="search scenarios"
+          value={query}
+          onChange={(e) => setQuery(e.currentTarget.value)}
+        />
+      </div>
+      <div className="scen-grid" data-testid="scenario-grid">
+        {filtered.map((s) => {
+          const media = s.gif ?? s.thumbnail;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              className="scen-card"
+              data-testid={`scenario-card-${s.id}`}
+              onClick={() => onSelect(s.id)}
+            >
+              {media ? (
+                <img src={media} alt={s.title} className="scen-card__media" />
+              ) : (
+                <div className="scen-card__media" />
+              )}
+              <div className="scen-card__title">{s.title}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ScenariosBody({ data }: { data: ScenariosData }) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = data.scenarios.find((s) => s.id === selectedId) ?? null;
+
+  function onViewTrace(slug: string) {
+    window.location.hash = `#/traces?select=${encodeURIComponent(slug)}`;
+  }
+
+  if (selected) {
+    return (
+      <Detail
+        entry={selected}
+        traceScenarioIds={data.traceScenarioIds}
+        onBack={() => setSelectedId(null)}
+        onViewTrace={onViewTrace}
+      />
+    );
+  }
+  return (
+    <Grid
+      manifest={data}
+      traceScenarioIds={data.traceScenarioIds}
+      onSelect={setSelectedId}
+    />
+  );
+}
+
+export const scenariosAspect: Aspect<ScenariosData> = {
+  id: 'scenarios',
+  title: 'Scenarios',
+  icon: '▣',
+  sourceRoots: ['frontend/e2e/scenarios'],
+  artifacts: [
+    {
+      url: ARTIFACT_URL,
+      label: 'manifest.json',
+      repoPath: 'frontend/walkthroughs/gallery/manifest.json',
+    },
+  ],
+  refreshCommand: 'npm --prefix frontend run walkthroughs:generate',
+  refreshCwd: '<repo-root>',
+  refreshDescription:
+    're-runs scenario tests headed and captures GIFs, screenshots, and step transcripts.',
+  load: async () => {
+    const { data } = await loadArtifact<unknown>(ARTIFACT_URL);
+    const manifest = validate(data);
+    const traceScenarioIds = await fetchTraceIndex();
+    // Warn once on unmatched ids.
+    const unmatched = manifest.scenarios
+      .map((s) => slugify(s.id))
+      .filter((slug) => !traceScenarioIds.has(slug));
+    if (traceScenarioIds.size > 0 && unmatched.length > 0) {
+      console.warn(
+        '[dev-dashboard] scenarios without matching trace dirs:',
+        unmatched,
+      );
+    }
+    return { ...manifest, traceScenarioIds };
+  },
+  render: (data) => <ScenariosBody data={data} />,
+};

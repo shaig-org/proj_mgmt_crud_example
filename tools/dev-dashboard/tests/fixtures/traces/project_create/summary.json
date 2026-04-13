@@ -1,0 +1,5 @@
+{
+  "scenarioId": "project_create",
+  "title": "Create a project",
+  "coveredFiles": ["backend/project_management_crud_example/routers/projects_api.py"]
+}

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.staleness.json
+.artifacts-root
+test-results/
+playwright-report/
+.vite/
+tsconfig.tsbuildinfo
+tests/.tmp-repo/

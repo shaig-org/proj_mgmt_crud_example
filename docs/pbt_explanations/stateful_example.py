@@ -15,7 +15,13 @@ which is a helper function. In actual implementation, you'd use pytest fixtures.
 """
 
 from hypothesis import note
-from hypothesis.stateful import Bundle, RuleBasedStateMachine, invariant, precondition, rule
+from hypothesis.stateful import (
+    Bundle,
+    RuleBasedStateMachine,
+    invariant,
+    precondition,
+    rule,
+)
 from hypothesis.strategies import SearchStrategy, sampled_from, text
 
 from project_management_crud_example.domain_models import (
@@ -45,7 +51,11 @@ def usernames() -> SearchStrategy[str]:
 
 def names() -> SearchStrategy[str]:
     """Generate general names."""
-    return text(min_size=1, max_size=50, alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ")
+    return text(
+        min_size=1,
+        max_size=50,
+        alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ",
+    )
 
 
 # =============================================================================
@@ -73,10 +83,14 @@ class UserCRUDStateMachine(RuleBasedStateMachine):
 
         # Create organization for users
         org_data = OrganizationData(name="Test Org")
-        self.org = self.repo.organizations.create(OrganizationCreateCommand(organization_data=org_data))
+        self.org = self.repo.organizations.create(
+            OrganizationCreateCommand(organization_data=org_data)
+        )
 
         # PATTERN 1: Shadow State - track what SHOULD exist
-        self.active_users: dict[str, tuple[str, UserData]] = {}  # username -> (id, original_data)
+        self.active_users: dict[
+            str, tuple[str, UserData]
+        ] = {}  # username -> (id, original_data)
         self.deleted_usernames: set[str] = set()
 
         # PATTERN 2: Count Invariants - track totals
@@ -93,10 +107,19 @@ class UserCRUDStateMachine(RuleBasedStateMachine):
 
         note(f"Creating user: {username}")
 
-        user_data = UserData(username=username, email=f"{username}@test.com", full_name=f"User {username}")
+        user_data = UserData(
+            username=username,
+            email=f"{username}@test.com",
+            full_name=f"User {username}",
+        )
 
         user = self.repo.users.create(
-            UserCreateCommand(user_data=user_data, password="Pass123!", organization_id=self.org.id, role=UserRole.ADMIN)
+            UserCreateCommand(
+                user_data=user_data,
+                password="Pass123!",
+                organization_id=self.org.id,
+                role=UserRole.ADMIN,
+            )
         )
 
         # Update shadow state
@@ -118,7 +141,9 @@ class UserCRUDStateMachine(RuleBasedStateMachine):
         self.repo.users.update(user_id, UserUpdateCommand(email=new_email))
 
         # Update shadow state
-        updated_data = UserData(username=username, email=new_email, full_name=original_data.full_name)
+        updated_data = UserData(
+            username=username, email=new_email, full_name=original_data.full_name
+        )
         self.active_users[username] = (user_id, updated_data)
         self.total_updates += 1
 
@@ -160,16 +185,24 @@ class UserCRUDStateMachine(RuleBasedStateMachine):
         """PATTERN 1: Shadow State - All active users should exist in repository."""
         for username, (user_id, user_data) in self.active_users.items():
             user = self.repo.users.get_by_id(user_id)
-            assert user is not None, f"Active user '{username}' (ID: {user_id}) should exist but returned None"
-            assert user.username == username, f"Username mismatch: expected '{username}', got '{user.username}'"
-            assert user.email == user_data.email, f"Email mismatch for user '{username}'"
+            assert user is not None, (
+                f"Active user '{username}' (ID: {user_id}) should exist but returned None"
+            )
+            assert user.username == username, (
+                f"Username mismatch: expected '{username}', got '{user.username}'"
+            )
+            assert user.email == user_data.email, (
+                f"Email mismatch for user '{username}'"
+            )
 
     @invariant()
     def deleted_users_gone(self):
         """PATTERN 1: Shadow State - Deleted users should not be retrievable."""
         for username in self.deleted_usernames:
             user = self.repo.users.get_by_username(username)
-            assert user is None, f"Deleted user '{username}' should return None but was found"
+            assert user is None, (
+                f"Deleted user '{username}' should return None but was found"
+            )
 
     @invariant()
     def user_count_matches(self):
@@ -184,7 +217,9 @@ class UserCRUDStateMachine(RuleBasedStateMachine):
         )
 
         # Also verify repository count
-        all_users_in_org = [u for u in self.repo.users.get_all() if u.organization_id == self.org.id]
+        all_users_in_org = [
+            u for u in self.repo.users.get_all() if u.organization_id == self.org.id
+        ]
         repo_count = len(all_users_in_org)
         assert repo_count == expected_active, (
             f"Repository has {repo_count} users but should have {expected_active} "
@@ -196,7 +231,9 @@ class UserCRUDStateMachine(RuleBasedStateMachine):
         """All users should have non-empty IDs."""
         for username, (user_id, _) in self.active_users.items():
             assert user_id, f"User '{username}' has empty ID"
-            assert isinstance(user_id, str), f"User '{username}' ID is not a string: {type(user_id)}"
+            assert isinstance(user_id, str), (
+                f"User '{username}' ID is not a string: {type(user_id)}"
+            )
             assert len(user_id) > 0, f"User '{username}' has zero-length ID"
 
 
@@ -227,7 +264,9 @@ class ProjectLifecycleStateMachine(RuleBasedStateMachine):
 
         # Setup
         org_data = OrganizationData(name="Test Org")
-        self.org = self.repo.organizations.create(OrganizationCreateCommand(organization_data=org_data))
+        self.org = self.repo.organizations.create(
+            OrganizationCreateCommand(organization_data=org_data)
+        )
         self.workflow = self.repo.workflows.create_default_workflow()
 
         # PATTERN 2: Count Invariants
@@ -251,7 +290,11 @@ class ProjectLifecycleStateMachine(RuleBasedStateMachine):
 
         project_data = ProjectData(name=name, description=f"Description for {name}")
         project = self.repo.projects.create(
-            ProjectCreateCommand(project_data=project_data, organization_id=self.org.id, workflow_id=self.workflow.id)
+            ProjectCreateCommand(
+                project_data=project_data,
+                organization_id=self.org.id,
+                workflow_id=self.workflow.id,
+            )
         )
 
         self.active_projects[name] = project.id
@@ -335,19 +378,25 @@ class ProjectLifecycleStateMachine(RuleBasedStateMachine):
         for name, project_id in self.active_projects.items():
             project = self.repo.projects.get_by_id(project_id)
             assert project is not None, f"Active project '{name}' not found"
-            assert project.is_archived is False, f"Active project '{name}' has is_archived=True"
+            assert project.is_archived is False, (
+                f"Active project '{name}' has is_archived=True"
+            )
 
         # All archived projects should have is_archived=True
         for name, project_id in self.archived_projects.items():
             project = self.repo.projects.get_by_id(project_id)
             assert project is not None, f"Archived project '{name}' not found"
-            assert project.is_archived is True, f"Archived project '{name}' has is_archived=False"
+            assert project.is_archived is True, (
+                f"Archived project '{name}' has is_archived=False"
+            )
 
     @invariant()
     def active_list_excludes_archived(self):
         """PATTERN 3: get_all(include_archived=False) should not return archived projects."""
         active_list = self.repo.projects.get_all(include_archived=False)
-        active_list_in_org = [p for p in active_list if p.organization_id == self.org.id]
+        active_list_in_org = [
+            p for p in active_list if p.organization_id == self.org.id
+        ]
 
         # Count should match
         assert len(active_list_in_org) == self.active_count, (
@@ -356,7 +405,9 @@ class ProjectLifecycleStateMachine(RuleBasedStateMachine):
 
         # None should be archived
         for project in active_list_in_org:
-            assert project.is_archived is False, f"Active list contains archived project {project.id}"
+            assert project.is_archived is False, (
+                f"Active list contains archived project {project.id}"
+            )
 
 
 TestProjectLifecycle = ProjectLifecycleStateMachine.TestCase
@@ -385,18 +436,29 @@ class EpicTicketStateMachine(RuleBasedStateMachine):
 
         # Setup
         org_data = OrganizationData(name="Test Org")
-        self.org = self.repo.organizations.create(OrganizationCreateCommand(organization_data=org_data))
+        self.org = self.repo.organizations.create(
+            OrganizationCreateCommand(organization_data=org_data)
+        )
         self.workflow = self.repo.workflows.create_default_workflow()
 
         project_data = ProjectData(name="Test Project")
         self.project = self.repo.projects.create(
-            ProjectCreateCommand(project_data=project_data, organization_id=self.org.id, workflow_id=self.workflow.id)
+            ProjectCreateCommand(
+                project_data=project_data,
+                organization_id=self.org.id,
+                workflow_id=self.workflow.id,
+            )
         )
 
-        user_data = UserData(username="reporter", email="reporter@test.com", full_name="Reporter")
+        user_data = UserData(
+            username="reporter", email="reporter@test.com", full_name="Reporter"
+        )
         self.reporter = self.repo.users.create(
             UserCreateCommand(
-                user_data=user_data, password="Pass123!", organization_id=self.org.id, role=UserRole.ADMIN
+                user_data=user_data,
+                password="Pass123!",
+                organization_id=self.org.id,
+                role=UserRole.ADMIN,
             )
         )
 
@@ -414,7 +476,9 @@ class EpicTicketStateMachine(RuleBasedStateMachine):
         note(f"Creating epic: {name}")
 
         epic_data = EpicData(name=name, description=f"Epic: {name}")
-        epic = self.repo.epics.create(EpicCreateCommand(epic_data=epic_data, organization_id=self.org.id))
+        epic = self.repo.epics.create(
+            EpicCreateCommand(epic_data=epic_data, organization_id=self.org.id)
+        )
 
         # Initialize tracking
         self.epic_tickets[epic.id] = set()
@@ -426,10 +490,18 @@ class EpicTicketStateMachine(RuleBasedStateMachine):
         """Create a ticket and add to tickets bundle."""
         note(f"Creating ticket: {title}")
 
-        ticket_data = TicketData(title=title, status=self.workflow.statuses[0], priority=TicketPriority.MEDIUM)
+        ticket_data = TicketData(
+            title=title,
+            status=self.workflow.statuses[0],
+            priority=TicketPriority.MEDIUM,
+        )
 
         ticket = self.repo.tickets.create(
-            TicketCreateCommand(ticket_data=ticket_data, project_id=self.project.id, reporter_id=self.reporter.id)
+            TicketCreateCommand(
+                ticket_data=ticket_data,
+                project_id=self.project.id,
+                reporter_id=self.reporter.id,
+            )
         )
 
         # Initialize tracking
@@ -461,7 +533,9 @@ class EpicTicketStateMachine(RuleBasedStateMachine):
         self.ticket_epic[ticket_id] = epic_id
 
     @rule(epic_id=epics, ticket_id=tickets)
-    @precondition(lambda self: any(len(tickets) > 0 for tickets in self.epic_tickets.values()))
+    @precondition(
+        lambda self: any(len(tickets) > 0 for tickets in self.epic_tickets.values())
+    )
     def remove_ticket_from_epic(self, epic_id: str, ticket_id: str):
         """Remove a ticket from an epic."""
         # Skip if ticket not in this epic
@@ -490,7 +564,8 @@ class EpicTicketStateMachine(RuleBasedStateMachine):
 
             # Count should match
             assert len(epic.ticket_ids) == len(shadow_tickets), (
-                f"Epic {epic_id}: expected {len(shadow_tickets)} tickets, " f"got {len(epic.ticket_ids)}"
+                f"Epic {epic_id}: expected {len(shadow_tickets)} tickets, "
+                f"got {len(epic.ticket_ids)}"
             )
 
             # IDs should match exactly
@@ -522,7 +597,9 @@ class EpicTicketStateMachine(RuleBasedStateMachine):
 
             for ticket_id in epic.ticket_ids:
                 ticket = self.repo.tickets.get_by_id(ticket_id)
-                assert ticket is not None, f"Epic {epic_id} references non-existent ticket {ticket_id}"
+                assert ticket is not None, (
+                    f"Epic {epic_id} references non-existent ticket {ticket_id}"
+                )
 
 
 TestEpicTicketRelationships = EpicTicketStateMachine.TestCase
@@ -551,10 +628,14 @@ class OrganizationBoundariesStateMachine(RuleBasedStateMachine):
 
         # Create two separate organizations
         org1_data = OrganizationData(name="Organization 1")
-        self.org1 = self.repo.organizations.create(OrganizationCreateCommand(organization_data=org1_data))
+        self.org1 = self.repo.organizations.create(
+            OrganizationCreateCommand(organization_data=org1_data)
+        )
 
         org2_data = OrganizationData(name="Organization 2")
-        self.org2 = self.repo.organizations.create(OrganizationCreateCommand(organization_data=org2_data))
+        self.org2 = self.repo.organizations.create(
+            OrganizationCreateCommand(organization_data=org2_data)
+        )
 
         # Create workflows
         self.workflow1 = self.repo.workflows.create_default_workflow()
@@ -562,7 +643,10 @@ class OrganizationBoundariesStateMachine(RuleBasedStateMachine):
         # PATTERN 7: Permission Invariants - track by organization
         self.users_by_org: dict[str, list[str]] = {self.org1.id: [], self.org2.id: []}
 
-        self.projects_by_org: dict[str, list[str]] = {self.org1.id: [], self.org2.id: []}
+        self.projects_by_org: dict[str, list[str]] = {
+            self.org1.id: [],
+            self.org2.id: [],
+        }
 
     @rule(username=usernames(), org_num=sampled_from([1, 2]))
     def create_user_in_org(self, username: str, org_num: int):
@@ -570,14 +654,25 @@ class OrganizationBoundariesStateMachine(RuleBasedStateMachine):
         org_id = self.org1.id if org_num == 1 else self.org2.id
 
         # Skip if username already exists
-        if any(username in self.repo.users.get_by_username(username) for _ in [1] if self.repo.users.get_by_username(username)):
+        if any(
+            username in self.repo.users.get_by_username(username)
+            for _ in [1]
+            if self.repo.users.get_by_username(username)
+        ):
             return
 
         note(f"Creating user {username} in org {org_num}")
 
-        user_data = UserData(username=username, email=f"{username}@test.com", full_name=username)
+        user_data = UserData(
+            username=username, email=f"{username}@test.com", full_name=username
+        )
         user = self.repo.users.create(
-            UserCreateCommand(user_data=user_data, password="Pass123!", organization_id=org_id, role=UserRole.ADMIN)
+            UserCreateCommand(
+                user_data=user_data,
+                password="Pass123!",
+                organization_id=org_id,
+                role=UserRole.ADMIN,
+            )
         )
 
         self.users_by_org[org_id].append(user.id)
@@ -591,7 +686,11 @@ class OrganizationBoundariesStateMachine(RuleBasedStateMachine):
 
         project_data = ProjectData(name=name)
         project = self.repo.projects.create(
-            ProjectCreateCommand(project_data=project_data, organization_id=org_id, workflow_id=self.workflow1.id)
+            ProjectCreateCommand(
+                project_data=project_data,
+                organization_id=org_id,
+                workflow_id=self.workflow1.id,
+            )
         )
 
         self.projects_by_org[org_id].append(project.id)
@@ -604,14 +703,17 @@ class OrganizationBoundariesStateMachine(RuleBasedStateMachine):
         for org_id, user_ids in self.users_by_org.items():
             for user_id in user_ids:
                 # No duplicates across orgs
-                assert user_id not in all_user_ids, f"User {user_id} appears in multiple organizations"
+                assert user_id not in all_user_ids, (
+                    f"User {user_id} appears in multiple organizations"
+                )
                 all_user_ids.add(user_id)
 
                 # Verify user's org_id matches
                 user = self.repo.users.get_by_id(user_id)
                 assert user is not None, f"User {user_id} should exist"
                 assert user.organization_id == org_id, (
-                    f"User {user_id} tracked in org {org_id} but " f"database says {user.organization_id}"
+                    f"User {user_id} tracked in org {org_id} but "
+                    f"database says {user.organization_id}"
                 )
 
     @invariant()
@@ -622,7 +724,8 @@ class OrganizationBoundariesStateMachine(RuleBasedStateMachine):
                 project = self.repo.projects.get_by_id(project_id)
                 assert project is not None, f"Project {project_id} should exist"
                 assert project.organization_id == org_id, (
-                    f"Project {project_id} tracked in org {org_id} but " f"database says {project.organization_id}"
+                    f"Project {project_id} tracked in org {org_id} but "
+                    f"database says {project.organization_id}"
                 )
 
     @invariant()

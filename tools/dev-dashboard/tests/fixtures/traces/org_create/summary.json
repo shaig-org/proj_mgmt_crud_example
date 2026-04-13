@@ -1,0 +1,5 @@
+{
+  "scenarioId": "org_create",
+  "title": "Create an organization",
+  "coveredFiles": ["backend/project_management_crud_example/routers/org_api.py"]
+}
