@@ -4,7 +4,9 @@
  *
  * Reads per-scenario metadata JSONs from `frontend/evidence/metadata/`,
  * videos from `frontend/evidence/videos/`, and produces:
- *   - `frontend/evidence/gallery/gifs/<slug>.gif` (5–8 s target, 640px, 10 fps)
+ *   - `frontend/evidence/gallery/gifs/<slug>.gif`         (flipbook, 5 fps, one frame per step)
+ *   - `frontend/evidence/gallery/gifs/<slug>-motion.gif`  (video-derived, 5 fps, slowed down)
+ *   - `frontend/evidence/gallery/videos/<slug>.webm`      (original Playwright recording)
  *   - `frontend/evidence/gallery/manifest.json`
  *   - `frontend/evidence/gallery/index.html`, `viewer.js`, `viewer.css`
  *     (copied from `frontend/src-evidence-gallery/`)
@@ -29,7 +31,12 @@ const SCREENSHOTS_DIR = path.join(EVIDENCE_DIR, 'screenshots');
 const GALLERY_DIR = path.join(EVIDENCE_DIR, 'gallery');
 const GALLERY_GIFS_DIR = path.join(GALLERY_DIR, 'gifs');
 const GALLERY_SCREENSHOTS_DIR = path.join(GALLERY_DIR, 'screenshots');
+const GALLERY_VIDEOS_DIR = path.join(GALLERY_DIR, 'videos');
 const VIEWER_SOURCE_DIR = path.join(FRONTEND_ROOT, 'src-evidence-gallery');
+
+// GIF rendering constants (per task: humans need ~100-200ms per frame).
+const GIF_FPS = 5; // 200ms / frame
+const GIF_WIDTH = 640;
 
 interface StepRecord {
   index: number;
@@ -57,6 +64,8 @@ interface RawMetadata {
 
 interface ManifestEntry extends RawMetadata {
   gifPath: string | null;
+  motionGifPath: string | null;
+  videoGalleryPath: string | null;
   feature: string;
 }
 
@@ -103,32 +112,92 @@ async function probeVideoDurationSec(videoPath: string): Promise<number | null> 
   }
 }
 
-async function renderGif(videoAbsPath: string, gifAbsPath: string): Promise<boolean> {
-  const duration = await probeVideoDurationSec(videoAbsPath);
-  let speedFilter = '';
-  if (duration !== null && duration > 8) {
-    const mult = duration / 8;
-    speedFilter = `setpts=PTS/${mult.toFixed(4)},`;
+function handleFfmpegMissing(err: NodeJS.ErrnoException): void {
+  if (err.code === 'ENOENT') {
+    console.error('[evidence] ffmpeg not found on PATH. Install ffmpeg; this is a dev-only tool.');
+    process.exit(1);
   }
-  // else: keep natural speed (short or mid-length videos)
-  const vf = `${speedFilter}fps=10,scale=640:-1:flags=lanczos`;
+}
+
+/**
+ * Render a "motion" GIF from the recorded video — slowed down to GIF_FPS so a
+ * reviewer can actually see what happened. No total-duration cap.
+ */
+async function renderMotionGif(videoAbsPath: string, gifAbsPath: string, slug: string): Promise<boolean> {
+  const sourceDuration = await probeVideoDurationSec(videoAbsPath);
+  // Resample to GIF_FPS preserving the original wall-clock duration.
+  const vf = `fps=${GIF_FPS},scale=${GIF_WIDTH}:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5`;
   try {
     await execFileP('ffmpeg', [
       '-y',
       '-i', videoAbsPath,
-      '-vf', vf,
+      '-filter_complex', vf,
       '-loop', '0',
       gifAbsPath,
     ]);
+    const renderedDuration = await probeVideoDurationSec(gifAbsPath);
+    console.log(
+      `[evidence] motion GIF ${slug}: ${GIF_FPS} fps, ` +
+      `source=${sourceDuration ? sourceDuration.toFixed(2) : '?'}s, ` +
+      `gif=${renderedDuration ? renderedDuration.toFixed(2) : '?'}s`
+    );
     return true;
   } catch (err) {
     const e = err as NodeJS.ErrnoException & { stderr?: string };
-    if (e.code === 'ENOENT') {
-      console.error('[evidence] ffmpeg not found on PATH. Install ffmpeg; this is a dev-only tool.');
-      process.exit(1);
-    }
-    console.warn(`[evidence] ffmpeg failed for ${videoAbsPath}: ${e.stderr ?? e.message}`);
+    handleFfmpegMissing(e);
+    console.warn(`[evidence] motion ffmpeg failed for ${videoAbsPath}: ${e.stderr ?? e.message}`);
     return false;
+  }
+}
+
+/**
+ * Render a "flipbook" GIF from per-step screenshots — one frame per step,
+ * holding each frame for ~1s (5 fps loop with frame duplication via -loop and
+ * concat demuxer). This is the primary GIF: a step-by-step comprehension aid.
+ */
+async function renderFlipbookGif(
+  screenshotAbsPaths: string[],
+  gifAbsPath: string,
+  slug: string,
+): Promise<boolean> {
+  if (screenshotAbsPaths.length === 0) return false;
+  // Use ffmpeg's concat demuxer with explicit per-frame durations (1s each).
+  // This is more reliable than relying on input -framerate alone for stills.
+  const concatLines: string[] = [];
+  const HOLD_SECONDS = 1.0; // 1s per step → eminently scannable.
+  for (const p of screenshotAbsPaths) {
+    concatLines.push(`file '${p.replace(/'/g, "'\\''")}'`);
+    concatLines.push(`duration ${HOLD_SECONDS.toFixed(3)}`);
+  }
+  // Concat demuxer requires the last file to be repeated without a duration.
+  concatLines.push(`file '${screenshotAbsPaths[screenshotAbsPaths.length - 1].replace(/'/g, "'\\''")}'`);
+  const concatFile = gifAbsPath + '.concat.txt';
+  await fs.writeFile(concatFile, concatLines.join('\n'), 'utf8');
+  const vf = `fps=${GIF_FPS},scale=${GIF_WIDTH}:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5`;
+  try {
+    await execFileP('ffmpeg', [
+      '-y',
+      '-f', 'concat',
+      '-safe', '0',
+      '-i', concatFile,
+      '-filter_complex', vf,
+      '-loop', '0',
+      gifAbsPath,
+    ]);
+    const renderedDuration = await probeVideoDurationSec(gifAbsPath);
+    console.log(
+      `[evidence] flipbook GIF ${slug}: ${GIF_FPS} fps, ` +
+      `${screenshotAbsPaths.length} steps × ${HOLD_SECONDS}s, ` +
+      `gif=${renderedDuration ? renderedDuration.toFixed(2) : '?'}s`
+    );
+    return true;
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException & { stderr?: string };
+    handleFfmpegMissing(e);
+    console.warn(`[evidence] flipbook ffmpeg failed for ${slug}: ${e.stderr ?? e.message}`);
+    return false;
+  } finally {
+    await fs.rm(concatFile, { force: true });
   }
 }
 
@@ -163,6 +232,7 @@ async function main(): Promise<void> {
   await ensureDir(GALLERY_DIR);
   await ensureDir(GALLERY_GIFS_DIR);
   await ensureDir(GALLERY_SCREENSHOTS_DIR);
+  await ensureDir(GALLERY_VIDEOS_DIR);
 
   // Copy viewer source
   try {
@@ -180,34 +250,64 @@ async function main(): Promise<void> {
   }
 
   const manifest: ManifestEntry[] = [];
-  let gifsRendered = 0;
-  let gifsSkipped = 0;
+  let flipbooksRendered = 0;
+  let motionRendered = 0;
+  let videosCopied = 0;
   for (const meta of metadataEntries) {
-    let gifRel: string | null = null;
+    let flipbookRel: string | null = null;
+    let motionRel: string | null = null;
+    let videoRel: string | null = null;
+
+    // Copy original video into gallery for direct playback.
     if (meta.videoPath) {
-      const videoAbs = path.join(EVIDENCE_DIR, meta.videoPath);
-      const gifAbs = path.join(GALLERY_GIFS_DIR, `${meta.slug}.gif`);
+      const videoSrcAbs = path.join(EVIDENCE_DIR, meta.videoPath);
+      const videoDestAbs = path.join(GALLERY_VIDEOS_DIR, `${meta.slug}.webm`);
       try {
-        await fs.access(videoAbs);
-        const ok = await renderGif(videoAbs, gifAbs);
-        if (ok) {
-          gifRel = path.posix.join('gifs', `${meta.slug}.gif`);
-          gifsRendered += 1;
-        } else {
-          gifsSkipped += 1;
+        await fs.access(videoSrcAbs);
+        await fs.copyFile(videoSrcAbs, videoDestAbs);
+        videoRel = path.posix.join('videos', `${meta.slug}.webm`);
+        videosCopied += 1;
+
+        // Motion GIF (video-derived, slowed to 5 fps).
+        const motionAbs = path.join(GALLERY_GIFS_DIR, `${meta.slug}-motion.gif`);
+        if (await renderMotionGif(videoSrcAbs, motionAbs, meta.slug)) {
+          motionRel = path.posix.join('gifs', `${meta.slug}-motion.gif`);
+          motionRendered += 1;
         }
       } catch {
-        console.warn(`[evidence] video missing for slug ${meta.slug}, skipping GIF`);
-        gifsSkipped += 1;
+        console.warn(`[evidence] video missing for slug ${meta.slug}, skipping motion GIF`);
       }
     } else {
-      console.warn(`[evidence] no video recorded for slug ${meta.slug}, skipping GIF`);
-      gifsSkipped += 1;
+      console.warn(`[evidence] no video recorded for slug ${meta.slug}`);
+    }
+
+    // Flipbook GIF (built from per-step screenshots — primary comprehension aid).
+    if (meta.steps && meta.steps.length > 0) {
+      const screenshotAbsPaths = meta.steps.map((st) => path.join(EVIDENCE_DIR, st.screenshot));
+      // Verify all exist; drop those that don't.
+      const existing: string[] = [];
+      for (const p of screenshotAbsPaths) {
+        try {
+          await fs.access(p);
+          existing.push(p);
+        } catch {
+          // skip missing
+        }
+      }
+      if (existing.length > 0) {
+        const flipbookAbs = path.join(GALLERY_GIFS_DIR, `${meta.slug}.gif`);
+        if (await renderFlipbookGif(existing, flipbookAbs, meta.slug)) {
+          flipbookRel = path.posix.join('gifs', `${meta.slug}.gif`);
+          flipbooksRendered += 1;
+        }
+      }
     }
 
     manifest.push({
       ...meta,
-      gifPath: gifRel,
+      gifPath: flipbookRel,
+      motionGifPath: motionRel,
+      videoGalleryPath: videoRel,
       feature: inferFeature(meta.specFile),
     });
   }
@@ -220,7 +320,7 @@ async function main(): Promise<void> {
   );
 
   console.log(`[evidence] wrote manifest with ${manifest.length} scenario(s) to ${GALLERY_DIR}`);
-  console.log(`[evidence] ${gifsRendered} GIFs rendered, ${gifsSkipped} skipped`);
+  console.log(`[evidence] ${flipbooksRendered} flipbook GIFs, ${motionRendered} motion GIFs, ${videosCopied} videos copied`);
   console.log(`[evidence] open ${path.join(GALLERY_DIR, 'index.html')} or run \`npm run evidence:serve\``);
 }
 

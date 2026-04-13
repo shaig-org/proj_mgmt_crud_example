@@ -299,6 +299,28 @@ Deliberately none (see preamble). Manual acceptance check documented in 7.step 7
 - **No backend correlation-ID ingestion** means `window.__CORRELATION_ID` is currently unused by BE; it is forward-looking only. If the team wants end-to-end correlation now, that is a separate feature (out of scope here).
 - **Typecheck for `scripts/generate-evidence.ts`** — must be covered by `tsconfig.node.json` include list, or added to it. Engineer to verify; may require a minor `tsconfig.node.json` update (counts as tooling config, not production code).
 
+## Deviations (round 2) — 2026-04-12
+
+Four reviewer-driven enhancements to the evidence viewer, shipped on top of commits 7f99e5e and e8c1bd5:
+
+1. **Videos preserved verbatim.** The helper already writes `evidence/videos/<slug>.webm`. The generator now ALSO copies each video into `evidence/gallery/videos/<slug>.webm` so the viewer (served from `gallery/`) can reference it with a relative URL, and adds `videoGalleryPath` to each manifest entry (alongside the pre-existing raw `videoPath`). Scenario detail view embeds an HTML5 `<video controls>` plus a download link; gallery cards expose a "Video" pill.
+
+2. **Per-scenario Screenshots page — dedicated hash-routed screen.** New hash-routing in `viewer.js` with three routes: `#/` (gallery), `#/scenario/<slug>` (detail), `#/scenario/<slug>/screenshots`, `#/scenario/<slug>/flow`. Screenshots page renders a responsive CSS grid (`minmax(320px, 1fr)`) of large thumbnails, each showing zero-padded step number + name. Clicking a thumbnail opens a full-screen lightbox with prev/next buttons + keyboard `ArrowLeft` / `ArrowRight` / `Escape` support. The old inline modal was removed — detail views are now their own routes.
+
+3. **Flow overview page.** Route `#/scenario/<slug>/flow`. Compact CSS-grid "flow strip" showing every step screenshot at ~220px minimum width in reading order, with numbered badges. Frames are clickable and delegate into the same lightbox. Linked from the gallery card (pill), scenario detail (pill), and Screenshots page.
+
+4. **GIF pacing — already addressed in commit e8c1bd5.** Verified the pipeline is now producing: (a) a flipbook GIF built from per-step PNGs at 5 fps with 1s holds per step — one frame per scenario step — as the primary comprehension aid; (b) a motion GIF from the video at 5 fps (no speed-up, no duration cap) alongside it. Both GIFs are surfaced side-by-side on the scenario detail page, along with the raw video. The generator logs `fps`, source duration, and rendered duration per GIF. The old `speedFilter`/duration-cap logic is gone. No further changes to the generator were needed for this round; this deviation entry documents the already-landed behavior.
+
+### Files touched (round 2)
+- `frontend/src-evidence-gallery/index.html` — switched to `#app` container + global lightbox element.
+- `frontend/src-evidence-gallery/viewer.js` — full rewrite: hash routing, gallery / detail / screenshots / flow views, keyboard-navigable lightbox.
+- `frontend/src-evidence-gallery/viewer.css` — new styles for pills, shot grid, flow strip, lightbox.
+- `docs/tasks/scenario-tests-and-visualization/plan.md` — this section.
+
+### Known non-goals
+- Lightbox does not preload neighbouring images (POC; dataset is tiny).
+- Flow strip does not resize frames responsively beyond CSS grid auto-fill; there is no zoom slider.
+
 ## 9. Sign-off
 
 - [ ] User approved plan — date/note
