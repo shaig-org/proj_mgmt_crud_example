@@ -278,6 +278,36 @@
     );
   }
 
+  function renderStripRow(s) {
+    var steps = s.steps || [];
+    var frames = steps.map(function (st) {
+      var url = stepScreenshotUrl(s.slug, st);
+      return (
+        '<button type="button" class="strip-frame strip-frame-row" data-strip-idx="' + (st.index - 1) + '" aria-label="Step ' + st.index + ': ' + escapeHtml(st.name) + '">' +
+          '<img src="' + escapeHtml(url) + '" alt="" loading="lazy" />' +
+          '<span class="strip-n">' + pad2(st.index) + '</span>' +
+        '</button>'
+      );
+    }).join('');
+    return (
+      '<section class="strip-row" data-slug="' + escapeHtml(s.slug) + '">' +
+        '<header class="strip-row-header">' +
+          '<div class="strip-row-heading">' +
+            '<div class="strip-row-title">' + escapeHtml(s.name) + '</div>' +
+            '<div class="strip-row-sub">' +
+              '<span class="' + statusClass(s.status) + '">' + escapeHtml(s.status) + '</span>' +
+              ' &middot; ' + escapeHtml(s.feature) +
+              ' &middot; ' + steps.length + ' steps' +
+              ' &middot; ' + (s.durationMs || 0) + ' ms' +
+            '</div>' +
+          '</div>' +
+          cardLinks(s) +
+        '</header>' +
+        '<div class="strip-row-scroll">' + (frames || '<div class="empty">No steps</div>') + '</div>' +
+      '</section>'
+    );
+  }
+
   function renderGrid() {
     var el = document.getElementById('grid');
     if (!el) return;
@@ -286,39 +316,43 @@
       el.innerHTML = '<div class="empty">No scenarios match.</div>';
       return;
     }
-    el.classList.toggle('grid-strip', state.galleryView === 'strip');
+    var stripMode = state.galleryView === 'strip';
+    el.classList.toggle('grid-strip', stripMode);
+    el.classList.toggle('strip-rows', stripMode);
     el.innerHTML = list.map(function (s) {
-      return state.galleryView === 'strip' ? renderStripCard(s) : renderGifCard(s);
+      return stripMode ? renderStripRow(s) : renderGifCard(s);
     }).join('');
-    el.querySelectorAll('.card').forEach(function (card) {
-      card.addEventListener('click', function (e) {
+
+    function wireContainer(container) {
+      container.addEventListener('click', function (e) {
         var t = e.target;
-        // Strip-frame clicks → jump to that step in screenshots lightbox
-        var frameBtn = null;
         var walker = t;
-        while (walker && walker !== card) {
+        // Strip-frame clicks → jump to that step in screenshots lightbox
+        while (walker && walker !== container) {
           if (walker.getAttribute && walker.getAttribute('data-strip-idx') != null) {
-            frameBtn = walker;
-            break;
+            e.preventDefault();
+            e.stopPropagation();
+            openScreenshotsLightbox(container.getAttribute('data-slug'), Number(walker.getAttribute('data-strip-idx')));
+            return;
           }
           walker = walker.parentNode;
         }
-        if (frameBtn) {
-          e.preventDefault();
-          e.stopPropagation();
-          openScreenshotsLightbox(card.getAttribute('data-slug'), Number(frameBtn.getAttribute('data-strip-idx')));
-          return;
-        }
         // Ignore pill/nav clicks
         walker = t;
-        while (walker && walker !== card) {
+        while (walker && walker !== container) {
           if (walker.getAttribute && (walker.getAttribute('data-nav') === '1' || walker.getAttribute('data-stop') === '1')) return;
           walker = walker.parentNode;
         }
-        var slug = card.getAttribute('data-slug');
-        navigate('#/scenario/' + encodeURIComponent(slug));
+        // Only GIF cards navigate on body click; strip rows don't.
+        if (container.classList.contains('card') && !container.classList.contains('card-strip')) {
+          var slug = container.getAttribute('data-slug');
+          navigate('#/scenario/' + encodeURIComponent(slug));
+        }
       });
-    });
+    }
+
+    el.querySelectorAll('.card').forEach(wireContainer);
+    el.querySelectorAll('.strip-row').forEach(wireContainer);
   }
 
   // ---------- Scenario detail view ----------

@@ -90,6 +90,59 @@ a:hover { text-decoration: underline; }
   /* Strip cards are wider than GIF cards; give them more room. */
   grid-template-columns: repeat(auto-fill, minmax(calc(var(--tile-size) * 1.6), 1fr));
 }
+/* Strip-rows layout: one scenario per row, full viewport width. */
+.grid.strip-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+.strip-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem 1.25rem;
+  border-bottom: 1px solid #334155;
+  background: #111c32;
+}
+.strip-row + .strip-row { /* alternating subtle tone for separation */ }
+.strip-row:nth-child(even) { background: #0f172a; }
+.strip-row-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.strip-row-heading { min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.strip-row-title { font-weight: 600; font-size: 1rem; color: #e2e8f0; }
+.strip-row-sub { color: #94a3b8; font-size: 0.85rem; }
+.strip-row-header .pills { margin-top: 0; }
+.strip-row-scroll {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.25rem 0;
+  background: transparent;
+  scrollbar-width: thin;
+  align-items: flex-start;
+}
+.strip-frame-row {
+  /* Grow to fill available width; fall back to tile-size as basis so many
+     frames overflow into horizontal scroll rather than shrinking. */
+  flex: 1 0 var(--tile-size);
+  max-width: none;
+}
+.strip-frame-row img {
+  /* Override the fixed-height rule of .strip-frame so row images stretch
+     with the frame width. Natural aspect is preserved. */
+  width: 100%;
+  height: auto;
+  min-height: calc(var(--tile-size) * 0.5);
+  max-width: 100%;
+  display: block;
+  object-fit: cover;
+}
 .card {
   background: #1e293b;
   border: 1px solid #334155;
