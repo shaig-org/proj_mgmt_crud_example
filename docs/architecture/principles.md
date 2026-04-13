@@ -60,6 +60,11 @@ API (FastAPI routers) → Domain (Pydantic models + commands) → Repository (DA
 - Main spec is an index; detailed specs live in `docs/spec/detailed/`.
 - Requirements describe behavior + acceptance criteria + edge cases. They do NOT contain implementation plans or test code — those belong in the feature plan.
 
+## Scenario coverage for user-facing features
+- Every major user-facing feature must have at least one **scenario test** covering the primary happy path (`frontend/e2e/scenarios/*.scenario.spec.ts`, using the `scenarioTest` fixture).
+- Scenario tests are a visual happy-path smoke and the source for the local Dev Dashboard walkthroughs. They are **not** a substitute for unit, repository, domain, API, or PBT coverage of business logic — those still own correctness.
+- Backend-only features and pure refactors are exempt. See `docs/testing/scenario_walkthroughs.md` for authoring rules and the dashboard workflow.
+
 ## Plan-before-implement
 - No implementation starts without an approved feature plan in `docs/tasks/<feature>/plan.md`.
 - The plan enumerates every test (by name, by layer, by what it verifies) BEFORE code is written.

@@ -50,6 +50,7 @@ You are the **code-reviewer**. You give an independent read of completed work. Y
 - [ ] Tests parallel-safe (each creates own org/user/data).
 - [ ] Typed API client methods in `src/services/api.ts` match the plan's FE/BE contract.
 - [ ] No `any`, no `@ts-ignore`.
+- [ ] **Scenario coverage**: for any user-facing feature, a scenario test exists at `frontend/e2e/scenarios/<feature>.scenario.spec.ts` using the `scenarioTest` fixture. Title matches the plan / rough spec. `step()` labels match the plan's step breakdown and are human-readable imperatives. 5–8 steps. See `docs/testing/scenario_walkthroughs.md`.
 
 ### 6. Cross-stack contract match (if cross-stack)
 - [ ] FE request shape == BE request schema.

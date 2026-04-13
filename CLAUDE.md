@@ -39,3 +39,6 @@ Commit freely on the current branch/worktree. Natural checkpoints: plan written,
 
 ## Validations
 Any completed backend work must pass `cd backend && ./devtools/run_all_agent_validations.sh`. Any completed frontend work must pass `npm run lint && npm run typecheck && npm run e2e`. Zero errors, zero warnings. See principles.md for the full contract.
+
+## Testing layers
+Unit / repository / domain / API / PBT tests own correctness. **Scenario tests** (`frontend/e2e/scenarios/*.scenario.spec.ts`) own the visual happy-path tour and double as the source for the local Dev Dashboard walkthroughs. Every major user-facing feature must ship with at least one scenario test. See `docs/testing/scenario_walkthroughs.md`.

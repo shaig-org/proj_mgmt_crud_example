@@ -24,8 +24,14 @@ React 19 + TypeScript (strict) · Vite · Axios · Playwright · ESLint
 - Parallel-safe (4 workers). Each test creates its own data.
 - Tests have descriptive names.
 
-## Scenario tests (walkthroughs visualization — "Dev Dashboard")
-Scenario tests live in `e2e/scenarios/` and use the `scenarioTest` fixture from `e2e/helpers/scenario.ts`. They run under the `scenarios` Playwright project (video + trace always on) and produce per-scenario walkthroughs under the gitignored `walkthroughs/` tree. Do not put regular specs under `e2e/scenarios/`. To generate the static Dev Dashboard locally run `npm run e2e:scenarios && npm run walkthroughs:generate && npm run walkthroughs:serve` (requires `ffmpeg` on PATH; dev-only, not part of CI).
+## Scenario tests (walkthroughs + Dev Dashboard)
+**Every major user-facing feature requires at least one scenario test.** Full authoring guide and dashboard workflow: `docs/testing/scenario_walkthroughs.md`.
+
+Quick reference:
+- Scenarios live in `e2e/scenarios/<kebab>.scenario.spec.ts` and use the `scenarioTest` fixture + `step()` helper from `e2e/helpers/scenario.ts`.
+- Run under the `scenarios` Playwright project (video + trace always on). Output under the gitignored `walkthroughs/` tree.
+- Do NOT put regular specs under `e2e/scenarios/`.
+- Commands: `npm run e2e:scenarios` (included in `npm run e2e`), `npm run walkthroughs:generate`, `npm run walkthroughs:serve` (dashboard at http://localhost:4173). Generator requires `ffmpeg`; dev-only, not part of CI.
 
 ## Backend integration
 Dev backend runs at `http://localhost:8000`. Playwright starts the backend automatically during `npm run e2e`.

@@ -45,6 +45,10 @@ API (routers/*.py)  →  Domain (domain_models.py)  →  Repository (dal/sqlite/
 - Test one fact per test. Arrange-Act-Assert.
 - Never query DB directly in tests. Never touch ORM models in tests. Use the repository interface.
 
+## Scenario tests
+- Backend-only features do NOT need a scenario test.
+- If your change alters an API surface consumed by an existing scenario in `frontend/e2e/scenarios/`, re-run `npm run e2e` (which includes the `scenarios` project) as part of validation and flag any scenario regressions. See `docs/testing/scenario_walkthroughs.md`.
+
 ## Running tests during development
 Use the **`run-targeted-tests-backend`** skill for fast feedback loops (single test, single file, `-k` pattern, `--lf`). Use the **`validate-backend`** skill only when you're ready to confirm the full suite is green.
 
