@@ -149,6 +149,34 @@ function MermaidView({ text }: { text: string }) {
   );
 }
 
+/**
+ * Reach into the same-origin flame.html iframe and (a) stretch the top-level
+ * <svg> to fill the iframe width and (b) hide the non-functional inline
+ * search button (`#search`) + matched-count readout (`#matched`). Users can
+ * still grep frames with the browser's Cmd-F.
+ */
+export function injectFlameStyles(iframe: HTMLIFrameElement): void {
+  const doc = iframe.contentDocument;
+  if (!doc) return;
+  const existing = doc.getElementById('dd-flame-overrides');
+  if (existing) return;
+  const style = doc.createElement('style');
+  style.id = 'dd-flame-overrides';
+  style.textContent = `
+    html, body { margin: 0; padding: 0; width: 100%; }
+    svg { width: 100% !important; height: auto !important; display: block; }
+    #search, #matched, form[id="form"], input[type="search"],
+    .d3-flame-graph-search { display: none !important; visibility: hidden !important; }
+  `;
+  (doc.head ?? doc.documentElement).appendChild(style);
+  // Strip fixed width/height attrs on the root <svg> so CSS can take over.
+  const svg = doc.querySelector('svg');
+  if (svg) {
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+  }
+}
+
 function SelectedTrace({ entry }: { entry: TraceEntry }) {
   const [mermaidText, setMermaidText] = useState<string | null>(null);
   const [folded, setFolded] = useState<string | null>(null);
@@ -188,8 +216,7 @@ function SelectedTrace({ entry }: { entry: TraceEntry }) {
         <>
           <h4>Flame graph</h4>
           <p className="trace-flame-note" data-testid="flame-search-note">
-            The flame graph&apos;s internal search isn&apos;t wired up — use
-            Cmd-F (or Ctrl-F) in the page to find a frame.
+            Use Cmd-F (or Ctrl-F) to find a frame.
           </p>
           <div className="trace-flame-wrap" data-testid="flame-wrap">
             <iframe
@@ -199,6 +226,7 @@ function SelectedTrace({ entry }: { entry: TraceEntry }) {
               title={`flame graph for ${entry.id}`}
               className="trace-iframe"
               loading="eager"
+              onLoad={(e) => injectFlameStyles(e.currentTarget)}
             />
           </div>
           <a
@@ -285,6 +313,7 @@ function TracesBody({ data }: { data: TracesData }) {
               type="button"
               aria-selected={e.id === selectedId}
               data-testid={`trace-item-${e.id}`}
+              title={e.id}
               onClick={() => setSelectedId(e.id)}
             >
               {e.id}

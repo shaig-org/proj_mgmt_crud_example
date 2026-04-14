@@ -1028,11 +1028,161 @@ test('iter3_traces_flame_wrapper_has_graph_bg', async ({ page }) => {
   expect(bg).toBe('rgb(248, 250, 252)');
 });
 
-test('iter3_traces_flame_has_search_limitation_note', async ({ page }) => {
+test('iter4_traces_flame_note_points_to_cmd_f', async ({ page }) => {
   await withArtifacts({ scenarios: false, capabilities: false, traces: true });
   await page.goto('/#/traces');
   await page.getByTestId('trace-item-org-create-1776000000000-w0').click();
   const note = page.getByTestId('flame-search-note');
   await expect(note).toBeVisible();
   await expect(note).toContainText(/Cmd-F|Ctrl-F/);
+  // The old "search isn't wired up" phrasing is gone — the broken search is
+  // now hidden instead, so the note is pure guidance.
+  await expect(note).not.toContainText(/wired up|isn't/i);
+});
+
+test('iter4_traces_flame_search_input_hidden', async ({ page }) => {
+  await withArtifacts({ scenarios: false, capabilities: false, traces: true });
+  await page.goto('/#/traces');
+  await page.getByTestId('trace-item-org-create-1776000000000-w0').click();
+  const iframe = page.getByTestId('flame-iframe');
+  await expect(iframe).toBeVisible();
+  // Wait for our onLoad injector to run and drop the override <style> in.
+  await expect
+    .poll(async () =>
+      iframe.evaluate((el) => {
+        const doc = (el as HTMLIFrameElement).contentDocument;
+        return Boolean(doc?.getElementById('dd-flame-overrides'));
+      }),
+    )
+    .toBe(true);
+  const searchDisplay = await iframe.evaluate((el) => {
+    const doc = (el as HTMLIFrameElement).contentDocument;
+    const node = doc?.getElementById('search');
+    if (!node) return 'absent';
+    return getComputedStyle(node).display;
+  });
+  expect(searchDisplay).toBe('none');
+});
+
+test('iter4_traces_flame_svg_stretches_to_full_width', async ({ page }) => {
+  await withArtifacts({ scenarios: false, capabilities: false, traces: true });
+  await page.goto('/#/traces');
+  await page.getByTestId('trace-item-org-create-1776000000000-w0').click();
+  const iframe = page.getByTestId('flame-iframe');
+  await expect(iframe).toBeVisible();
+  await expect
+    .poll(async () =>
+      iframe.evaluate((el) => {
+        const doc = (el as HTMLIFrameElement).contentDocument;
+        return Boolean(doc?.getElementById('dd-flame-overrides'));
+      }),
+    )
+    .toBe(true);
+  const ratio = await iframe.evaluate((el) => {
+    const frame = el as HTMLIFrameElement;
+    const doc = frame.contentDocument;
+    const svg = doc?.querySelector('svg');
+    if (!svg) return 0;
+    const svgW = svg.getBoundingClientRect().width;
+    const iW = frame.getBoundingClientRect().width;
+    return iW > 0 ? svgW / iW : 0;
+  });
+  expect(ratio).toBeGreaterThanOrEqual(0.9);
+});
+
+test('iter4_traces_left_panel_items_wrap_long_names', async ({ page }) => {
+  await withArtifacts({ scenarios: false, capabilities: false, traces: true });
+  await page.goto('/#/traces');
+  const item = page.getByTestId('trace-item-org-create-1776000000000-w0');
+  await expect(item).toBeVisible();
+  const styles = await item.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return {
+      overflowWrap: cs.overflowWrap,
+      wordBreak: cs.wordBreak,
+      whiteSpace: cs.whiteSpace,
+      title: el.getAttribute('title'),
+    };
+  });
+  // Long unbroken slugs must wrap inside the left panel so they don't push
+  // into the sequence diagram column.
+  expect(['anywhere', 'break-word']).toContain(styles.overflowWrap);
+  expect(styles.whiteSpace).not.toBe('nowrap');
+  expect(styles.title).toBeTruthy();
+  // The list container must clip any residual horizontal overflow.
+  const listOverflowX = await page
+    .getByTestId('trace-list')
+    .evaluate((el) => getComputedStyle(el).overflowX);
+  expect(listOverflowX).toBe('hidden');
+  // And the item must not extend past the list's right edge.
+  const overflowPx = await page.evaluate(() => {
+    const list = document.querySelector('[data-testid="trace-list"]');
+    const btn = list?.querySelector('button');
+    if (!list || !btn) return 99;
+    const lr = list.getBoundingClientRect();
+    const br = btn.getBoundingClientRect();
+    return br.right - lr.right;
+  });
+  expect(overflowPx).toBeLessThanOrEqual(2);
+});
+
+test('iter4_gallery_cards_use_content_visibility_and_intrinsic_size', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  const card = page
+    .getByTestId('scenario-card-org-create-1776000000000-w0')
+    .first();
+  await expect(card).toBeVisible();
+  const cardStyle = await card.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return {
+      cv: cs.contentVisibility,
+      intrinsic: cs.containIntrinsicSize,
+    };
+  });
+  expect(cardStyle.cv).toBe('auto');
+  // Intrinsic size must be set (non-empty, non-'none') so off-screen cards
+  // reserve space without forcing layout/paint.
+  expect(cardStyle.intrinsic).not.toBe('');
+  expect(cardStyle.intrinsic).not.toBe('none');
+
+  // Switch to strip view and assert the same on strip rows.
+  await page.getByTestId('view-toggle-strip').click();
+  const strip = page
+    .getByTestId('scenario-strip-org-create-1776000000000-w0')
+    .first();
+  await expect(strip).toBeVisible();
+  const stripCv = await strip.evaluate(
+    (el) => getComputedStyle(el).contentVisibility,
+  );
+  expect(stripCv).toBe('auto');
+});
+
+test('iter4_gallery_strip_chevron_appears_after_images_load', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.setViewportSize({ width: 420, height: 900 });
+  await page.goto('/#/scenarios');
+  await page.getByTestId('view-toggle-strip').click();
+  // At least one strip frame image must be in the DOM.
+  const firstFrameImg = page
+    .locator('.scen-strip__frame img')
+    .first();
+  await expect(firstFrameImg).toBeVisible();
+  // Wait until at least the first complete-able image has resolved, so the
+  // chevron-visibility calc has a real scrollWidth to compare against.
+  await expect
+    .poll(async () =>
+      firstFrameImg.evaluate(
+        (img) => (img as HTMLImageElement).complete,
+      ),
+    )
+    .toBe(true);
+  const nextChevron = page.getByTestId(
+    'strip-chevron-next-org-create-1776000000000-w0',
+  );
+  await expect(nextChevron).toBeVisible();
 });

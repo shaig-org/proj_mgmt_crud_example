@@ -794,13 +794,28 @@ function StripRow({
         el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
       );
     }
+    // Re-check after layout settles (images may still be 0×0 on first paint).
+    const raf = requestAnimationFrame(update);
     update();
     el.addEventListener('scroll', update, { passive: true });
     const ro = new ResizeObserver(update);
     ro.observe(el);
+    // Every image load changes scrollWidth; recompute on each.
+    const imgs = Array.from(el.querySelectorAll('img')) as HTMLImageElement[];
+    const onImgLoad = () => update();
+    for (const img of imgs) {
+      if (img.complete) continue;
+      img.addEventListener('load', onImgLoad);
+      img.addEventListener('error', onImgLoad);
+    }
     return () => {
+      cancelAnimationFrame(raf);
       el.removeEventListener('scroll', update);
       ro.disconnect();
+      for (const img of imgs) {
+        img.removeEventListener('load', onImgLoad);
+        img.removeEventListener('error', onImgLoad);
+      }
     };
   }, [frames.length]);
 
@@ -1009,6 +1024,8 @@ function Grid({
                     className="scen-card__media"
                     loading="lazy"
                     decoding="async"
+                    width={320}
+                    height={180}
                   />
                 ) : (
                   <div className="scen-card__media" />
