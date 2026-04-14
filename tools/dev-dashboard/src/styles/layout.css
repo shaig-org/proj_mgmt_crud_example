@@ -854,8 +854,8 @@ html[data-rail-collapsed='1'] .app {
 
 .scen-strip__frame img {
   width: 100%;
-  aspect-ratio: 16/9;
-  object-fit: cover;
+  height: auto;
+  object-fit: contain;
   display: block;
   background: var(--bg-elevated);
 }
@@ -882,13 +882,16 @@ html[data-rail-collapsed='1'] .app {
   text-align: left;
   /* Skip off-screen card layout+paint; GIF decode stays cheap during scroll. */
   content-visibility: auto;
-  contain-intrinsic-size: var(--tile-size, 320px) calc(var(--tile-size, 320px) * 9 / 16 + 36px);
+  /* Placeholder ratio for off-screen cards — Playwright default viewport is
+     1280x800 (16:10, 0.625). Once visible, natural height takes over via
+     height:auto on the image. */
+  contain-intrinsic-size: var(--tile-size, 320px) calc(var(--tile-size, 320px) * 0.625 + 36px);
 }
 
 .scen-card__media {
   width: 100%;
-  aspect-ratio: 16/9;
-  object-fit: cover;
+  height: auto;
+  object-fit: contain;
   background: var(--bg-elevated);
   display: block;
 }

@@ -1186,3 +1186,92 @@ test('iter4_gallery_strip_chevron_appears_after_images_load', async ({
   );
   await expect(nextChevron).toBeVisible();
 });
+
+test('iter4_gallery_card_media_uses_contain_not_cover', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  const img = page
+    .locator('[data-testid="scenario-card-org-create-1776000000000-w0"] img.scen-card__media')
+    .first();
+  await expect(img).toBeVisible();
+  const objectFit = await img.evaluate(
+    (el) => getComputedStyle(el).objectFit,
+  );
+  expect(objectFit).not.toBe('cover');
+  expect(objectFit).toBe('contain');
+});
+
+test('iter4_gallery_gif_card_not_cropped_at_large_tile_size', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+
+  // Bump the tile-size slider to 800px so each card is large.
+  const slider = page.getByTestId('tile-size-slider');
+  await slider.evaluate((el) => {
+    const input = el as HTMLInputElement;
+    const proto = Object.getPrototypeOf(input) as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+    setter?.call(input, '800');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect(page.getByTestId('tile-size-readout')).toContainText('800');
+
+  const img = page
+    .locator('[data-testid="scenario-card-org-create-1776000000000-w0"] img.scen-card__media')
+    .first();
+  await expect(img).toBeVisible();
+  await img.scrollIntoViewIfNeeded();
+
+  // Fixture GIFs are zero-byte stubs that decode to naturalWidth=0. Swap in a
+  // real inline image with a known 2:1 natural aspect ratio (200x100) so we
+  // can assert the rendered aspect ratio preserves it (no crop).
+  const inlineImg =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAABkCAAAAADm7SDXAAAAiElEQVR4nO3PAQkAMAzAsPk3/ZsYvJxEQTvnE/M6YIuRGiM1RmqM1BipMVJjpMZIjZEaIzVGaozUGKkxUmOkxkiNkRojNUZqjNQYqTFSY6TGSI2RGiM1RmqM1BipMVJjpMZIjZEaIzVGaozUGKkxUmOkxkiNkRojNUZqjNQYqTFSY6TGSI2RmguWSNZkqazGtQAAAABJRU5ErkJggg==';
+  await img.evaluate((el, src) => {
+    const i = el as HTMLImageElement;
+    i.removeAttribute('loading');
+    i.removeAttribute('width');
+    i.removeAttribute('height');
+    i.src = src;
+  }, inlineImg);
+
+  // Wait for the image to actually load so naturalWidth/Height are non-zero.
+  await expect
+    .poll(
+      async () =>
+        img.evaluate((el) => {
+          const i = el as HTMLImageElement;
+          return i.complete && i.naturalWidth > 0 && i.naturalHeight > 0;
+        }),
+      { timeout: 15000 },
+    )
+    .toBe(true);
+
+  const metrics = await img.evaluate((el) => {
+    const i = el as HTMLImageElement;
+    const r = i.getBoundingClientRect();
+    return {
+      renderedW: r.width,
+      renderedH: r.height,
+      naturalW: i.naturalWidth,
+      naturalH: i.naturalHeight,
+    };
+  });
+
+  expect(metrics.renderedH).toBeGreaterThan(0);
+  expect(metrics.naturalH).toBeGreaterThan(0);
+  // The inline GIF is 200x100 (2:1). At tile-size 800 the rendered width should
+  // be close to 800 and height close to 400 — proving the card grows with the
+  // image and nothing is cropped to a forced 16:9 box.
+  expect(metrics.naturalW).toBe(200);
+  expect(metrics.naturalH).toBe(100);
+
+  const naturalRatio = metrics.naturalH / metrics.naturalW;
+  const renderedRatio = metrics.renderedH / metrics.renderedW;
+  // Rendered aspect ratio should match natural within 5% — proves no cropping.
+  const diff = Math.abs(renderedRatio - naturalRatio) / naturalRatio;
+  expect(diff).toBeLessThan(0.05);
+});
