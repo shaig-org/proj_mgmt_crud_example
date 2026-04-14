@@ -82,9 +82,9 @@ test('scenarios_panel_renders_card_grid_from_manifest', async ({ page }) => {
   await withArtifacts({ scenarios: true, capabilities: false, traces: false });
   await page.goto('/#/scenarios');
   await expect(page.getByTestId('scenario-grid')).toBeVisible();
-  await expect(page.getByTestId('scenario-card-org_create')).toBeVisible();
-  await expect(page.getByTestId('scenario-card-project_create')).toBeVisible();
-  await expect(page.getByTestId('scenario-card-member_invite')).toBeVisible();
+  await expect(page.getByTestId('scenario-card-org-create-1776000000000-w0')).toBeVisible();
+  await expect(page.getByTestId('scenario-card-project-create-1776000000001-w1')).toBeVisible();
+  await expect(page.getByTestId('scenario-card-member-invite-1776000000002-w2')).toBeVisible();
 });
 
 test('scenarios_card_click_opens_detail_view_with_video_and_steps', async ({
@@ -92,7 +92,7 @@ test('scenarios_card_click_opens_detail_view_with_video_and_steps', async ({
 }) => {
   await withArtifacts({ scenarios: true, capabilities: false, traces: false });
   await page.goto('/#/scenarios');
-  await page.getByTestId('scenario-card-org_create').click();
+  await page.getByTestId('scenario-card-org-create-1776000000000-w0').click();
   await expect(page.getByTestId('scenario-detail')).toBeVisible();
   await expect(page.getByTestId('scenario-video')).toBeVisible();
   await expect(page.getByTestId('scenario-steps')).toBeVisible();
@@ -159,8 +159,8 @@ test('capabilities_falls_back_to_baseline_only_when_report_missing', async ({
 test('traces_panel_lists_scenarios_with_artifacts', async ({ page }) => {
   await withArtifacts({ scenarios: false, capabilities: false, traces: true });
   await page.goto('/#/traces');
-  await expect(page.getByTestId('trace-item-org_create')).toBeVisible();
-  await expect(page.getByTestId('trace-item-project_create')).toBeVisible();
+  await expect(page.getByTestId('trace-item-org-create-1776000000000-w0')).toBeVisible();
+  await expect(page.getByTestId('trace-item-project-create-1776000000001-w1')).toBeVisible();
 });
 
 test('traces_selecting_scenario_renders_mermaid_and_flame_iframe', async ({
@@ -168,7 +168,7 @@ test('traces_selecting_scenario_renders_mermaid_and_flame_iframe', async ({
 }) => {
   await withArtifacts({ scenarios: false, capabilities: false, traces: true });
   await page.goto('/#/traces');
-  await page.getByTestId('trace-item-org_create').click();
+  await page.getByTestId('trace-item-org-create-1776000000000-w0').click();
   // mermaid render may take a tick.
   await expect(page.getByTestId('mermaid-svg')).toBeVisible();
   const iframe = page.getByTestId('flame-iframe');
@@ -179,7 +179,7 @@ test('traces_selecting_scenario_renders_mermaid_and_flame_iframe', async ({
 test('traces_folded_stacks_collapsed_by_default', async ({ page }) => {
   await withArtifacts({ scenarios: false, capabilities: false, traces: true });
   await page.goto('/#/traces');
-  await page.getByTestId('trace-item-org_create').click();
+  await page.getByTestId('trace-item-org-create-1776000000000-w0').click();
   await expect(page.getByTestId('folded-content')).toHaveCount(0);
   await page.getByTestId('folded-expand').click();
   await expect(page.getByTestId('folded-content')).toBeVisible();
@@ -192,7 +192,7 @@ test('traces_search_covering_file_filters_scenarios', async ({ page }) => {
   // With coveredFiles present in fixture, search is enabled.
   await expect(search).toBeEnabled();
   await search.fill('projects_api.py');
-  await expect(page.getByTestId('trace-item-project_create')).toHaveAttribute(
+  await expect(page.getByTestId('trace-item-project-create-1776000000001-w1')).toHaveAttribute(
     'aria-selected',
     'true',
   );
@@ -201,16 +201,16 @@ test('traces_search_covering_file_filters_scenarios', async ({ page }) => {
 test('cross_link_scenario_to_trace_appears_only_when_trace_exists', async ({
   page,
 }) => {
-  // Case A: trace dir exists for org_create → button visible.
+  // Case A: trace dir exists for org-create-1776000000000-w0 → button visible.
   await withArtifacts({ scenarios: true, capabilities: false, traces: true });
   await page.goto('/#/scenarios');
-  await page.getByTestId('scenario-card-org_create').click();
+  await page.getByTestId('scenario-card-org-create-1776000000000-w0').click();
   await expect(page.getByTestId('view-trace-link')).toBeVisible();
 
   // Case B: no traces → no button.
   await withArtifacts({ scenarios: true, capabilities: false, traces: false });
   await page.reload();
-  await page.getByTestId('scenario-card-org_create').click();
+  await page.getByTestId('scenario-card-org-create-1776000000000-w0').click();
   await expect(page.getByTestId('view-trace-link')).toHaveCount(0);
 });
 
