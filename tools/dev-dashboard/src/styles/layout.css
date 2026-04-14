@@ -466,6 +466,76 @@ html[data-rail-collapsed='1'] .app {
   cursor: pointer;
 }
 
+.detail__page-links {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  font-size: 13px;
+}
+
+.detail__page-links a {
+  color: var(--accent);
+  text-decoration: none;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.screenshots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+
+.screenshots-grid__cell {
+  border: 1px solid var(--border);
+  padding: 0;
+  background: var(--bg-panel);
+  cursor: pointer;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.screenshots-grid__cell img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.flow-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: var(--space-2);
+}
+
+.flow-strip__cell {
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-panel);
+  transform: scale(0.7);
+  transform-origin: top left;
+}
+
+.flow-strip__cell img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.flow-strip__cell figcaption {
+  padding: 4px var(--space-2);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.flow-strip__idx {
+  color: var(--text);
+  font-weight: 600;
+  margin-right: 4px;
+}
+
 .lightbox {
   position: fixed;
   inset: 0;

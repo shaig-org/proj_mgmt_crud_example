@@ -558,6 +558,47 @@ test('old_feature_24_video_lightbox_speed_and_download', async ({ page }) => {
   await expect(dl).toHaveAttribute('href', /\.webm$/);
 });
 
+test('old_feature_16_17_screenshots_page_shows_full_grid_and_crosslinks', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0/screenshots');
+
+  await expect(page.getByTestId('screenshots-page')).toBeVisible();
+  await expect(page.getByTestId('screenshots-grid')).toBeVisible();
+  await expect(page.getByTestId('screenshots-cell-0')).toBeVisible();
+  await expect(page.getByTestId('screenshots-cell-2')).toBeVisible();
+
+  // Cross-links to detail and flow.
+  await expect(page.getByTestId('page-link-detail')).toHaveAttribute(
+    'href',
+    '#/scenarios/org-create-1776000000000-w0',
+  );
+  await expect(page.getByTestId('page-link-flow')).toHaveAttribute(
+    'href',
+    '#/scenarios/org-create-1776000000000-w0/flow',
+  );
+
+  // Cell opens lightbox.
+  await page.getByTestId('screenshots-cell-1').click();
+  await expect(page.getByTestId('lightbox-counter')).toContainText('2 of 3');
+});
+
+test('old_feature_18_21_flow_page_shows_compact_strip_with_labels', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0/flow');
+
+  await expect(page.getByTestId('flow-page')).toBeVisible();
+  await expect(page.getByTestId('flow-strip')).toBeVisible();
+  await expect(page.getByTestId('flow-cell-1')).toBeVisible();
+  await expect(page.getByTestId('flow-cell-3')).toBeVisible();
+
+  // Breadcrumb leaf shows "flow".
+  await expect(page.getByTestId('breadcrumb-leaf')).toHaveText('flow');
+});
+
 test('repo_root_is_displayed_in_top_bar', async ({ page }) => {
   await withArtifacts({ scenarios: true, capabilities: true, traces: true });
   await page.goto('/');

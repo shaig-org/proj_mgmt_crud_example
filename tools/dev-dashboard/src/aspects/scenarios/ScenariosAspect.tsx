@@ -204,6 +204,82 @@ function Breadcrumb({
   );
 }
 
+function ScreenshotsPage({ entry }: { entry: ScenarioEntry }) {
+  const screenshots = (entry.steps ?? [])
+    .map((s) => s.screenshot)
+    .filter((s): s is string => Boolean(s));
+  const [active, setActive] = useState<number | null>(null);
+  return (
+    <div data-testid="screenshots-page">
+      <Breadcrumb entry={entry} extra={{ label: 'screenshots' }} />
+      <div className="detail__page-links">
+        <a href={`#/scenarios/${entry.id}`} data-testid="page-link-detail">
+          detail
+        </a>
+        <a href={`#/scenarios/${entry.id}/flow`} data-testid="page-link-flow">
+          flow
+        </a>
+      </div>
+      <div className="screenshots-grid" data-testid="screenshots-grid">
+        {screenshots.map((src, i) => (
+          <button
+            key={`${src}-${i}`}
+            type="button"
+            className="screenshots-grid__cell"
+            data-testid={`screenshots-cell-${i}`}
+            onClick={() => setActive(i)}
+          >
+            <img src={src} alt={`screenshot ${i + 1}`} />
+          </button>
+        ))}
+      </div>
+      <Lightbox
+        state={active === null ? { kind: 'closed' } : { kind: 'screenshot', index: active }}
+        screenshots={screenshots}
+        onClose={() => setActive(null)}
+        onIndex={(i) => setActive(i)}
+      />
+    </div>
+  );
+}
+
+function FlowPage({ entry }: { entry: ScenarioEntry }) {
+  const screenshots = (entry.steps ?? [])
+    .map((s) => s.screenshot)
+    .filter((s): s is string => Boolean(s));
+  return (
+    <div data-testid="flow-page">
+      <Breadcrumb entry={entry} extra={{ label: 'flow' }} />
+      <div className="detail__page-links">
+        <a href={`#/scenarios/${entry.id}`} data-testid="page-link-detail">
+          detail
+        </a>
+        <a
+          href={`#/scenarios/${entry.id}/screenshots`}
+          data-testid="page-link-screenshots"
+        >
+          screenshots
+        </a>
+      </div>
+      <div className="flow-strip" data-testid="flow-strip">
+        {(entry.steps ?? []).map((step, i) => (
+          <figure key={step.index} className="flow-strip__cell">
+            <img
+              src={screenshots[i] ?? ''}
+              alt={step.label}
+              data-testid={`flow-cell-${step.index}`}
+            />
+            <figcaption>
+              <span className="flow-strip__idx">{step.index}.</span>
+              {step.label}
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const VIDEO_SPEEDS = [0.1, 0.15, 0.25, 0.5, 1, 1.5, 2] as const;
 
 type LightboxState =
@@ -718,10 +794,12 @@ function ScenariosBody({ data }: { data: ScenariosData }) {
   }
 
   if (selected) {
-    // For now all sub-views (detail, screenshots, flow) render Detail; the
-    // dedicated screenshots/flow pages arrive in a later slice. `view` is
-    // still parsed so deep links round-trip correctly.
-    void view;
+    if (view === 'screenshots') {
+      return <ScreenshotsPage entry={selected} />;
+    }
+    if (view === 'flow') {
+      return <FlowPage entry={selected} />;
+    }
     return (
       <Detail
         entry={selected}
