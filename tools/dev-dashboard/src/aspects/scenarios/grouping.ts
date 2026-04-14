@@ -72,18 +72,40 @@ export function groupByFeature(
   return Array.from(groupsBySlug.values());
 }
 
-/**
- * Parse a hash like `#/scenarios?group=org` into `{ aspectId: 'scenarios', group: 'org' }`.
- * Returns `group: null` when the query param is absent or empty.
- */
-export function parseScenariosHash(hash: string): {
+export type ScenariosView = 'gallery' | 'detail' | 'screenshots' | 'flow';
+
+export interface ScenariosHash {
   aspectId: string;
   group: string | null;
-} {
+  /** Selected scenario slug (from `#/scenarios/<slug>...`). */
+  slug: string | null;
+  view: ScenariosView;
+}
+
+/**
+ * Parse a hash like:
+ *   `#/scenarios` — gallery
+ *   `#/scenarios?group=org` — gallery filtered to a group
+ *   `#/scenarios/<slug>` — detail
+ *   `#/scenarios/<slug>/screenshots` — screenshots grid
+ *   `#/scenarios/<slug>/flow` — flow (compact)
+ */
+export function parseScenariosHash(hash: string): ScenariosHash {
   const stripped = hash.replace(/^#\/?/, '');
-  const [aspectId = '', query = ''] = stripped.split('?');
+  const [pathPart = '', query = ''] = stripped.split('?');
+  const segs = pathPart.split('/').filter(Boolean);
+  const aspectId = segs[0] ?? '';
+  const slugRaw = segs[1] ?? null;
+  const sub = segs[2] ?? null;
   const params = new URLSearchParams(query);
-  const raw = params.get('group');
-  const group = raw && raw.trim() ? raw.trim() : null;
-  return { aspectId, group };
+  const rawGroup = params.get('group');
+  const group = rawGroup && rawGroup.trim() ? rawGroup.trim() : null;
+
+  let view: ScenariosView = 'gallery';
+  if (slugRaw) {
+    if (sub === 'screenshots') view = 'screenshots';
+    else if (sub === 'flow') view = 'flow';
+    else view = 'detail';
+  }
+  return { aspectId, group, slug: slugRaw, view };
 }

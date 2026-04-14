@@ -74,21 +74,41 @@ describe('groupByFeature', () => {
 });
 
 describe('parseScenariosHash', () => {
-  it('parses aspect id and group param', () => {
+  it('parses gallery with group filter', () => {
     expect(parseScenariosHash('#/scenarios?group=org')).toEqual({
       aspectId: 'scenarios',
       group: 'org',
+      slug: null,
+      view: 'gallery',
     });
   });
 
-  it('returns null group when missing or empty', () => {
+  it('returns gallery view with null group/slug when path is bare', () => {
     expect(parseScenariosHash('#/scenarios')).toEqual({
       aspectId: 'scenarios',
       group: null,
+      slug: null,
+      view: 'gallery',
     });
     expect(parseScenariosHash('#/scenarios?group=')).toEqual({
       aspectId: 'scenarios',
       group: null,
+      slug: null,
+      view: 'gallery',
+    });
+  });
+
+  it('parses detail, screenshots and flow views from path segments', () => {
+    expect(parseScenariosHash('#/scenarios/org-create-w0')).toMatchObject({
+      slug: 'org-create-w0',
+      view: 'detail',
+    });
+    expect(
+      parseScenariosHash('#/scenarios/org-create-w0/screenshots'),
+    ).toMatchObject({ slug: 'org-create-w0', view: 'screenshots' });
+    expect(parseScenariosHash('#/scenarios/org-create-w0/flow')).toMatchObject({
+      slug: 'org-create-w0',
+      view: 'flow',
     });
   });
 });

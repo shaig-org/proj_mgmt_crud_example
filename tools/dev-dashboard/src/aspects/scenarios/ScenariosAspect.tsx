@@ -134,24 +134,69 @@ function slugify(id: string): string {
   return id.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+function Breadcrumb({
+  entry,
+  extra,
+}: {
+  entry: ScenarioEntry;
+  extra?: { label: string } | null;
+}) {
+  return (
+    <nav
+      className="scen-breadcrumb"
+      data-testid="breadcrumb"
+      aria-label="breadcrumb"
+    >
+      <a
+        href="#/scenarios"
+        data-testid="breadcrumb-gallery"
+        className="scen-breadcrumb__link"
+      >
+        ← back to gallery
+      </a>
+      <span className="scen-breadcrumb__sep">/</span>
+      {extra ? (
+        <a
+          href={`#/scenarios/${entry.id}`}
+          data-testid="breadcrumb-scenario"
+          className="scen-breadcrumb__link"
+        >
+          {entry.title}
+        </a>
+      ) : (
+        <span data-testid="breadcrumb-scenario" className="scen-breadcrumb__current">
+          {entry.title}
+        </span>
+      )}
+      {extra && (
+        <>
+          <span className="scen-breadcrumb__sep">/</span>
+          <span
+            data-testid="breadcrumb-leaf"
+            className="scen-breadcrumb__current"
+          >
+            {extra.label}
+          </span>
+        </>
+      )}
+    </nav>
+  );
+}
+
 function Detail({
   entry,
   traceScenarioIds,
-  onBack,
   onViewTrace,
 }: {
   entry: ScenarioEntry;
   traceScenarioIds: Set<string>;
-  onBack: () => void;
   onViewTrace: (slug: string) => void;
 }) {
   const slug = slugify(entry.id);
   const hasTrace = traceScenarioIds.has(slug);
   return (
     <div data-testid="scenario-detail">
-      <button type="button" onClick={onBack}>
-        ← back
-      </button>
+      <Breadcrumb entry={entry} />
       <h3>{entry.title}</h3>
       {entry.video ? (
         <video
@@ -255,37 +300,47 @@ function Grid({
   );
 }
 
-function useScenariosHash(): { group: string | null } {
-  const [group, setGroup] = useState<string | null>(() =>
+function useScenariosHash() {
+  const [state, setState] = useState(() =>
     typeof window === 'undefined'
-      ? null
-      : parseScenariosHash(window.location.hash).group,
+      ? parseScenariosHash('')
+      : parseScenariosHash(window.location.hash),
   );
   useEffect(() => {
     function onHash() {
-      setGroup(parseScenariosHash(window.location.hash).group);
+      setState(parseScenariosHash(window.location.hash));
     }
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
-  return { group };
+  return state;
 }
 
 function ScenariosBody({ data }: { data: ScenariosData }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = data.scenarios.find((s) => s.id === selectedId) ?? null;
-  const { group } = useScenariosHash();
+  const { group, slug, view } = useScenariosHash();
+  const selected =
+    slug !== null
+      ? data.scenarios.find((s) => slugify(s.id) === slug || s.id === slug) ??
+        null
+      : null;
 
-  function onViewTrace(slug: string) {
-    window.location.hash = `#/traces?select=${encodeURIComponent(slug)}`;
+  function onSelect(id: string) {
+    window.location.hash = `#/scenarios/${id}`;
+  }
+
+  function onViewTrace(traceSlug: string) {
+    window.location.hash = `#/traces?select=${encodeURIComponent(traceSlug)}`;
   }
 
   if (selected) {
+    // For now all sub-views (detail, screenshots, flow) render Detail; the
+    // dedicated screenshots/flow pages arrive in a later slice. `view` is
+    // still parsed so deep links round-trip correctly.
+    void view;
     return (
       <Detail
         entry={selected}
         traceScenarioIds={data.traceScenarioIds}
-        onBack={() => setSelectedId(null)}
         onViewTrace={onViewTrace}
       />
     );
@@ -296,7 +351,7 @@ function ScenariosBody({ data }: { data: ScenariosData }) {
       traceScenarioIds={data.traceScenarioIds}
       groupFilter={group}
       groups={data.groups}
-      onSelect={setSelectedId}
+      onSelect={onSelect}
     />
   );
 }

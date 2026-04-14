@@ -207,10 +207,13 @@ test('cross_link_scenario_to_trace_appears_only_when_trace_exists', async ({
   await page.getByTestId('scenario-card-org-create-1776000000000-w0').click();
   await expect(page.getByTestId('view-trace-link')).toBeVisible();
 
-  // Case B: no traces → no button.
+  // Case B: no traces → no button. Navigate to the gallery explicitly then
+  // reload so the aspect re-runs `load()` against the updated fixtures.
   await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
   await page.reload();
   await page.getByTestId('scenario-card-org-create-1776000000000-w0').click();
+  await expect(page.getByTestId('scenario-detail')).toBeVisible();
   await expect(page.getByTestId('view-trace-link')).toHaveCount(0);
 });
 
@@ -368,6 +371,42 @@ test('user_ask_1_rail_shows_feature_subgroups_and_filters_grid', async ({
   await expect(
     page.getByTestId('scenario-card-project-create-1776000000001-w1'),
   ).toHaveCount(0);
+});
+
+test('old_feature_27_hash_routes_deep_link_to_scenario_detail', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  // Deep link directly to a scenario's detail via hash path segment.
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+  await expect(page.getByTestId('scenario-detail')).toBeVisible();
+  await expect(page.getByTestId('scenario-video')).toBeVisible();
+  await expect(page.getByTestId('breadcrumb')).toBeVisible();
+});
+
+test('old_feature_07_breadcrumb_links_from_detail_back_to_gallery', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  await page.getByTestId('scenario-card-org-create-1776000000000-w0').click();
+  await expect(page).toHaveURL(/#\/scenarios\/org-create-1776000000000-w0$/);
+  await expect(page.getByTestId('scenario-detail')).toBeVisible();
+
+  await page.getByTestId('breadcrumb-gallery').click();
+  await expect(page).toHaveURL(/#\/scenarios$/);
+  await expect(page.getByTestId('scenario-grid')).toBeVisible();
+});
+
+test('old_feature_29_top_bar_shows_generated_at_timestamp_from_manifest', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: true, traces: true });
+  await page.goto('/');
+  // Fixture manifest has generatedAt: "2026-04-14T04:02:41.793Z".
+  const stamp = page.getByTestId('generated-at');
+  await expect(stamp).toBeVisible();
+  await expect(stamp).toContainText('2026-04-14');
 });
 
 test('repo_root_is_displayed_in_top_bar', async ({ page }) => {
