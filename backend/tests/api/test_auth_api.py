@@ -814,3 +814,99 @@ class TestChangePassword:
             json={"username": "testuser", "password": long_password},
         )
         assert verify_response.status_code == 200
+
+
+class TestAuthCoverageExpansion:
+    """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
+
+    # A1
+    @pytest.mark.scenario
+    @pytest.mark.behavior("authentication")
+    @pytest.mark.error
+    def test_login_with_deactivated_user_fails(
+        self, client: TestClient, test_user: tuple[str, str], super_admin_token: str
+    ) -> None:
+        """Deactivated user login returns 401 ACCOUNT_INACTIVE."""
+        from tests.helpers import auth_headers
+
+        user_id, password = test_user
+        client.put(f"/api/users/{user_id}", json={"is_active": False}, headers=auth_headers(super_admin_token))
+
+        response = client.post("/auth/login", json={"username": "testuser", "password": password})
+        assert response.status_code == 401
+        assert response.json()["error_code"] == "ACCOUNT_INACTIVE"
+
+    # A2
+    @pytest.mark.scenario
+    @pytest.mark.behavior("authentication")
+    @pytest.mark.error
+    def test_login_after_password_change_old_password_fails(
+        self, client: TestClient, test_user: tuple[str, str]
+    ) -> None:
+        """Old password is invalidated after a password change."""
+        _, current_password = test_user
+        login = client.post("/auth/login", json={"username": "testuser", "password": current_password})
+        token = login.json()["access_token"]
+
+        new_password = "BrandNewPass123!"
+        client.post(
+            "/auth/change-password",
+            json={"current_password": current_password, "new_password": new_password},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        response = client.post("/auth/login", json={"username": "testuser", "password": current_password})
+        assert response.status_code == 401
+        assert response.json()["error_code"] == "INVALID_CREDENTIALS"
+
+    # A3
+    @pytest.mark.error
+    def test_protected_endpoint_with_malformed_bearer_header_401(self, client: TestClient) -> None:
+        """Authorization header missing token after 'Bearer' returns 401."""
+        response = client.get("/api/organizations", headers={"Authorization": "Bearer"})
+        assert response.status_code == 401
+
+    # A4
+    @pytest.mark.error
+    def test_protected_endpoint_without_bearer_prefix_401(self, client: TestClient) -> None:
+        """Authorization header without 'Bearer' prefix returns 401."""
+        response = client.get("/api/organizations", headers={"Authorization": "sometoken"})
+        assert response.status_code == 401
+
+    # A5
+    @pytest.mark.error
+    def test_token_for_deleted_user_rejected(
+        self, client: TestClient, test_user: tuple[str, str], super_admin_token: str
+    ) -> None:
+        """Token issued for a user that is subsequently deleted is rejected on protected endpoints."""
+        from tests.helpers import auth_headers
+
+        user_id, password = test_user
+        login = client.post("/auth/login", json={"username": "testuser", "password": password})
+        token = login.json()["access_token"]
+
+        # Delete the user (super admin only)
+        del_response = client.delete(f"/api/users/{user_id}", headers=auth_headers(super_admin_token))
+        assert del_response.status_code == 204
+
+        # Token should no longer work
+        response = client.get("/api/organizations", headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 401
+
+    # A6
+    @pytest.mark.error
+    def test_change_password_with_wrong_old_password_fails(
+        self, client: TestClient, test_user: tuple[str, str]
+    ) -> None:
+        """Supplying a wrong current_password returns 401 INVALID_CREDENTIALS."""
+        _, current_password = test_user
+        login = client.post("/auth/login", json={"username": "testuser", "password": current_password})
+        token = login.json()["access_token"]
+
+        response = client.post(
+            "/auth/change-password",
+            json={"current_password": "NotTheRealPassword1!", "new_password": "SomethingNew123!"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 401
+        assert response.json()["error_code"] == "INVALID_CREDENTIALS"

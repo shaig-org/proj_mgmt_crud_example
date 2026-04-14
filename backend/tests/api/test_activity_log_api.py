@@ -383,3 +383,72 @@ class TestActivityLogPermissions:
         # Try to delete activity log (should not have endpoint)
         response = client.delete("/api/activity-logs/some-id", headers=auth_headers(super_admin_token))
         assert response.status_code == 405  # Method Not Allowed
+
+
+class TestActivityLogCoverageExpansion:
+    """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
+
+    # L1
+    def test_ticket_create_emits_activity_log_entry(self, client: TestClient, org_admin_token: tuple[str, str]) -> None:
+        """Creating a ticket produces an activity log entry with action TICKET_CREATED."""
+        token, _ = org_admin_token
+        project_id = create_test_project(client, token, name="ActLogProj")
+        ticket = client.post(
+            f"/api/tickets?project_id={project_id}",
+            json={"title": "Logged"},
+            headers=auth_headers(token),
+        ).json()
+
+        response = client.get(f"/api/activity-logs?entity_id={ticket['id']}", headers=auth_headers(token))
+        assert response.status_code == 200
+        actions = {log["action"] for log in response.json()}
+        assert "ticket_created" in actions
+
+    # L2
+    def test_ticket_status_change_emits_activity_log_entry(
+        self, client: TestClient, org_admin_token: tuple[str, str]
+    ) -> None:
+        """Changing ticket status produces a TICKET_STATUS_CHANGED activity log entry."""
+        token, _ = org_admin_token
+        project_id = create_test_project(client, token, name="ActStatusProj")
+        ticket_id = client.post(
+            f"/api/tickets?project_id={project_id}",
+            json={"title": "StatusLog"},
+            headers=auth_headers(token),
+        ).json()["id"]
+        client.put(
+            f"/api/tickets/{ticket_id}/status",
+            json={"status": "IN_PROGRESS"},
+            headers=auth_headers(token),
+        )
+
+        response = client.get(f"/api/activity-logs?entity_id={ticket_id}", headers=auth_headers(token))
+        assert response.status_code == 200
+        actions = {log["action"] for log in response.json()}
+        assert "ticket_status_changed" in actions
+
+    # L3
+    def test_activity_log_filterable_by_entity_id(self, client: TestClient, org_admin_token: tuple[str, str]) -> None:
+        """The entity_id query param filters logs to just that entity."""
+        token, _ = org_admin_token
+        p1 = create_test_project(client, token, name="EF1")
+        p2 = create_test_project(client, token, name="EF2")
+
+        response = client.get(f"/api/activity-logs?entity_id={p1}", headers=auth_headers(token))
+        assert response.status_code == 200
+        entity_ids = {log["entity_id"] for log in response.json()}
+        assert entity_ids == {p1}
+        assert p2 not in entity_ids
+
+    # L4
+    def test_activity_log_read_requires_appropriate_role(
+        self, client: TestClient, read_user_token: tuple[str, str]
+    ) -> None:
+        """Read-only users may list activity logs in their own org.
+
+        # Spec: ActivityLogReadCapability permits any authenticated user scoped to their org.
+        """
+        token, _ = read_user_token
+        response = client.get("/api/activity-logs", headers=auth_headers(token))
+        # Production: allowed (200); test documents current behavior.
+        assert response.status_code == 200

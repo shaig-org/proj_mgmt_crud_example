@@ -813,3 +813,146 @@ class TestDeleteComment:
         delete_logs = [log for log in logs if log.action == ActionType.COMMENT_DELETED]
         assert len(delete_logs) == 1
         assert delete_logs[0].entity_id == comment_id
+
+
+class TestCommentCoverageExpansion:
+    """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
+
+    @staticmethod
+    def _make_ticket(client: TestClient, admin_token: str) -> str:
+        project_id = client.post(
+            "/api/projects", json={"name": "CommentProj"}, headers=auth_headers(admin_token)
+        ).json()["id"]
+        return client.post(
+            f"/api/tickets?project_id={project_id}",
+            json={"title": "CommentTicket"},
+            headers=auth_headers(admin_token),
+        ).json()["id"]
+
+    # C1
+    @pytest.mark.error
+    def test_read_user_can_list_comments_but_cannot_create(
+        self,
+        client: TestClient,
+        shared_org_admin_token: tuple[str, str],
+        shared_org_read_token: tuple[str, str],
+    ) -> None:
+        """Read user can GET comments list but cannot POST a new comment."""
+        admin_token, _ = shared_org_admin_token
+        read_token, _ = shared_org_read_token
+        ticket_id = self._make_ticket(client, admin_token)
+        client.post(
+            f"/api/tickets/{ticket_id}/comments",
+            json={"content": "By admin"},
+            headers=auth_headers(admin_token),
+        )
+
+        list_response = client.get(f"/api/tickets/{ticket_id}/comments", headers=auth_headers(read_token))
+        assert list_response.status_code == 200
+        assert len(list_response.json()) == 1
+
+        create_response = client.post(
+            f"/api/tickets/{ticket_id}/comments",
+            json={"content": "By reader"},
+            headers=auth_headers(read_token),
+        )
+        assert create_response.status_code == 403
+
+    # C2
+    @pytest.mark.error
+    def test_update_others_comment_forbidden(
+        self,
+        client: TestClient,
+        shared_org_admin_token: tuple[str, str],
+        shared_org_write_token: tuple[str, str],
+    ) -> None:
+        """A user cannot edit another user's comment via the own-comment endpoint."""
+        admin_token, _ = shared_org_admin_token
+        write_token, _ = shared_org_write_token
+        ticket_id = self._make_ticket(client, admin_token)
+        comment = client.post(
+            f"/api/tickets/{ticket_id}/comments",
+            json={"content": "Admin's comment"},
+            headers=auth_headers(admin_token),
+        ).json()
+
+        response = client.put(
+            f"/api/comments/{comment['id']}",
+            json={"content": "Hacked"},
+            headers=auth_headers(write_token),
+        )
+        assert response.status_code == 403
+
+    # C3
+    @pytest.mark.error
+    def test_delete_others_comment_forbidden(
+        self,
+        client: TestClient,
+        shared_org_admin_token: tuple[str, str],
+        shared_org_write_token: tuple[str, str],
+    ) -> None:
+        """A user cannot delete another user's comment via the own-comment endpoint."""
+        admin_token, _ = shared_org_admin_token
+        write_token, _ = shared_org_write_token
+        ticket_id = self._make_ticket(client, admin_token)
+        comment = client.post(
+            f"/api/tickets/{ticket_id}/comments",
+            json={"content": "Admin's comment"},
+            headers=auth_headers(admin_token),
+        ).json()
+
+        response = client.delete(f"/api/comments/{comment['id']}", headers=auth_headers(write_token))
+        assert response.status_code == 403
+
+    # C4
+    @pytest.mark.error
+    def test_comment_on_ticket_in_other_org_forbidden(self, client: TestClient, super_admin_token: str) -> None:
+        """A user cannot comment on a ticket whose project belongs to another org."""
+        from tests.helpers import create_admin_user, create_test_org
+
+        org_a = create_test_org(client, super_admin_token, name="CommOrgA")
+        org_b = create_test_org(client, super_admin_token, name="CommOrgB")
+
+        _, a_pw = create_admin_user(client, super_admin_token, org_a, username="cadma")
+        _, b_pw = create_admin_user(client, super_admin_token, org_b, username="cadmb", email="b@b.com")
+        a_token = client.post("/auth/login", json={"username": "cadma", "password": a_pw}).json()["access_token"]
+        b_token = client.post("/auth/login", json={"username": "cadmb", "password": b_pw}).json()["access_token"]
+
+        project_id = client.post("/api/projects", json={"name": "A-project"}, headers=auth_headers(a_token)).json()[
+            "id"
+        ]
+        ticket_id = client.post(
+            f"/api/tickets?project_id={project_id}",
+            json={"title": "t"},
+            headers=auth_headers(a_token),
+        ).json()["id"]
+
+        response = client.post(
+            f"/api/tickets/{ticket_id}/comments",
+            json={"content": "crossing borders"},
+            headers=auth_headers(b_token),
+        )
+        assert response.status_code in (403, 404)
+
+    # C5
+    def test_list_comments_chronological_order(
+        self, client: TestClient, shared_org_admin_token: tuple[str, str]
+    ) -> None:
+        """GET /api/tickets/{id}/comments returns comments in creation order (ascending)."""
+        admin_token, _ = shared_org_admin_token
+        ticket_id = self._make_ticket(client, admin_token)
+
+        contents = ["first", "second", "third"]
+        created_ids = []
+        for content in contents:
+            c = client.post(
+                f"/api/tickets/{ticket_id}/comments",
+                json={"content": content},
+                headers=auth_headers(admin_token),
+            ).json()
+            created_ids.append(c["id"])
+
+        response = client.get(f"/api/tickets/{ticket_id}/comments", headers=auth_headers(admin_token))
+        assert response.status_code == 200
+        timestamps = [c["created_at"] for c in response.json()]
+        assert timestamps == sorted(timestamps)

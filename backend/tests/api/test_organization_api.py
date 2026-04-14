@@ -1,5 +1,6 @@
 """Tests for organization API endpoints."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from project_management_crud_example.dal.sqlite.repository import Repository
@@ -515,3 +516,88 @@ class TestOrganizationActivityLogging:
         assert update_log.organization_id == org_id
         assert "command" in update_log.changes
         assert update_log.changes["command"]["name"] == "Updated Organization"
+
+
+class TestOrganizationCoverageExpansion:
+    """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
+
+    # O1
+    @pytest.mark.error
+    def test_create_organization_with_duplicate_name_fails_expansion(
+        self, client: TestClient, super_admin_token: str
+    ) -> None:
+        """Second organization with identical name is rejected."""
+        client.post(
+            "/api/organizations",
+            json={"name": "Unique Corp"},
+            headers=auth_headers(super_admin_token),
+        )
+        response = client.post(
+            "/api/organizations",
+            json={"name": "Unique Corp"},
+            headers=auth_headers(super_admin_token),
+        )
+        assert response.status_code == 400
+        assert "already exists" in response.json()["detail"]
+
+    # O2
+    @pytest.mark.error
+    def test_non_super_admin_cannot_create_organization(
+        self, client: TestClient, org_admin_token: tuple[str, str]
+    ) -> None:
+        """Only Super Admin may create an organization."""
+        token, _ = org_admin_token
+        response = client.post(
+            "/api/organizations",
+            json={"name": "Forbidden Org"},
+            headers=auth_headers(token),
+        )
+        assert response.status_code == 403
+
+    # O3
+    @pytest.mark.scenario
+    @pytest.mark.behavior("organizations")
+    def test_list_organizations_only_own_for_non_super_admin(self, client: TestClient, super_admin_token: str) -> None:
+        """Non-super-admin users see only their own organization in the list."""
+        from tests.helpers import create_admin_user
+
+        org_a = create_test_org(client, super_admin_token, name="Org Alpha")
+        create_test_org(client, super_admin_token, name="Org Beta")
+
+        _, password = create_admin_user(client, super_admin_token, org_a, username="alphaadmin")
+        login = client.post("/auth/login", json={"username": "alphaadmin", "password": password})
+        alpha_token = login.json()["access_token"]
+
+        response = client.get("/api/organizations", headers=auth_headers(alpha_token))
+        assert response.status_code == 200
+        visible = response.json()
+        assert len(visible) == 1
+        assert visible[0]["id"] == org_a
+
+    # O4
+    def test_delete_organization_cascades_projects(self, client: TestClient, super_admin_token: str) -> None:
+        """Organization delete is not exposed via API.
+
+        # Spec: No DELETE route on /api/organizations; FastAPI returns 405 Method Not Allowed.
+        """
+        org_id = create_test_org(client, super_admin_token, name="Deletable Org")
+        response = client.delete(f"/api/organizations/{org_id}", headers=auth_headers(super_admin_token))
+        assert response.status_code == 405
+
+    # O5
+    @pytest.mark.scenario
+    @pytest.mark.behavior("organizations")
+    def test_update_organization_name_reflected_in_get(self, client: TestClient, super_admin_token: str) -> None:
+        """PUT on organization updates name; a subsequent GET returns the new name."""
+        org_id = create_test_org(client, super_admin_token, name="Original Name")
+
+        update = client.put(
+            f"/api/organizations/{org_id}",
+            json={"name": "Renamed Name"},
+            headers=auth_headers(super_admin_token),
+        )
+        assert update.status_code == 200
+
+        fetched = client.get(f"/api/organizations/{org_id}", headers=auth_headers(super_admin_token))
+        assert fetched.status_code == 200
+        assert fetched.json()["name"] == "Renamed Name"

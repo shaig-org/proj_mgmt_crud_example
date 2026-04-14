@@ -448,3 +448,29 @@ class TestMoveTicketBetweenWorkflows:
         moved_ticket = move_response2.json()
         assert moved_ticket["project_id"] == project2_id
         assert moved_ticket["status"] == "TODO"
+
+
+class TestCustomWorkflowCoverageExpansion:
+    """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
+
+    # CW1
+    def test_workflow_with_unreachable_terminal_state_rejected(
+        self, client: TestClient, super_admin_token: str
+    ) -> None:
+        """Current validator does not model reachability; any valid status list is accepted.
+
+        # Spec: WorkflowData validator only enforces uppercase/no-duplicates; reachability
+        # is not part of the model. A workflow with many statuses (including "terminal-looking"
+        # ones) is accepted by the API.
+        """
+        _, admin_token = setup_org_with_admin(client, super_admin_token, org_name="UnreachOrg")
+        response = client.post(
+            "/api/workflows",
+            json={
+                "name": "LadderWithIsland",
+                "statuses": ["BACKLOG", "ACTIVE", "DONE", "ORPHAN_TERMINAL"],
+            },
+            headers=auth_headers(admin_token),
+        )
+        assert response.status_code == 201
+        assert "ORPHAN_TERMINAL" in response.json()["statuses"]

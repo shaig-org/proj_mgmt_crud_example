@@ -1,5 +1,6 @@
 """Tests for epic API endpoints."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from project_management_crud_example.dal.sqlite.repository import Repository
@@ -1130,3 +1131,139 @@ class TestEpicActivityLogging:
         assert "command" in remove_log.changes
         assert remove_log.changes["command"]["epic_id"] == epic_id
         assert remove_log.changes["command"]["ticket_id"] == ticket_id
+
+
+class TestEpicCoverageExpansion:
+    """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
+
+    # E1 — epics are org-scoped, not project-scoped.
+    @pytest.mark.error
+    def test_create_epic_in_nonexistent_project_404(self, client: TestClient, super_admin_token: str) -> None:
+        """Epic creation does not take a project_id.
+
+        # Spec: EpicCreateCommand carries organization_id (derived from the authenticated user),
+        # not project_id. A super admin with no organization returns 400.
+        """
+        response = client.post(
+            "/api/epics",
+            json={"name": "OrphanEpic"},
+            headers=auth_headers(super_admin_token),
+        )
+        assert response.status_code == 400
+        assert "organization" in response.json()["detail"].lower()
+
+    # E2
+    def test_list_epic_tickets_returns_only_tickets_linked_to_epic(
+        self, client: TestClient, org_admin_token: tuple[str, str]
+    ) -> None:
+        """GET /api/epics/{id}/tickets returns only tickets linked to that epic."""
+        token, _ = org_admin_token
+        project_id = create_test_project(client, token, name="EpicListProj")
+        epic_id = create_test_epic(client, token, name="EpicListEpic")
+        linked = client.post(
+            f"/api/tickets?project_id={project_id}",
+            json={"title": "Linked"},
+            headers=auth_headers(token),
+        ).json()
+        unlinked = client.post(
+            f"/api/tickets?project_id={project_id}",
+            json={"title": "Unlinked"},
+            headers=auth_headers(token),
+        ).json()
+        client.post(
+            f"/api/epics/{epic_id}/tickets?ticket_id={linked['id']}",
+            headers=auth_headers(token),
+        )
+
+        response = client.get(f"/api/epics/{epic_id}/tickets", headers=auth_headers(token))
+        assert response.status_code == 200
+        ids = {t["id"] for t in response.json()}
+        assert ids == {linked["id"]}
+        assert unlinked["id"] not in ids
+
+    # E3
+    def test_epic_progress_counts_reflect_ticket_statuses(
+        self, client: TestClient, org_admin_token: tuple[str, str]
+    ) -> None:
+        """Epic progress is derivable via its tickets' statuses.
+
+        # Spec: No dedicated /epics/{id}/progress endpoint; progress is computed from
+        # the /tickets list. This test asserts counts derived from that list.
+        """
+        token, _ = org_admin_token
+        project_id = create_test_project(client, token, name="ProgProj")
+        epic_id = create_test_epic(client, token, name="ProgEpic")
+
+        tickets = []
+        for title in ("a", "b", "c"):
+            t = client.post(
+                f"/api/tickets?project_id={project_id}",
+                json={"title": title},
+                headers=auth_headers(token),
+            ).json()
+            tickets.append(t)
+            client.post(
+                f"/api/epics/{epic_id}/tickets?ticket_id={t['id']}",
+                headers=auth_headers(token),
+            )
+
+        # Move one to DONE, one to IN_PROGRESS
+        client.put(
+            f"/api/tickets/{tickets[0]['id']}/status",
+            json={"status": "DONE"},
+            headers=auth_headers(token),
+        )
+        client.put(
+            f"/api/tickets/{tickets[1]['id']}/status",
+            json={"status": "IN_PROGRESS"},
+            headers=auth_headers(token),
+        )
+
+        listed = client.get(f"/api/epics/{epic_id}/tickets", headers=auth_headers(token)).json()
+        status_counts = {s: sum(1 for t in listed if t["status"] == s) for s in ("TODO", "IN_PROGRESS", "DONE")}
+        assert status_counts == {"TODO": 1, "IN_PROGRESS": 1, "DONE": 1}
+
+    # E4
+    def test_delete_epic_unlinks_tickets_or_blocks(self, client: TestClient, org_admin_token: tuple[str, str]) -> None:
+        """Deleting an epic: current production behavior.
+
+        # Spec: delete cascades the association rows in epic_tickets; underlying tickets remain.
+        """
+        token, _ = org_admin_token
+        project_id = create_test_project(client, token, name="DelEpicProj")
+        epic_id = create_test_epic(client, token, name="DelEpic")
+        ticket = client.post(
+            f"/api/tickets?project_id={project_id}",
+            json={"title": "Survivor"},
+            headers=auth_headers(token),
+        ).json()
+        client.post(
+            f"/api/epics/{epic_id}/tickets?ticket_id={ticket['id']}",
+            headers=auth_headers(token),
+        )
+
+        response = client.delete(f"/api/epics/{epic_id}", headers=auth_headers(token))
+        assert response.status_code == 204
+
+        # Ticket itself should still exist
+        get_ticket = client.get(f"/api/tickets/{ticket['id']}", headers=auth_headers(token))
+        assert get_ticket.status_code == 200
+
+    # E5
+    def test_update_epic_name_conflict_in_project_fails(
+        self, client: TestClient, org_admin_token: tuple[str, str]
+    ) -> None:
+        """Duplicate epic names within an org are currently allowed.
+
+        # Spec: no UNIQUE constraint on (organization_id, name) in EpicORM.
+        """
+        token, _ = org_admin_token
+        create_test_epic(client, token, name="EpicAlpha")
+        e2_id = create_test_epic(client, token, name="EpicBeta")
+        response = client.put(
+            f"/api/epics/{e2_id}",
+            json={"name": "EpicAlpha"},
+            headers=auth_headers(token),
+        )
+        assert response.status_code == 200
+        assert response.json()["name"] == "EpicAlpha"

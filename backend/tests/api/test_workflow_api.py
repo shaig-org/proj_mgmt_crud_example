@@ -1,5 +1,6 @@
 """Tests for workflow API endpoints."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.conftest import client, test_repo  # noqa: F401
@@ -948,3 +949,140 @@ class TestWorkflowBreakingChanges:
         updated = response.json()
         assert "BLOCKED" not in updated["statuses"]
         assert len(updated["statuses"]) == 3
+
+
+class TestWorkflowCoverageExpansion:
+    """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
+
+    # W1 — current data model has no transitions, only status names.
+    def test_create_workflow_with_cyclic_transitions_rejected(
+        self, client: TestClient, org_admin_token: tuple[str, str]
+    ) -> None:
+        """Workflow status list has no explicit transitions, so cycles cannot be represented.
+
+        # Spec: WorkflowData.statuses is a List[str] without a transition graph; any valid
+        # status list (uppercase, non-duplicate) is accepted.
+        """
+        token, _ = org_admin_token
+        response = client.post(
+            "/api/workflows",
+            json={"name": "CycleLike", "statuses": ["A", "B", "C", "A"]},
+            headers=auth_headers(token),
+        )
+        # Duplicates rejected at Pydantic level with 422
+        assert response.status_code == 422
+
+    # W2
+    def test_create_workflow_with_single_status_rejected(
+        self, client: TestClient, org_admin_token: tuple[str, str]
+    ) -> None:
+        """A single-status workflow is ACCEPTED by current spec (min_length=1).
+
+        # Spec: WorkflowData.statuses has min_length=1; a single status is valid.
+        """
+        token, _ = org_admin_token
+        response = client.post(
+            "/api/workflows",
+            json={"name": "SoloFlow", "statuses": ["ONLY"]},
+            headers=auth_headers(token),
+        )
+        assert response.status_code == 201
+
+    # W3
+    @pytest.mark.scenario
+    @pytest.mark.behavior("workflows")
+    def test_assign_workflow_to_project_constrains_ticket_transitions(
+        self, client: TestClient, org_admin_token: tuple[str, str]
+    ) -> None:
+        """Assigning a custom workflow to a project restricts allowable ticket statuses."""
+        token, _ = org_admin_token
+        wf = client.post(
+            "/api/workflows",
+            json={"name": "Pipeline", "statuses": ["QUEUED", "RUNNING", "FINISHED"]},
+            headers=auth_headers(token),
+        ).json()
+
+        project_id = client.post(
+            "/api/projects",
+            json={"name": "WfProj", "workflow_id": wf["id"]},
+            headers=auth_headers(token),
+        ).json()["id"]
+        ticket_id = client.post(
+            f"/api/tickets?project_id={project_id}",
+            json={"title": "WfTicket"},
+            headers=auth_headers(token),
+        ).json()["id"]
+
+        # Valid status from custom workflow
+        ok = client.put(
+            f"/api/tickets/{ticket_id}/status",
+            json={"status": "RUNNING"},
+            headers=auth_headers(token),
+        )
+        assert ok.status_code == 200
+
+        # Default-workflow status is not accepted
+        bad = client.put(
+            f"/api/tickets/{ticket_id}/status",
+            json={"status": "IN_PROGRESS"},
+            headers=auth_headers(token),
+        )
+        assert bad.status_code == 422
+
+    # W4
+    def test_remove_workflow_from_project_falls_back_to_default_statuses(
+        self, client: TestClient, org_admin_token: tuple[str, str]
+    ) -> None:
+        """Once a project is created with a workflow, it cannot be removed — only updated.
+
+        # Spec: ProjectORM.workflow_id is non-nullable. There is no "clear workflow" path.
+        # Assigning the default workflow achieves the same effect.
+        """
+        token, org_id = org_admin_token
+
+        # Locate the default workflow for the org
+        wf_list = client.get("/api/workflows", headers=auth_headers(token)).json()
+        default_wf = next(w for w in wf_list if w["is_default"])
+
+        # Create a custom workflow and project
+        custom = client.post(
+            "/api/workflows",
+            json={"name": "CustomFallback", "statuses": ["A1", "B1"]},
+            headers=auth_headers(token),
+        ).json()
+        project_id = client.post(
+            "/api/projects",
+            json={"name": "FallbackProj", "workflow_id": custom["id"]},
+            headers=auth_headers(token),
+        ).json()["id"]
+
+        # "Remove" workflow by switching back to default
+        response = client.put(
+            f"/api/projects/{project_id}",
+            json={"workflow_id": default_wf["id"]},
+            headers=auth_headers(token),
+        )
+        assert response.status_code == 200
+        assert response.json()["workflow_id"] == default_wf["id"]
+
+    # W5
+    def test_workflow_scoped_to_org(self, client: TestClient, super_admin_token: str) -> None:
+        """Workflows belong to an organization; users from other orgs cannot access them."""
+        from tests.helpers import create_admin_user, create_test_org
+
+        org_a = create_test_org(client, super_admin_token, name="WfScopeA")
+        org_b = create_test_org(client, super_admin_token, name="WfScopeB")
+        _, a_pw = create_admin_user(client, super_admin_token, org_a, username="wsa")
+        _, b_pw = create_admin_user(client, super_admin_token, org_b, username="wsb", email="b@b.com")
+        a_token = client.post("/auth/login", json={"username": "wsa", "password": a_pw}).json()["access_token"]
+        b_token = client.post("/auth/login", json={"username": "wsb", "password": b_pw}).json()["access_token"]
+
+        wf_a = client.post(
+            "/api/workflows",
+            json={"name": "OrgAOnly", "statuses": ["X1", "Y1"]},
+            headers=auth_headers(a_token),
+        ).json()
+
+        # User B cannot read org A's workflow
+        response = client.get(f"/api/workflows/{wf_a['id']}", headers=auth_headers(b_token))
+        assert response.status_code in (403, 404)

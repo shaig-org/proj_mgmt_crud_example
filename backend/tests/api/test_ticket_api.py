@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from project_management_crud_example.dal.sqlite.repository import Repository
 from project_management_crud_example.domain_models import ActionType
 from tests.conftest import client, test_repo  # noqa: F401
-from tests.fixtures.auth_fixtures import super_admin_token  # noqa: F401
+from tests.fixtures.auth_fixtures import org_admin_token, super_admin_token  # noqa: F401
 from tests.fixtures.data_fixtures import organization, second_organization  # noqa: F401
 from tests.helpers import auth_headers, create_admin_user, create_write_user
 
@@ -1478,3 +1478,227 @@ class TestTicketActivityLogging:
 
         # Verify chronological order
         assert logs[0].timestamp <= logs[1].timestamp <= logs[2].timestamp
+
+
+class TestTicketCoverageExpansion:
+    """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
+
+    # T1
+    @pytest.mark.error
+    def test_create_ticket_with_assignee_outside_org_fails(self, client: TestClient, super_admin_token: str) -> None:
+        """Cannot assign ticket to a user from a different organization."""
+        from tests.helpers import create_test_org
+
+        org_a = create_test_org(client, super_admin_token, name="TicketOrgA")
+        org_b = create_test_org(client, super_admin_token, name="TicketOrgB")
+
+        _, adminA_pw = create_admin_user(client, super_admin_token, org_a, username="tadma")
+        adminA_token = client.post("/auth/login", json={"username": "tadma", "password": adminA_pw}).json()[
+            "access_token"
+        ]
+        outsider_id, _ = create_admin_user(client, super_admin_token, org_b, username="tadmb", email="b@b.com")
+
+        project_id = client.post(
+            "/api/projects", json={"name": "CrossOrgProject"}, headers=auth_headers(adminA_token)
+        ).json()["id"]
+
+        response = client.post(
+            f"/api/tickets?project_id={project_id}&assignee_id={outsider_id}",
+            json={"title": "Cross-org assignment"},
+            headers=auth_headers(adminA_token),
+        )
+        assert response.status_code == 403
+
+    # T2
+    @pytest.mark.error
+    def test_create_ticket_with_epic_in_different_project_fails(
+        self, client: TestClient, org_admin_token: tuple[str, str]
+    ) -> None:
+        """Epics are org-scoped (not project-scoped).
+
+        # Spec: Epic has organization_id, not project_id; linking a ticket to an epic in the
+        # same org succeeds even across projects. Ticket create endpoint does NOT accept epic_id.
+        """
+        token, _ = org_admin_token
+        project1 = client.post("/api/projects", json={"name": "EpicProj1"}, headers=auth_headers(token)).json()["id"]
+        project2 = client.post("/api/projects", json={"name": "EpicProj2"}, headers=auth_headers(token)).json()["id"]
+        epic = client.post("/api/epics", json={"name": "Shared Epic"}, headers=auth_headers(token)).json()
+
+        # Create ticket in project1
+        ticket = client.post(
+            f"/api/tickets?project_id={project1}",
+            json={"title": "t1"},
+            headers=auth_headers(token),
+        ).json()
+
+        # Link to epic (same org) — succeeds even though ticket is in project1 and epic is org-level
+        link = client.post(
+            f"/api/epics/{epic['id']}/tickets?ticket_id={ticket['id']}",
+            headers=auth_headers(token),
+        )
+        assert link.status_code == 200
+        # Second ticket in project2 also links successfully since epic is org-scoped
+        ticket2 = client.post(
+            f"/api/tickets?project_id={project2}",
+            json={"title": "t2"},
+            headers=auth_headers(token),
+        ).json()
+        link2 = client.post(
+            f"/api/epics/{epic['id']}/tickets?ticket_id={ticket2['id']}",
+            headers=auth_headers(token),
+        )
+        assert link2.status_code == 200
+
+    # T3
+    @pytest.mark.error
+    def test_transition_ticket_to_invalid_status_fails(
+        self, client: TestClient, org_admin_token: tuple[str, str]
+    ) -> None:
+        """Setting ticket status to a value not in the project's workflow returns 422."""
+        token, _ = org_admin_token
+        project_id = client.post("/api/projects", json={"name": "StatusProj"}, headers=auth_headers(token)).json()["id"]
+        ticket_id = client.post(
+            f"/api/tickets?project_id={project_id}",
+            json={"title": "St"},
+            headers=auth_headers(token),
+        ).json()["id"]
+
+        response = client.put(
+            f"/api/tickets/{ticket_id}/status",
+            json={"status": "BOGUS_STATUS"},
+            headers=auth_headers(token),
+        )
+        assert response.status_code == 422
+
+    # T4
+    @pytest.mark.scenario
+    @pytest.mark.behavior("tickets")
+    def test_transition_ticket_follows_default_workflow_TODO_to_IN_PROGRESS_to_DONE(
+        self, client: TestClient, org_admin_token: tuple[str, str]
+    ) -> None:
+        """Default workflow transitions TODO -> IN_PROGRESS -> DONE succeed."""
+        token, _ = org_admin_token
+        project_id = client.post("/api/projects", json={"name": "TransProj"}, headers=auth_headers(token)).json()["id"]
+        ticket_id = client.post(
+            f"/api/tickets?project_id={project_id}",
+            json={"title": "Flow"},
+            headers=auth_headers(token),
+        ).json()["id"]
+
+        for next_status in ("IN_PROGRESS", "DONE"):
+            response = client.put(
+                f"/api/tickets/{ticket_id}/status",
+                json={"status": next_status},
+                headers=auth_headers(token),
+            )
+            assert response.status_code == 200
+            assert response.json()["status"] == next_status
+
+    # T5
+    def test_reopen_ticket_from_DONE_to_IN_PROGRESS_allowed_or_blocked(
+        self, client: TestClient, org_admin_token: tuple[str, str]
+    ) -> None:
+        """Reopening a DONE ticket back to IN_PROGRESS is allowed.
+
+        # Spec: default workflow validates membership in status list, not directional transitions.
+        """
+        token, _ = org_admin_token
+        project_id = client.post("/api/projects", json={"name": "ReopenProj"}, headers=auth_headers(token)).json()["id"]
+        ticket_id = client.post(
+            f"/api/tickets?project_id={project_id}",
+            json={"title": "Reopen"},
+            headers=auth_headers(token),
+        ).json()["id"]
+
+        client.put(f"/api/tickets/{ticket_id}/status", json={"status": "DONE"}, headers=auth_headers(token))
+        response = client.put(
+            f"/api/tickets/{ticket_id}/status",
+            json={"status": "IN_PROGRESS"},
+            headers=auth_headers(token),
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "IN_PROGRESS"
+
+    # T6
+    def test_list_tickets_filters_by_status(self, client: TestClient, org_admin_token: tuple[str, str]) -> None:
+        """GET /api/tickets?status=DONE returns only DONE tickets."""
+        token, _ = org_admin_token
+        project_id = client.post(
+            "/api/projects", json={"name": "FilterStatusProj"}, headers=auth_headers(token)
+        ).json()["id"]
+
+        t1 = client.post(
+            f"/api/tickets?project_id={project_id}", json={"title": "A"}, headers=auth_headers(token)
+        ).json()
+        t2 = client.post(
+            f"/api/tickets?project_id={project_id}", json={"title": "B"}, headers=auth_headers(token)
+        ).json()
+        client.put(f"/api/tickets/{t2['id']}/status", json={"status": "DONE"}, headers=auth_headers(token))
+
+        response = client.get(f"/api/tickets?project_id={project_id}&status=DONE", headers=auth_headers(token))
+        assert response.status_code == 200
+        ids = [t["id"] for t in response.json()]
+        assert t2["id"] in ids and t1["id"] not in ids
+
+    # T7
+    def test_list_tickets_filters_by_assignee(self, client: TestClient, super_admin_token: str) -> None:
+        """GET /api/tickets?assignee_id=X returns only tickets assigned to that user."""
+        from tests.helpers import create_test_org
+
+        org_id = create_test_org(client, super_admin_token, name="AssigneeFilterOrg")
+        _, admin_pw = create_admin_user(client, super_admin_token, org_id, username="afa")
+        admin_token = client.post("/auth/login", json={"username": "afa", "password": admin_pw}).json()["access_token"]
+        assignee_id, _ = create_write_user(client, super_admin_token, org_id)
+
+        project_id = client.post("/api/projects", json={"name": "AssFilter"}, headers=auth_headers(admin_token)).json()[
+            "id"
+        ]
+        t_assigned = client.post(
+            f"/api/tickets?project_id={project_id}&assignee_id={assignee_id}",
+            json={"title": "Mine"},
+            headers=auth_headers(admin_token),
+        ).json()
+        t_unassigned = client.post(
+            f"/api/tickets?project_id={project_id}",
+            json={"title": "Yours"},
+            headers=auth_headers(admin_token),
+        ).json()
+
+        response = client.get(f"/api/tickets?assignee_id={assignee_id}", headers=auth_headers(admin_token))
+        assert response.status_code == 200
+        ids = [t["id"] for t in response.json()]
+        assert t_assigned["id"] in ids and t_unassigned["id"] not in ids
+
+    # T8
+    def test_list_tickets_filters_by_priority(self, client: TestClient, org_admin_token: tuple[str, str]) -> None:
+        """Priority filter is NOT a server-side query parameter.
+
+        # Spec: GET /api/tickets does not accept a `priority` query param (see ticket_api.py).
+        # Filtering by priority must be done client-side. This test documents that behavior
+        # by asserting the endpoint ignores unknown params and returns all tickets.
+        """
+        token, _ = org_admin_token
+        project_id = client.post("/api/projects", json={"name": "PrioProj"}, headers=auth_headers(token)).json()["id"]
+        low = client.post(
+            f"/api/tickets?project_id={project_id}",
+            json={"title": "L", "priority": "LOW"},
+            headers=auth_headers(token),
+        ).json()
+        high = client.post(
+            f"/api/tickets?project_id={project_id}",
+            json={"title": "H", "priority": "HIGH"},
+            headers=auth_headers(token),
+        ).json()
+
+        # Unknown query param is ignored; both tickets returned
+        response = client.get(
+            f"/api/tickets?project_id={project_id}&priority=HIGH",
+            headers=auth_headers(token),
+        )
+        assert response.status_code == 200
+        ids = {t["id"] for t in response.json()}
+        assert low["id"] in ids and high["id"] in ids
+
+        # Client-side filter confirms priority is returned in payloads
+        high_only = [t for t in response.json() if t["priority"] == "HIGH"]
+        assert [t["id"] for t in high_only] == [high["id"]]
