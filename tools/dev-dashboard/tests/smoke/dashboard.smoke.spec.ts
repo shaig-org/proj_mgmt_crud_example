@@ -840,3 +840,83 @@ test('iter3_detail_screenshots_are_a_strip', async ({ page }) => {
     .evaluate((el) => getComputedStyle(el).overflowX);
   expect(overflowX).toBe('auto');
 });
+
+test('iter3_gallery_search_input_uses_dark_tokens', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  const input = page.getByTestId('scenario-search');
+  const bg = await input.evaluate(
+    (el) => getComputedStyle(el).backgroundColor,
+  );
+  // Default browser input is rgb(255,255,255). Our themed input uses
+  // --bg-elevated (#1b1f26 dark; #f4f4f5 light). Either way it must NOT be
+  // pure white.
+  expect(bg).not.toBe('rgb(255, 255, 255)');
+  const color = await input.evaluate((el) => getComputedStyle(el).color);
+  expect(color).not.toBe('rgb(0, 0, 0)');
+});
+
+test('iter3_gallery_gif_card_shows_title', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  await expect(
+    page.getByTestId('scenario-card-title-org-create-1776000000000-w0'),
+  ).toBeVisible();
+  const overflow = await page
+    .getByTestId('scenario-card-title-org-create-1776000000000-w0')
+    .evaluate((el) => getComputedStyle(el).textOverflow);
+  expect(overflow).toBe('ellipsis');
+});
+
+test('iter3_gallery_strip_shows_scroll_chevron_when_scrollable', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  await page.getByTestId('view-toggle-strip').click();
+  // Force the strip to be narrow enough to overflow: shrink viewport.
+  await page.setViewportSize({ width: 420, height: 900 });
+  const nextChevron = page.getByTestId(
+    'strip-chevron-next-org-create-1776000000000-w0',
+  );
+  // In a narrow viewport, 3 frames at 180px each overflow → next chevron visible.
+  await expect(nextChevron).toBeVisible();
+});
+
+test('iter3_gallery_strip_rows_alternate_bg', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  await page.getByTestId('view-toggle-strip').click();
+  const bgs = await page.evaluate(() => {
+    const rows = Array.from(
+      document.querySelectorAll('.scen-strips > .scen-strip'),
+    ) as HTMLElement[];
+    return rows.slice(0, 2).map((r) => getComputedStyle(r).backgroundColor);
+  });
+  expect(bgs.length).toBe(2);
+  expect(bgs[0]).not.toBe(bgs[1]);
+});
+
+test('iter3_gallery_strip_img_attrs_set', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  await page.getByTestId('view-toggle-strip').click();
+  const attrs = await page.evaluate(() => {
+    const imgs = Array.from(
+      document.querySelectorAll('.scen-strip__frame img'),
+    ) as HTMLImageElement[];
+    return imgs.map((img) => ({
+      width: img.getAttribute('width'),
+      height: img.getAttribute('height'),
+      loading: img.getAttribute('loading'),
+      decoding: img.getAttribute('decoding'),
+    }));
+  });
+  expect(attrs.length).toBeGreaterThan(0);
+  for (const a of attrs) {
+    expect(a.width).toBeTruthy();
+    expect(a.height).toBeTruthy();
+    expect(a.decoding).toBe('async');
+    expect(['eager', 'lazy']).toContain(a.loading);
+  }
+});

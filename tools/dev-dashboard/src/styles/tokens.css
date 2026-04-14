@@ -98,3 +98,22 @@ button {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Theme-aware defaults so inputs don't render with the browser's light
+ * default in dark mode. */
+input[type='text'],
+input[type='search'],
+input:not([type]) {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font: inherit;
+}
+
+input[type='text']::placeholder,
+input[type='search']::placeholder,
+input:not([type])::placeholder {
+  color: var(--text-muted);
+}

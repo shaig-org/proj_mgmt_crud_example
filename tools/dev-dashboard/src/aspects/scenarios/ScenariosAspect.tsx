@@ -770,33 +770,99 @@ function Detail({
 
 function StripRow({
   entry,
+  isFirst,
   onOpenAt,
 }: {
   entry: ScenarioEntry;
+  isFirst: boolean;
   onOpenAt: (scenarioId: string, stepIndex: number) => void;
 }) {
   const frames = (entry.steps ?? [])
     .map((s) => s.screenshot)
     .filter((s): s is string => Boolean(s));
+  const framesRef = useRef<HTMLDivElement | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  useEffect(() => {
+    const el = framesRef.current;
+    if (!el) return;
+    function update() {
+      if (!el) return;
+      setCanScrollLeft(el.scrollLeft > 4);
+      setCanScrollRight(
+        el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
+      );
+    }
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', update);
+      ro.disconnect();
+    };
+  }, [frames.length]);
+
+  function scrollByPage(dir: 1 | -1): void {
+    const el = framesRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.max(200, el.clientWidth * 0.8), behavior: 'smooth' });
+  }
+
   return (
     <div
       className="scen-strip"
       data-testid={`scenario-strip-${entry.id}`}
     >
       <div className="scen-strip__title">{entry.title}</div>
-      <div className="scen-strip__frames">
-        {frames.map((src, i) => (
-          <button
-            key={`${src}-${i}`}
-            type="button"
-            className="scen-strip__frame"
-            data-testid={`strip-frame-${entry.id}-${i}`}
-            onClick={() => onOpenAt(entry.id, i)}
-          >
-            <img src={src} alt={`${entry.title} step ${i + 1}`} />
-            <span className="strip-n">{i + 1}</span>
-          </button>
-        ))}
+      <div className="scen-strip__scroller">
+        <button
+          type="button"
+          className="scen-strip__chevron scen-strip__chevron--prev"
+          data-testid={`strip-chevron-prev-${entry.id}`}
+          aria-label="scroll left"
+          hidden={!canScrollLeft}
+          onClick={() => scrollByPage(-1)}
+        >
+          ‹
+        </button>
+        <div className="scen-strip__frames" ref={framesRef}>
+          {frames.map((src, i) => {
+            // Eager-load the first row's first few frames for above-the-fold
+            // rendering; lazy-load everything else so vertical scroll is smooth.
+            const eager = isFirst && i < 6;
+            return (
+              <button
+                key={`${src}-${i}`}
+                type="button"
+                className="scen-strip__frame"
+                data-testid={`strip-frame-${entry.id}-${i}`}
+                onClick={() => onOpenAt(entry.id, i)}
+              >
+                <img
+                  src={src}
+                  alt={`${entry.title} step ${i + 1}`}
+                  loading={eager ? 'eager' : 'lazy'}
+                  decoding="async"
+                  width={320}
+                  height={180}
+                />
+                <span className="strip-n">{i + 1}</span>
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          className="scen-strip__chevron scen-strip__chevron--next"
+          data-testid={`strip-chevron-next-${entry.id}`}
+          aria-label="scroll right"
+          hidden={!canScrollRight}
+          onClick={() => scrollByPage(1)}
+        >
+          ›
+        </button>
       </div>
     </div>
   );
@@ -937,11 +1003,23 @@ function Grid({
                 onClick={() => onSelect(s.id)}
               >
                 {media ? (
-                  <img src={media} alt={s.title} className="scen-card__media" />
+                  <img
+                    src={media}
+                    alt={s.title}
+                    className="scen-card__media"
+                    loading="lazy"
+                    decoding="async"
+                  />
                 ) : (
                   <div className="scen-card__media" />
                 )}
-                <div className="scen-card__title">{s.title}</div>
+                <div
+                  className="scen-card__title"
+                  data-testid={`scenario-card-title-${s.id}`}
+                  title={s.title}
+                >
+                  {s.title}
+                </div>
               </button>
             );
           })}
@@ -952,10 +1030,11 @@ function Grid({
           data-testid="scenario-strips"
           style={{ ['--tile-size' as string]: `${tileSize}px` }}
         >
-          {filtered.map((s) => (
+          {filtered.map((s, i) => (
             <StripRow
               key={s.id}
               entry={s}
+              isFirst={i === 0}
               onOpenAt={(id, idx) =>
                 setStripLightbox({ scenarioId: id, index: idx })
               }
