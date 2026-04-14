@@ -668,3 +668,84 @@ This exemption is called out here so reviewers do not flag its absence.
 - [ ] Backend `./devtools/run_all_agent_validations.sh` green
 - [ ] Product `npm run lint && npm run typecheck && npm run e2e` green
 - [ ] code-reviewer sign-off
+
+---
+
+## 7. Iteration 2 — polish + regressions (2026-04-13)
+
+Iteration 1 landed the three-aspect shell, staleness, scenarios manifest validator, capabilities classifier, and the traces aspect scaffold. First-run review found gaps. This section is the authoritative scope for iteration 2.
+
+### 7.1 The five user asks (these are the stable reference numbers for test names)
+
+1. **user_ask_1 — scenarios grouped by `feature`**: the left rail Scenarios entry expands to show one sub-item per distinct `feature` (derived from `specFile` basename when the producer does not emit one). Clicking a feature filters the grid.
+2. **user_ask_2 — dark mode default + toggle**: `<html data-theme="dark">` by default. A top-bar button (`data-testid="theme-toggle"`) toggles `dark`/`light`. Persisted at `localStorage['dev-dashboard.theme']`. Tokens in `tokens.css` become semantic and re-theme via `[data-theme='…']` selectors.
+3. **user_ask_3 — restore old-viewer capabilities (33-item inventory)**: see 7.2. Flipbook of step screenshots, motion-GIF hover, video with 0.1x–2x speed slider, screenshot-strip cards with a toggle, tile-size slider on the grid, a dedicated detail page with breadcrumb navigation.
+4. **user_ask_4 — hamburger-collapsible rail**: a hamburger button (`data-testid="rail-hamburger"`) collapses the rail to an icon-only strip. Persisted at `localStorage['dev-dashboard.railCollapsed']`.
+5. **user_ask_5 — traces bug fix**: traces do not render despite real artifacts existing at `backend/.trace-artifacts/`. Root cause: `TracesAspect.tsx` checks for `folded.txt` but the real producer writes `folded-compact.txt`. Fix and cover with a smoke test pointed at real artifacts.
+
+### 7.2 Old-viewer capability inventory (33 items)
+
+Source of truth: `frontend/src-walkthroughs-dashboard/{viewer.js,viewer.css,index.html}`.
+
+Navigation / layout:
+1. Left filter sidebar with tag facet (from scenario tags).
+2. Left filter sidebar with status facet (passing / failing).
+3. Top search box filtering title, id, tags, and specFile.
+4. Card grid default view.
+5. Tile-size slider on the grid (`data-testid="tile-size"`).
+6. Breadcrumb (All Scenarios / {feature} / {scenario}) on the detail page.
+7. Dedicated detail page (not an in-grid expand).
+8. Back button on the detail page.
+9. Keyboard shortcut: `Esc` closes detail → returns to grid.
+10. Deep-link hash `#/scenarios/{slug}` opens the detail page directly.
+
+Card content:
+11. Card thumbnail uses GIF when present, motion-GIF on hover when present, first screenshot as a fallback.
+12. Hover-play GIF (swap `src` on `mouseenter` / `mouseleave`).
+13. Status pill on the card (passing / failing).
+14. Feature chip on the card (derived from `specFile` basename).
+15. Step count on the card.
+16. Duration on the card (formatted ms).
+
+Detail page content:
+17. Video player with playback-speed slider (0.1x–2x), `data-testid="video-speed"`.
+18. Motion-GIF hero toggle (`data-testid="motion-gif-toggle"`), falls back to hero image when off.
+19. Flipbook: per-step thumbnail strip, clicking a step seeks the video (or opens the screenshot if no video).
+20. Screenshot strip card with a show/hide toggle (`data-testid="screenshots-toggle"`).
+21. Lightbox on screenshot click.
+22. Steps list with index, label, duration, status.
+23. Correlation ID block (copyable).
+24. Spec file path block (copyable).
+25. Feature chip on the detail header.
+26. Status pill on the detail header.
+27. "View trace" cross-link when a matching trace dir exists.
+
+Grid + empty states:
+28. Empty-grid state when no scenarios match the filters ("no scenarios match; clear filters").
+29. Gracefully handle scenarios with no GIF (static thumbnail).
+30. Gracefully handle scenarios with no video (screenshot strip replaces the video).
+
+Theming + shell:
+31. Dark mode default + toggle (also user_ask_2).
+32. Hamburger-collapsible rail (also user_ask_4).
+33. Persisted view-mode and tile-size in `localStorage` (`dev-dashboard.scenarios.viewMode`, `dev-dashboard.scenarios.tileSize`).
+
+### 7.3 Slice list (execution order)
+
+| Slice | Summary | Commits |
+|---|---|---|
+| PLAN-IT2 | This section — documented inventory + asks + slice list. | 1 |
+| TRACES-FIX | Fix `folded-compact.txt` naming mismatch; add smoke test pointing at real `backend/.trace-artifacts/`. | 1 |
+| FIXTURES-REAL-SCHEMA | Rewrite `tests/fixtures/scenarios/manifest.json` to the real producer schema; update smoke test ids; unit + smoke suites still green. | 1 |
+| DARK-MODE | Semantic tokens in `tokens.css`; dark default; top-bar toggle + persistence; smoke `user_ask_2_dark_is_default_and_toggle_persists_across_reload`. | 1 |
+| RAIL-COLLAPSE | Hamburger button on rail; icon-only collapsed mode; persistence; smoke `user_ask_4_rail_collapses_to_icons_and_persists`. | 1 |
+| SCENARIOS-GROUPED | Rail sub-items by feature; `specFile`-derived feature fallback; filter-by-feature in the grid; smoke `user_ask_1_scenarios_grouped_by_feature_in_rail`. | 1 |
+| DETAIL-PAGE | Dedicated detail page + breadcrumb + hash `#/scenarios/{slug}`; flipbook; motion-GIF toggle; video speed; screenshots toggle + lightbox. | 1–2 |
+| ROUTING | Hash routes: `#/scenarios`, `#/scenarios/{slug}`, `#/traces`, `#/traces/{slug}`, `#/capabilities`. | 1 |
+
+### 7.4 Execution notes
+
+- No-`cd` rule applies: use `git -C <abs>`, `npm --prefix <abs>`, absolute script paths. This rule applies to every README, refresh-command block, and doc produced by the dashboard. Grep the dashboard sources for literal `cd ` before committing each slice.
+- Pre-commit hook at `githooks/pre-commit` auto-runs typecheck/lint/Vitest on staged dashboard files. Let it run. Never `--no-verify`.
+- Keep slices small. Land one, let the hook pass, commit, then move to the next.
+
