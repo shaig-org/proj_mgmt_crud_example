@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Aspect } from '../types';
 import { ArtifactSchemaError, loadArtifact } from '../../lib/loadArtifact';
 import type { ScenarioEntry, ScenariosManifest } from './types';
@@ -71,18 +71,30 @@ export function validate(doc: unknown): ScenariosManifest {
             ? r.videoPath
             : undefined;
     const steps = Array.isArray(r.steps)
-      ? (r.steps as Record<string, unknown>[]).map((s, idx) => ({
-          index: typeof s.index === 'number' ? s.index : idx,
-          label:
-            typeof s.label === 'string'
-              ? s.label
-              : typeof s.name === 'string'
-                ? s.name
-                : '',
-          screenshot: resolveMediaUrl(
-            typeof s.screenshot === 'string' ? s.screenshot : undefined,
-          ),
-        }))
+      ? (r.steps as Record<string, unknown>[]).map((s, idx) => {
+          const sStatus = typeof s.status === 'string' ? s.status : undefined;
+          const normStatus =
+            sStatus === 'passing' || sStatus === 'passed'
+              ? ('passing' as const)
+              : sStatus === 'failing' || sStatus === 'failed'
+                ? ('failing' as const)
+                : undefined;
+          return {
+            index: typeof s.index === 'number' ? s.index : idx,
+            label:
+              typeof s.label === 'string'
+                ? s.label
+                : typeof s.name === 'string'
+                  ? s.name
+                  : '',
+            screenshot: resolveMediaUrl(
+              typeof s.screenshot === 'string' ? s.screenshot : undefined,
+            ),
+            durationMs:
+              typeof s.durationMs === 'number' ? s.durationMs : undefined,
+            status: normStatus,
+          };
+        })
       : undefined;
     const firstShot = steps?.find((s) => s.screenshot)?.screenshot;
     scenarios.push({
@@ -93,7 +105,16 @@ export function validate(doc: unknown): ScenariosManifest {
       correlationId:
         typeof r.correlationId === 'string' ? r.correlationId : undefined,
       gif: resolveMediaUrl(gif),
+      motionGif: resolveMediaUrl(
+        typeof r.motionGifPath === 'string'
+          ? r.motionGifPath
+          : typeof r.motionGif === 'string'
+            ? r.motionGif
+            : undefined,
+      ),
       video: resolveMediaUrl(video),
+      durationMs: typeof r.durationMs === 'number' ? r.durationMs : undefined,
+      startedAt: typeof r.startedAt === 'string' ? r.startedAt : undefined,
       thumbnail:
         resolveMediaUrl(typeof r.thumbnail === 'string' ? r.thumbnail : undefined) ??
         firstShot,
@@ -183,6 +204,313 @@ function Breadcrumb({
   );
 }
 
+const VIDEO_SPEEDS = [0.1, 0.15, 0.25, 0.5, 1, 1.5, 2] as const;
+
+type LightboxState =
+  | { kind: 'closed' }
+  | { kind: 'screenshot'; index: number }
+  | { kind: 'gif'; src: string; alt: string }
+  | { kind: 'video'; src: string };
+
+function ScreenshotStrip({
+  screenshots,
+  entryId,
+  onOpen,
+}: {
+  screenshots: string[];
+  entryId: string;
+  onOpen: (index: number) => void;
+}) {
+  if (screenshots.length === 0) return null;
+  const shown = screenshots.slice(0, 5);
+  const total = screenshots.length;
+  return (
+    <div className="detail__strip" data-testid="screenshot-strip">
+      {shown.map((src, i) => (
+        <button
+          key={`${src}-${i}`}
+          type="button"
+          className="detail__strip-thumb"
+          data-testid={`strip-thumb-${i}`}
+          onClick={() => onOpen(i)}
+        >
+          <img src={src} alt={`screenshot ${i + 1} of ${total}`} />
+        </button>
+      ))}
+      <a
+        href={`#/scenarios/${entryId}/screenshots`}
+        className="detail__strip-more"
+        data-testid="view-all-screenshots"
+      >
+        view all ({total})
+      </a>
+    </div>
+  );
+}
+
+function VideoBlock({ src }: { src: string }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  function onSpeedChange(e: React.ChangeEvent<HTMLSelectElement>): void {
+    const rate = Number(e.currentTarget.value);
+    if (videoRef.current) videoRef.current.playbackRate = rate;
+  }
+  return (
+    <div className="detail__video" data-testid="video-block">
+      <video
+        ref={videoRef}
+        data-testid="scenario-video"
+        src={src}
+        controls
+        style={{ maxWidth: '100%' }}
+      />
+      <div className="detail__video-controls">
+        <label>
+          speed{' '}
+          <select
+            data-testid="video-speed"
+            defaultValue="1"
+            onChange={onSpeedChange}
+          >
+            {VIDEO_SPEEDS.map((s) => (
+              <option key={s} value={String(s)}>
+                {s}x
+              </option>
+            ))}
+          </select>
+        </label>
+        <a
+          href={src}
+          download
+          data-testid="download-webm"
+          className="detail__download"
+        >
+          download .webm
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function MetadataKV({
+  entry,
+  hasTrace,
+  onViewTrace,
+}: {
+  entry: ScenarioEntry;
+  hasTrace: boolean;
+  onViewTrace: () => void;
+}) {
+  const featureLabel =
+    (entry.feature ?? '').trim() ||
+    (entry.specFile?.split(/[\\/]/).pop() ?? '—');
+  const statusLabel = entry.status ?? 'unknown';
+  return (
+    <dl className="detail__kv" data-testid="metadata-kv">
+      <dt>Status</dt>
+      <dd>
+        <span
+          className={`pill pill--${statusLabel}`}
+          data-testid="metadata-status"
+        >
+          {statusLabel}
+        </span>
+      </dd>
+      <dt>Feature</dt>
+      <dd data-testid="metadata-feature">{featureLabel}</dd>
+      <dt>Correlation ID</dt>
+      <dd>
+        <code data-testid="metadata-correlation-id">
+          {entry.correlationId ?? '—'}
+        </code>
+      </dd>
+      <dt>Started</dt>
+      <dd data-testid="metadata-started">{entry.startedAt ?? '—'}</dd>
+      <dt>Duration</dt>
+      <dd data-testid="metadata-duration">
+        {typeof entry.durationMs === 'number' ? `${entry.durationMs} ms` : '—'}
+      </dd>
+      <dt>Spec</dt>
+      <dd data-testid="metadata-spec">
+        <code>{entry.specFile ?? '—'}</code>
+      </dd>
+      <dt>Trace</dt>
+      <dd>
+        {hasTrace ? (
+          <button
+            type="button"
+            data-testid="metadata-trace-link"
+            className="detail__trace-link"
+            onClick={onViewTrace}
+          >
+            view trace →
+          </button>
+        ) : (
+          <span data-testid="metadata-trace-link">—</span>
+        )}
+      </dd>
+    </dl>
+  );
+}
+
+function StepList({ entry }: { entry: ScenarioEntry }) {
+  if (!entry.steps || entry.steps.length === 0) return null;
+  return (
+    <ol className="detail__steps" data-testid="scenario-steps">
+      {entry.steps.map((s) => (
+        <li key={s.index} data-testid={`step-${s.index}`}>
+          <span
+            className={`pill pill--${s.status ?? 'unknown'}`}
+            data-testid={`step-status-${s.index}`}
+          />
+          <span className="detail__step-label">{s.label}</span>
+          {typeof s.durationMs === 'number' && (
+            <span
+              className="detail__step-ms"
+              data-testid={`step-ms-${s.index}`}
+            >
+              {s.durationMs} ms
+            </span>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function LightboxVideo({ src }: { src: string }) {
+  const ref = useRef<HTMLVideoElement | null>(null);
+  return (
+    <div className="lightbox__video-wrap">
+      <video
+        ref={ref}
+        className="lightbox__video"
+        data-testid="lightbox-video"
+        src={src}
+        controls
+        autoPlay
+      />
+      <div className="lightbox__video-controls">
+        <label>
+          speed{' '}
+          <select
+            data-testid="lightbox-video-speed"
+            defaultValue="1"
+            onChange={(e) => {
+              const rate = Number(e.currentTarget.value);
+              if (ref.current) ref.current.playbackRate = rate;
+            }}
+          >
+            {VIDEO_SPEEDS.map((s) => (
+              <option key={s} value={String(s)}>
+                {s}x
+              </option>
+            ))}
+          </select>
+        </label>
+        <a href={src} download data-testid="lightbox-download-webm">
+          download .webm
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function Lightbox({
+  state,
+  screenshots,
+  onClose,
+  onIndex,
+}: {
+  state: LightboxState;
+  screenshots: string[];
+  onClose: () => void;
+  onIndex: (i: number) => void;
+}) {
+  useEffect(() => {
+    if (state.kind === 'closed') return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+      if (state.kind === 'screenshot') {
+        if (e.key === 'ArrowRight') {
+          onIndex((state.index + 1) % screenshots.length);
+        } else if (e.key === 'ArrowLeft') {
+          onIndex(
+            (state.index - 1 + screenshots.length) % screenshots.length,
+          );
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [state, screenshots.length, onClose, onIndex]);
+
+  if (state.kind === 'closed') return null;
+  const total = screenshots.length;
+  return (
+    <div
+      className="lightbox"
+      data-testid="lightbox"
+      data-kind={state.kind}
+      role="dialog"
+      aria-modal="true"
+    >
+      <button
+        type="button"
+        className="lightbox__close"
+        data-testid="lightbox-close"
+        onClick={onClose}
+        aria-label="close"
+      >
+        ×
+      </button>
+      {state.kind === 'screenshot' && (
+        <>
+          <button
+            type="button"
+            className="lightbox__nav lightbox__nav--prev"
+            data-testid="lightbox-prev"
+            onClick={() =>
+              onIndex((state.index - 1 + total) % total)
+            }
+            aria-label="previous"
+          >
+            ‹
+          </button>
+          <img
+            className="lightbox__img"
+            data-testid="lightbox-img"
+            src={screenshots[state.index]}
+            alt={`screenshot ${state.index + 1} of ${total}`}
+          />
+          <div className="lightbox__counter" data-testid="lightbox-counter">
+            {state.index + 1} of {total}
+          </div>
+          <button
+            type="button"
+            className="lightbox__nav lightbox__nav--next"
+            data-testid="lightbox-next"
+            onClick={() => onIndex((state.index + 1) % total)}
+            aria-label="next"
+          >
+            ›
+          </button>
+        </>
+      )}
+      {state.kind === 'gif' && (
+        <img
+          className="lightbox__img"
+          data-testid="lightbox-gif"
+          src={state.src}
+          alt={state.alt}
+        />
+      )}
+      {state.kind === 'video' && (
+        <LightboxVideo src={state.src} />
+      )}
+    </div>
+  );
+}
+
 function Detail({
   entry,
   traceScenarioIds,
@@ -192,43 +520,100 @@ function Detail({
   traceScenarioIds: Set<string>;
   onViewTrace: (slug: string) => void;
 }) {
-  const slug = slugify(entry.id);
-  const hasTrace = traceScenarioIds.has(slug);
+  const traceSlug = slugify(entry.id);
+  const hasTrace = traceScenarioIds.has(traceSlug);
+  const screenshots = useMemo(
+    () =>
+      (entry.steps ?? [])
+        .map((s) => s.screenshot)
+        .filter((s): s is string => Boolean(s)),
+    [entry],
+  );
+  const [lightbox, setLightbox] = useState<LightboxState>({ kind: 'closed' });
+
   return (
     <div data-testid="scenario-detail">
       <Breadcrumb entry={entry} />
-      <h3>{entry.title}</h3>
-      {entry.video ? (
-        <video
-          data-testid="scenario-video"
-          src={entry.video}
-          controls
-          style={{ maxWidth: '100%' }}
-        />
-      ) : entry.thumbnail ? (
-        <img src={entry.thumbnail} alt={entry.title} style={{ maxWidth: '100%' }} />
-      ) : null}
-      {entry.steps && entry.steps.length > 0 && (
-        <ol data-testid="scenario-steps">
-          {entry.steps.map((s) => (
-            <li key={s.index}>{s.label}</li>
-          ))}
-        </ol>
+      <h3 className="detail__title">{entry.title}</h3>
+
+      <div className="detail__media-row">
+        {entry.gif && (
+          <button
+            type="button"
+            className="detail__media detail__media--flipbook"
+            data-testid="detail-flipbook"
+            onClick={() =>
+              setLightbox({ kind: 'gif', src: entry.gif!, alt: entry.title })
+            }
+          >
+            <img src={entry.gif} alt={`${entry.title} flipbook`} />
+            <figcaption>flipbook</figcaption>
+          </button>
+        )}
+        {entry.motionGif && (
+          <button
+            type="button"
+            className="detail__media detail__media--motion"
+            data-testid="detail-motion"
+            onClick={() =>
+              setLightbox({
+                kind: 'gif',
+                src: entry.motionGif!,
+                alt: `${entry.title} motion`,
+              })
+            }
+          >
+            <img src={entry.motionGif} alt={`${entry.title} motion`} />
+            <figcaption>motion</figcaption>
+          </button>
+        )}
+      </div>
+
+      <ScreenshotStrip
+        screenshots={screenshots}
+        entryId={entry.id}
+        onOpen={(i) => setLightbox({ kind: 'screenshot', index: i })}
+      />
+
+      {entry.video && (
+        <button
+          type="button"
+          className="detail__video-trigger"
+          data-testid="video-lightbox-open"
+          onClick={() =>
+            entry.video
+              ? setLightbox({ kind: 'video', src: entry.video })
+              : undefined
+          }
+        >
+          open video in lightbox
+        </button>
       )}
-      {entry.correlationId && (
-        <div>
-          Correlation ID: <code>{entry.correlationId}</code>
-        </div>
-      )}
+      {entry.video && <VideoBlock src={entry.video} />}
+
+      <MetadataKV
+        entry={entry}
+        hasTrace={hasTrace}
+        onViewTrace={() => onViewTrace(traceSlug)}
+      />
+      <StepList entry={entry} />
+
       {hasTrace && (
         <button
           type="button"
           data-testid="view-trace-link"
-          onClick={() => onViewTrace(slug)}
+          className="detail__view-trace"
+          onClick={() => onViewTrace(traceSlug)}
         >
           View trace →
         </button>
       )}
+      <Lightbox
+        state={lightbox}
+        screenshots={screenshots}
+        onClose={() => setLightbox({ kind: 'closed' })}
+        onIndex={(i) => setLightbox({ kind: 'screenshot', index: i })}
+      />
     </div>
   );
 }

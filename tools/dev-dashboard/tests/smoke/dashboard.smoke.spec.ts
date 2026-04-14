@@ -409,6 +409,155 @@ test('old_feature_29_top_bar_shows_generated_at_timestamp_from_manifest', async 
   await expect(stamp).toContainText('2026-04-14');
 });
 
+test('old_feature_08_09_11_detail_shows_flipbook_motion_and_screenshot_strip', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+
+  await expect(page.getByTestId('detail-flipbook')).toBeVisible();
+  await expect(page.getByTestId('detail-motion')).toBeVisible();
+  await expect(page.getByTestId('screenshot-strip')).toBeVisible();
+  // Fixture has three steps — all three thumbs show.
+  await expect(page.getByTestId('strip-thumb-0')).toBeVisible();
+  await expect(page.getByTestId('view-all-screenshots')).toHaveAttribute(
+    'href',
+    '#/scenarios/org-create-1776000000000-w0/screenshots',
+  );
+
+  // Click flipbook → GIF lightbox opens.
+  await page.getByTestId('detail-flipbook').click();
+  await expect(page.getByTestId('lightbox-gif')).toBeVisible();
+});
+
+test('old_feature_10_video_speed_selector_changes_playbackRate', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+
+  const speed = page.getByTestId('video-speed');
+  await expect(speed).toBeVisible();
+  await speed.selectOption('0.5');
+  const rateAtHalf = await page.evaluate(() => {
+    const v = document.querySelector(
+      '[data-testid="scenario-video"]',
+    ) as HTMLVideoElement | null;
+    return v?.playbackRate ?? null;
+  });
+  expect(rateAtHalf).toBe(0.5);
+
+  await speed.selectOption('2');
+  const rateAt2x = await page.evaluate(() => {
+    const v = document.querySelector(
+      '[data-testid="scenario-video"]',
+    ) as HTMLVideoElement | null;
+    return v?.playbackRate ?? null;
+  });
+  expect(rateAt2x).toBe(2);
+});
+
+test('old_feature_25_download_webm_link_present', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+
+  const link = page.getByTestId('download-webm');
+  await expect(link).toBeVisible();
+  await expect(link).toHaveAttribute('href', /\.webm$/);
+  // The link has a `download` attribute.
+  await expect(link).toHaveAttribute('download', /.*/);
+});
+
+test('old_feature_12_13_14_detail_shows_metadata_kv_with_correlation_id_and_trace_link', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: true });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+
+  await expect(page.getByTestId('metadata-kv')).toBeVisible();
+  await expect(page.getByTestId('metadata-status')).toContainText('passing');
+  await expect(page.getByTestId('metadata-feature')).toContainText('org');
+  await expect(page.getByTestId('metadata-correlation-id')).toContainText(
+    'org-create-1776000000000-w0',
+  );
+  await expect(page.getByTestId('metadata-duration')).toContainText('427');
+  await expect(page.getByTestId('metadata-spec')).toContainText(
+    'org-create.scenario.spec.ts',
+  );
+  await expect(page.getByTestId('metadata-trace-link')).toBeVisible();
+
+  // When no traces present, the trace row shows "—".
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  await page.reload();
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+  await expect(page.getByTestId('metadata-trace-link')).toHaveText('—');
+});
+
+test('old_feature_15_detail_shows_step_list_with_timings', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+
+  await expect(page.getByTestId('scenario-steps')).toBeVisible();
+  await expect(page.getByTestId('step-1')).toContainText('Open signup');
+  await expect(page.getByTestId('step-ms-1')).toContainText('258');
+  await expect(page.getByTestId('step-status-1')).toHaveClass(/pill--passing/);
+});
+
+test('old_feature_22_screenshot_lightbox_prev_next_keyboard_nav', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+
+  await page.getByTestId('strip-thumb-0').click();
+  await expect(page.getByTestId('lightbox')).toBeVisible();
+  await expect(page.getByTestId('lightbox-counter')).toContainText('1 of 3');
+
+  await page.getByTestId('lightbox-next').click();
+  await expect(page.getByTestId('lightbox-counter')).toContainText('2 of 3');
+
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByTestId('lightbox-counter')).toContainText('3 of 3');
+
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByTestId('lightbox-counter')).toContainText('2 of 3');
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('lightbox')).toHaveCount(0);
+});
+
+test('old_feature_23_gif_lightbox_closes_on_escape', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+
+  await page.getByTestId('detail-motion').click();
+  await expect(page.getByTestId('lightbox-gif')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('lightbox')).toHaveCount(0);
+});
+
+test('old_feature_24_video_lightbox_speed_and_download', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+
+  await page.getByTestId('video-lightbox-open').click();
+  await expect(page.getByTestId('lightbox-video')).toBeVisible();
+
+  const speed = page.getByTestId('lightbox-video-speed');
+  await speed.selectOption('0.25');
+  const rate = await page.evaluate(() => {
+    const v = document.querySelector(
+      '[data-testid="lightbox-video"]',
+    ) as HTMLVideoElement | null;
+    return v?.playbackRate ?? null;
+  });
+  expect(rate).toBe(0.25);
+
+  const dl = page.getByTestId('lightbox-download-webm');
+  await expect(dl).toHaveAttribute('href', /\.webm$/);
+});
+
 test('repo_root_is_displayed_in_top_bar', async ({ page }) => {
   await withArtifacts({ scenarios: true, capabilities: true, traces: true });
   await page.goto('/');

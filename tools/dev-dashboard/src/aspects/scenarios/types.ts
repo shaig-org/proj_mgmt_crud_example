@@ -2,6 +2,8 @@ export interface ScenarioStep {
   index: number;
   label: string;
   screenshot?: string;
+  durationMs?: number;
+  status?: 'passing' | 'failing';
 }
 
 export interface ScenarioEntry {
@@ -11,8 +13,11 @@ export interface ScenarioEntry {
   status?: 'passing' | 'failing';
   correlationId?: string;
   gif?: string;
+  motionGif?: string;
   video?: string;
   thumbnail?: string;
+  durationMs?: number;
+  startedAt?: string;
   steps?: ScenarioStep[];
   specFile?: string;
   feature?: string;

@@ -293,6 +293,261 @@ html[data-rail-collapsed='1'] .app {
   color: var(--text-muted);
 }
 
+.detail__title {
+  margin: 0 0 var(--space-3);
+}
+
+.detail__media-row {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.detail__media {
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  padding: 0;
+  cursor: pointer;
+  border-radius: var(--radius);
+  overflow: hidden;
+  max-width: 360px;
+  display: block;
+}
+
+.detail__media img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.detail__media figcaption {
+  padding: 4px var(--space-2);
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.detail__strip {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.detail__strip-thumb {
+  width: 120px;
+  height: 72px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  padding: 0;
+  cursor: pointer;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.detail__strip-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.detail__strip-more {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 13px;
+  padding: var(--space-2);
+}
+
+.detail__video {
+  margin-bottom: var(--space-4);
+}
+
+.detail__video-controls {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  margin-top: var(--space-2);
+  font-size: 13px;
+}
+
+.detail__video-trigger {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 4px var(--space-2);
+  border-radius: 4px;
+  margin-bottom: var(--space-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.detail__download {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.detail__kv {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px var(--space-3);
+  margin: var(--space-3) 0;
+  font-size: 13px;
+}
+
+.detail__kv dt {
+  color: var(--text-muted);
+}
+
+.detail__kv dd {
+  margin: 0;
+}
+
+.pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: lowercase;
+  min-width: 8px;
+  min-height: 10px;
+  line-height: 1.4;
+}
+
+.pill--passing,
+.pill--passed {
+  background: var(--fresh-bg);
+  color: var(--fresh);
+}
+
+.pill--failing,
+.pill--failed {
+  background: var(--stale-bg);
+  color: var(--stale);
+}
+
+.pill--unknown {
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+}
+
+.detail__steps {
+  padding-left: var(--space-4);
+  margin: var(--space-3) 0;
+}
+
+.detail__steps li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 2px 0;
+}
+
+.detail__step-label {
+  flex: 1;
+}
+
+.detail__step-ms {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+.detail__trace-link,
+.detail__view-trace {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 4px;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.lightbox__close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  background: transparent;
+  color: #fff;
+  border: none;
+  font-size: 32px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lightbox__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: none;
+  font-size: 32px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.lightbox__nav--prev {
+  left: var(--space-3);
+}
+
+.lightbox__nav--next {
+  right: var(--space-3);
+}
+
+.lightbox__img {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+}
+
+.lightbox__counter {
+  position: absolute;
+  bottom: var(--space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 13px;
+}
+
+.lightbox__video-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.lightbox__video {
+  max-width: 90vw;
+  max-height: 80vh;
+}
+
+.lightbox__video-controls {
+  color: #fff;
+  display: flex;
+  gap: var(--space-3);
+  font-size: 13px;
+}
+
+.lightbox__video-controls a {
+  color: #9cf;
+}
+
 .scen-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
