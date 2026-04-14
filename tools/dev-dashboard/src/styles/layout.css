@@ -767,8 +767,21 @@ html[data-rail-collapsed='1'] .app {
 
 .scen-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--tile-size, 320px), 1fr));
+  /* When --tile-size exceeds the grid's available width, auto-fill +
+     plain minmax(var(--tile-size), 1fr) leaves items overflowing the
+     container horizontally and the CSS fallback ends up hiding later
+     rows. Wrapping the lower bound in min(..., 100%) lets the track
+     shrink to the container so the grid collapses to a single column
+     gracefully, keeping every card reachable via vertical scroll. */
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(var(--tile-size, 320px), 100%), 1fr)
+  );
   gap: var(--space-4);
+  /* Belt-and-suspenders: never let the grid demand more width than its
+     parent can give. */
+  max-width: 100%;
+  min-width: 0;
 }
 
 .scen-strips {
@@ -886,6 +899,11 @@ html[data-rail-collapsed='1'] .app {
      1280x800 (16:10, 0.625). Once visible, natural height takes over via
      height:auto on the image. */
   contain-intrinsic-size: var(--tile-size, 320px) calc(var(--tile-size, 320px) * 0.625 + 36px);
+  /* Never let a single card demand more width than the grid column.
+     Combined with the min(--tile-size, 100%) minmax in .scen-grid this
+     guarantees every card stays in the viewport's horizontal extents. */
+  max-width: 100%;
+  min-width: 0;
 }
 
 .scen-card__media {

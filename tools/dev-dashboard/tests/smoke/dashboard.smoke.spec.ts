@@ -1275,3 +1275,115 @@ test('iter4_gallery_gif_card_not_cropped_at_large_tile_size', async ({
   const diff = Math.abs(renderedRatio - naturalRatio) / naturalRatio;
   expect(diff).toBeLessThan(0.05);
 });
+
+/**
+ * Regression: when the tile-size slider is at its maximum value (1200px),
+ * and the grid container is narrower than 1200px, every scenario card in
+ * the fixture manifest must still be rendered and visually reachable.
+ * Previously the grid used `minmax(var(--tile-size), 1fr)` which at tile
+ * sizes larger than the container would leave later rows rendered outside
+ * the viewport and unreachable via vertical scroll.
+ */
+test('iter4_gallery_all_cards_visible_at_max_tile_size', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+
+  const slider = page.getByTestId('tile-size-slider');
+  await slider.evaluate((el) => {
+    const input = el as HTMLInputElement;
+    const proto = Object.getPrototypeOf(input) as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+    setter?.call(input, '1200');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect(page.getByTestId('tile-size-readout')).toContainText('1200');
+
+  // Every fixture scenario must be in the DOM and report a non-zero box.
+  const slugs = [
+    'org-create-1776000000000-w0',
+    'project-create-1776000000001-w1',
+    'member-invite-1776000000002-w2',
+  ];
+  for (const slug of slugs) {
+    const card = page.getByTestId(`scenario-card-${slug}`);
+    await card.scrollIntoViewIfNeeded();
+    await expect(card).toBeVisible();
+    const box = await card.boundingBox();
+    expect(box, `scenario-card-${slug} has no bounding box`).not.toBeNull();
+    expect(box!.height).toBeGreaterThan(0);
+    expect(box!.width).toBeGreaterThan(0);
+  }
+
+  // The grid itself must not spill horizontally past its scroll parent.
+  const overflowX = await page.evaluate(() => {
+    const grid = document.querySelector('[data-testid="scenario-grid"]');
+    const main = document.querySelector('.main');
+    if (!grid || !main) return 99;
+    return grid.getBoundingClientRect().right - main.getBoundingClientRect().right;
+  });
+  expect(overflowX).toBeLessThanOrEqual(2);
+});
+
+/**
+ * When the requested tile size exceeds the grid's available width, the
+ * grid must collapse to a single column (stacking cards vertically) so
+ * every card remains reachable via vertical scroll.
+ */
+test('iter4_gallery_layout_collapses_to_one_column_when_tile_exceeds_container', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.setViewportSize({ width: 800, height: 600 });
+  await page.goto('/#/scenarios');
+
+  const slider = page.getByTestId('tile-size-slider');
+  await slider.evaluate((el) => {
+    const input = el as HTMLInputElement;
+    const proto = Object.getPrototypeOf(input) as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+    setter?.call(input, '1200');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect(page.getByTestId('tile-size-readout')).toContainText('1200');
+
+  const slugs = [
+    'org-create-1776000000000-w0',
+    'project-create-1776000000001-w1',
+    'member-invite-1776000000002-w2',
+  ];
+
+  // Force each card into the viewport so content-visibility:auto doesn't
+  // skip layout and then read their bounding rects.
+  const ys: number[] = [];
+  for (const slug of slugs) {
+    const card = page.getByTestId(`scenario-card-${slug}`);
+    await card.scrollIntoViewIfNeeded();
+    const box = await card.boundingBox();
+    expect(box).not.toBeNull();
+    ys.push(box!.y);
+  }
+  // Successive cards must live on strictly different rows (differing y);
+  // this proves the grid collapsed to one column under the narrow viewport.
+  expect(ys[1]).not.toBe(ys[0]);
+  expect(ys[2]).not.toBe(ys[1]);
+});
+
+/**
+ * Guard that the gallery's scroll ancestor keeps vertical overflow
+ * scrollable. If a parent sets overflow-y:hidden, later cards become
+ * unreachable when the tile size is large.
+ */
+test('iter4_gallery_container_has_scrollable_vertical_overflow', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  const overflowY = await page.evaluate(() => {
+    const main = document.querySelector('.main');
+    if (!main) return null;
+    return getComputedStyle(main).overflowY;
+  });
+  expect(['auto', 'scroll']).toContain(overflowY);
+});
