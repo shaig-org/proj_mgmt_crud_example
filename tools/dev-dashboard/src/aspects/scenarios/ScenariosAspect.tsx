@@ -826,9 +826,10 @@ function StripRow({
   }
 
   return (
-    <div
+    <a
       className="scen-strip"
       data-testid={`scenario-strip-${entry.id}`}
+      href={`#/scenarios/${entry.id}`}
     >
       <div className="scen-strip__title">{entry.title}</div>
       <div className="scen-strip__scroller">
@@ -838,7 +839,11 @@ function StripRow({
           data-testid={`strip-chevron-prev-${entry.id}`}
           aria-label="scroll left"
           hidden={!canScrollLeft}
-          onClick={() => scrollByPage(-1)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            scrollByPage(-1);
+          }}
         >
           ‹
         </button>
@@ -853,7 +858,14 @@ function StripRow({
                 type="button"
                 className="scen-strip__frame"
                 data-testid={`strip-frame-${entry.id}-${i}`}
-                onClick={() => onOpenAt(entry.id, i)}
+                onClick={(e) => {
+                  // Frame is inside an <a> row. Prevent the anchor from
+                  // navigating so clicking a screenshot opens the lightbox
+                  // in place rather than jumping to the detail page.
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onOpenAt(entry.id, i);
+                }}
               >
                 <img
                   src={src}
@@ -874,12 +886,16 @@ function StripRow({
           data-testid={`strip-chevron-next-${entry.id}`}
           aria-label="scroll right"
           hidden={!canScrollRight}
-          onClick={() => scrollByPage(1)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            scrollByPage(1);
+          }}
         >
           ›
         </button>
       </div>
-    </div>
+    </a>
   );
 }
 

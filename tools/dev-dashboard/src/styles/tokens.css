@@ -45,6 +45,9 @@
   --tab-active-bg: #1b1f26;
   --surface-accent: #223149;
   --graph-bg: #f8fafc;
+  --strip-row-bg-a: #14171c;
+  --strip-row-bg-b: #1d222b;
+  --strip-row-hover-bg: #263140;
 }
 
 [data-theme='light'] {
@@ -70,6 +73,9 @@
   --tab-active-bg: #f4f4f5;
   --surface-accent: #e0ecff;
   --graph-bg: #f8fafc;
+  --strip-row-bg-a: #ffffff;
+  --strip-row-bg-b: #eaeef5;
+  --strip-row-hover-bg: #d6e4fb;
 }
 
 html,

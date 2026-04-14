@@ -1387,3 +1387,101 @@ test('iter4_gallery_container_has_scrollable_vertical_overflow', async ({
   });
   expect(['auto', 'scroll']).toContain(overflowY);
 });
+
+test('iter5_strip_row_click_on_background_navigates_to_detail', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  await page.getByTestId('view-toggle-strip').click();
+  const row = page.getByTestId('scenario-strip-org-create-1776000000000-w0');
+  await expect(row).toBeVisible();
+  // Click the title text — part of the clickable "go to scenario" surface.
+  await row.locator('.scen-strip__title').click();
+  await expect(page).toHaveURL(/#\/scenarios\/org-create-1776000000000-w0$/);
+});
+
+test('iter5_strip_frame_click_opens_lightbox_and_does_not_navigate', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  const hashBefore = await page.evaluate(() => window.location.hash);
+  await page.getByTestId('view-toggle-strip').click();
+  const hashAfterToggle = await page.evaluate(() => window.location.hash);
+  await page
+    .getByTestId('strip-frame-org-create-1776000000000-w0-1')
+    .click();
+  await expect(page.getByTestId('lightbox')).toBeVisible();
+  const hashAfter = await page.evaluate(() => window.location.hash);
+  // Clicking a frame must not cause a navigation to the detail route.
+  expect(hashAfter).toBe(hashAfterToggle);
+  expect(hashBefore).not.toContain('/org-create-1776000000000-w0');
+  expect(hashAfter).not.toContain('/org-create-1776000000000-w0');
+});
+
+test('iter5_strip_alternating_row_backgrounds_differ', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  await page.getByTestId('view-toggle-strip').click();
+  await expect(
+    page.getByTestId('scenario-strip-org-create-1776000000000-w0'),
+  ).toBeVisible();
+  const bgs = await page.evaluate(() => {
+    const rows = Array.from(
+      document.querySelectorAll('.scen-strips > .scen-strip'),
+    ) as HTMLElement[];
+    return rows.slice(0, 2).map((r) => getComputedStyle(r).backgroundColor);
+  });
+  expect(bgs.length).toBe(2);
+  expect(bgs[0]).not.toBe(bgs[1]);
+});
+
+test('iter5_strip_row_hover_changes_background', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  await page.getByTestId('view-toggle-strip').click();
+  const row = page.getByTestId('scenario-strip-org-create-1776000000000-w0');
+  await expect(row).toBeVisible();
+  const baseline = await row.evaluate(
+    (el) => getComputedStyle(el).backgroundColor,
+  );
+  // Hover somewhere guaranteed non-frame: the title.
+  await row.locator('.scen-strip__title').hover();
+  // Hover dispatch can race with the first computed-style read; poll until
+  // the :hover rule actually paints.
+  await expect
+    .poll(
+      async () =>
+        row.evaluate((el) => getComputedStyle(el).backgroundColor),
+    )
+    .not.toBe(baseline);
+});
+
+test('iter5_strip_frame_hover_changes_visual', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  await page.getByTestId('view-toggle-strip').click();
+  const frame = page.getByTestId('strip-frame-org-create-1776000000000-w0-0');
+  await expect(frame).toBeVisible();
+  const baseline = await frame.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { bg: s.backgroundColor, outline: s.outlineColor };
+  });
+  // Hover an adjacent non-frame element first to ensure a clean starting state.
+  await page
+    .getByTestId('scenario-strip-org-create-1776000000000-w0')
+    .locator('.scen-strip__title')
+    .hover();
+  await frame.hover();
+  await expect
+    .poll(async () =>
+      frame.evaluate((el) => {
+        const s = getComputedStyle(el);
+        return s.backgroundColor !== '' && s.outlineColor !== ''
+          ? `${s.backgroundColor}|${s.outlineColor}`
+          : '';
+      }),
+    )
+    .not.toBe(`${baseline.bg}|${baseline.outline}`);
+});

@@ -791,18 +791,30 @@ html[data-rail-collapsed='1'] .app {
 }
 
 .scen-strip {
+  display: block;
+  color: var(--text);
+  text-decoration: none;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--bg-panel);
+  background: var(--strip-row-bg-a);
   padding: var(--space-3);
   position: relative;
+  transition: background-color 120ms ease;
   /* Skip layout+paint for off-screen strips so vertical scroll stays smooth. */
   content-visibility: auto;
   contain-intrinsic-size: 1px 220px;
 }
 
+.scen-strips > .scen-strip:nth-child(odd) {
+  background: var(--strip-row-bg-a);
+}
+
 .scen-strips > .scen-strip:nth-child(even) {
-  background: var(--bg-elevated);
+  background: var(--strip-row-bg-b);
+}
+
+.scen-strips > .scen-strip:hover {
+  background: var(--strip-row-hover-bg);
 }
 
 .scen-strip__title {
@@ -863,6 +875,13 @@ html[data-rail-collapsed='1'] .app {
   padding: 0;
   overflow: hidden;
   cursor: pointer;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color 120ms ease;
+}
+
+.scen-strip__frame:hover {
+  outline-color: var(--accent);
 }
 
 .scen-strip__frame img {
