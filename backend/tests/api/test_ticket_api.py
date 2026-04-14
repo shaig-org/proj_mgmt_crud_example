@@ -1484,6 +1484,7 @@ class TestTicketCoverageExpansion:
     """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
 
     # T1
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_create_ticket_with_assignee_outside_org_fails(self, client: TestClient, super_admin_token: str) -> None:
         """Cannot assign ticket to a user from a different organization."""
@@ -1510,6 +1511,7 @@ class TestTicketCoverageExpansion:
         assert response.status_code == 403
 
     # T2
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_create_ticket_with_epic_in_different_project_fails(
         self, client: TestClient, org_admin_token: tuple[str, str]
@@ -1550,6 +1552,7 @@ class TestTicketCoverageExpansion:
         assert link2.status_code == 200
 
     # T3
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_transition_ticket_to_invalid_status_fails(
         self, client: TestClient, org_admin_token: tuple[str, str]
@@ -1595,6 +1598,8 @@ class TestTicketCoverageExpansion:
             assert response.json()["status"] == next_status
 
     # T5
+    @pytest.mark.scenario
+    @pytest.mark.behavior("tickets")
     def test_reopen_ticket_from_DONE_to_IN_PROGRESS_allowed_or_blocked(
         self, client: TestClient, org_admin_token: tuple[str, str]
     ) -> None:
@@ -1620,6 +1625,8 @@ class TestTicketCoverageExpansion:
         assert response.json()["status"] == "IN_PROGRESS"
 
     # T6
+    @pytest.mark.scenario
+    @pytest.mark.behavior("tickets")
     def test_list_tickets_filters_by_status(self, client: TestClient, org_admin_token: tuple[str, str]) -> None:
         """GET /api/tickets?status=DONE returns only DONE tickets."""
         token, _ = org_admin_token
@@ -1641,6 +1648,8 @@ class TestTicketCoverageExpansion:
         assert t2["id"] in ids and t1["id"] not in ids
 
     # T7
+    @pytest.mark.scenario
+    @pytest.mark.behavior("tickets")
     def test_list_tickets_filters_by_assignee(self, client: TestClient, super_admin_token: str) -> None:
         """GET /api/tickets?assignee_id=X returns only tickets assigned to that user."""
         from tests.helpers import create_test_org
@@ -1670,6 +1679,8 @@ class TestTicketCoverageExpansion:
         assert t_assigned["id"] in ids and t_unassigned["id"] not in ids
 
     # T8
+    @pytest.mark.scenario
+    @pytest.mark.behavior("tickets")
     def test_list_tickets_filters_by_priority(self, client: TestClient, org_admin_token: tuple[str, str]) -> None:
         """Priority filter is NOT a server-side query parameter.
 

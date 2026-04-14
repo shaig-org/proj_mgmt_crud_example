@@ -4,6 +4,7 @@ Tests verify that ticket status values are validated against project's workflow,
 and that moving tickets between projects validates status compatibility.
 """
 
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.conftest import client  # noqa: F401
@@ -454,6 +455,8 @@ class TestCustomWorkflowCoverageExpansion:
     """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
 
     # CW1
+    @pytest.mark.scenario
+    @pytest.mark.behavior("workflows")
     def test_workflow_with_unreachable_terminal_state_rejected(
         self, client: TestClient, super_admin_token: str
     ) -> None:

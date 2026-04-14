@@ -1,5 +1,6 @@
 """Tests for project API endpoints."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from project_management_crud_example.dal.sqlite.repository import Repository
@@ -1571,6 +1572,8 @@ class TestProjectCoverageExpansion:
     """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
 
     # P1
+    @pytest.mark.scenario
+    @pytest.mark.behavior("projects")
     def test_create_project_in_org_outside_membership_forbidden(
         self, client: TestClient, super_admin_token: str
     ) -> None:
@@ -1596,6 +1599,8 @@ class TestProjectCoverageExpansion:
         assert response.json()["organization_id"] == org_a
 
     # P2
+    @pytest.mark.scenario
+    @pytest.mark.behavior("projects")
     def test_list_projects_filters_to_user_org_only(self, client: TestClient, super_admin_token: str) -> None:
         """Listing projects returns only those belonging to the user's organization."""
         org_a = create_test_org(client, super_admin_token, name="ListOrgA")
@@ -1619,6 +1624,8 @@ class TestProjectCoverageExpansion:
         assert names == {"A-proj"}
 
     # P3
+    @pytest.mark.scenario
+    @pytest.mark.behavior("projects")
     def test_update_project_name_to_duplicate_in_same_org_fails(
         self, client: TestClient, org_admin_token: tuple[str, str]
     ) -> None:
@@ -1640,6 +1647,8 @@ class TestProjectCoverageExpansion:
         assert response.json()["name"] == "ProjA"
 
     # P4
+    @pytest.mark.scenario
+    @pytest.mark.error
     def test_read_user_can_get_project_but_cannot_update(self, client: TestClient, super_admin_token: str) -> None:
         """Read-access user can GET project but update returns 403."""
         org_id = create_test_org(client, super_admin_token, name="ReadGetOrg")
@@ -1665,6 +1674,8 @@ class TestProjectCoverageExpansion:
         assert update_response.status_code == 403
 
     # P5
+    @pytest.mark.scenario
+    @pytest.mark.behavior("projects")
     def test_project_delete_cascades_or_blocks_with_tickets(
         self, client: TestClient, org_admin_token: tuple[str, str]
     ) -> None:

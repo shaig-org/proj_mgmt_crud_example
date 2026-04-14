@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 from urllib.parse import quote
 
+import pytest
 from fastapi.testclient import TestClient
 
 from project_management_crud_example.dal.sqlite.repository import Repository
@@ -389,6 +390,8 @@ class TestActivityLogCoverageExpansion:
     """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
 
     # L1
+    @pytest.mark.scenario
+    @pytest.mark.behavior("activity-log")
     def test_ticket_create_emits_activity_log_entry(self, client: TestClient, org_admin_token: tuple[str, str]) -> None:
         """Creating a ticket produces an activity log entry with action TICKET_CREATED."""
         token, _ = org_admin_token
@@ -405,6 +408,8 @@ class TestActivityLogCoverageExpansion:
         assert "ticket_created" in actions
 
     # L2
+    @pytest.mark.scenario
+    @pytest.mark.behavior("activity-log")
     def test_ticket_status_change_emits_activity_log_entry(
         self, client: TestClient, org_admin_token: tuple[str, str]
     ) -> None:
@@ -428,6 +433,8 @@ class TestActivityLogCoverageExpansion:
         assert "ticket_status_changed" in actions
 
     # L3
+    @pytest.mark.scenario
+    @pytest.mark.behavior("activity-log")
     def test_activity_log_filterable_by_entity_id(self, client: TestClient, org_admin_token: tuple[str, str]) -> None:
         """The entity_id query param filters logs to just that entity."""
         token, _ = org_admin_token
@@ -441,6 +448,8 @@ class TestActivityLogCoverageExpansion:
         assert p2 not in entity_ids
 
     # L4
+    @pytest.mark.scenario
+    @pytest.mark.behavior("activity-log")
     def test_activity_log_read_requires_appropriate_role(
         self, client: TestClient, read_user_token: tuple[str, str]
     ) -> None:

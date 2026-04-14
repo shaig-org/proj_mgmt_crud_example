@@ -860,6 +860,7 @@ class TestAuthCoverageExpansion:
         assert response.json()["error_code"] == "INVALID_CREDENTIALS"
 
     # A3
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_protected_endpoint_with_malformed_bearer_header_401(self, client: TestClient) -> None:
         """Authorization header missing token after 'Bearer' returns 401."""
@@ -867,6 +868,7 @@ class TestAuthCoverageExpansion:
         assert response.status_code == 401
 
     # A4
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_protected_endpoint_without_bearer_prefix_401(self, client: TestClient) -> None:
         """Authorization header without 'Bearer' prefix returns 401."""
@@ -874,6 +876,7 @@ class TestAuthCoverageExpansion:
         assert response.status_code == 401
 
     # A5
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_token_for_deleted_user_rejected(
         self, client: TestClient, test_user: tuple[str, str], super_admin_token: str
@@ -894,6 +897,7 @@ class TestAuthCoverageExpansion:
         assert response.status_code == 401
 
     # A6
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_change_password_with_wrong_old_password_fails(
         self, client: TestClient, test_user: tuple[str, str]

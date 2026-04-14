@@ -522,6 +522,7 @@ class TestOrganizationCoverageExpansion:
     """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
 
     # O1
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_create_organization_with_duplicate_name_fails_expansion(
         self, client: TestClient, super_admin_token: str
@@ -541,6 +542,7 @@ class TestOrganizationCoverageExpansion:
         assert "already exists" in response.json()["detail"]
 
     # O2
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_non_super_admin_cannot_create_organization(
         self, client: TestClient, org_admin_token: tuple[str, str]
@@ -575,6 +577,8 @@ class TestOrganizationCoverageExpansion:
         assert visible[0]["id"] == org_a
 
     # O4
+    @pytest.mark.scenario
+    @pytest.mark.behavior("organizations")
     def test_delete_organization_cascades_projects(self, client: TestClient, super_admin_token: str) -> None:
         """Organization delete is not exposed via API.
 

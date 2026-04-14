@@ -763,6 +763,7 @@ class TestUserCoverageExpansion:
     """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
 
     # U1
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_create_user_with_duplicate_username_in_same_org_fails(
         self, client: TestClient, super_admin_token: str
@@ -780,6 +781,7 @@ class TestUserCoverageExpansion:
         assert "username" in response.json()["detail"].lower()
 
     # U2
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_create_user_with_duplicate_email_in_same_org_fails(
         self, client: TestClient, super_admin_token: str
@@ -797,6 +799,7 @@ class TestUserCoverageExpansion:
         assert "email" in response.json()["detail"].lower()
 
     # U3
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_create_user_in_nonexistent_org_404(self, client: TestClient, super_admin_token: str) -> None:
         """Creating a user in a non-existent organization returns 400 (Organization not found).
@@ -854,6 +857,8 @@ class TestUserCoverageExpansion:
         assert ticket_resp.status_code == 403
 
     # U5
+    @pytest.mark.scenario
+    @pytest.mark.behavior("users")
     def test_list_users_scoped_to_org_for_admin(self, client: TestClient, super_admin_token: str) -> None:
         """Org admin listing users only sees users within their organization."""
         org_a = create_test_org(client, super_admin_token, name="ScopeA")
@@ -874,6 +879,7 @@ class TestUserCoverageExpansion:
         assert org_ids == {org_a}
 
     # U6
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_read_user_cannot_list_users(self, client: TestClient, super_admin_token: str) -> None:
         """Read-only users cannot list users.

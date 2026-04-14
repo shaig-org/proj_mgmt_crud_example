@@ -1137,6 +1137,7 @@ class TestEpicCoverageExpansion:
     """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
 
     # E1 — epics are org-scoped, not project-scoped.
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_create_epic_in_nonexistent_project_404(self, client: TestClient, super_admin_token: str) -> None:
         """Epic creation does not take a project_id.
@@ -1153,6 +1154,8 @@ class TestEpicCoverageExpansion:
         assert "organization" in response.json()["detail"].lower()
 
     # E2
+    @pytest.mark.scenario
+    @pytest.mark.behavior("epics")
     def test_list_epic_tickets_returns_only_tickets_linked_to_epic(
         self, client: TestClient, org_admin_token: tuple[str, str]
     ) -> None:
@@ -1182,6 +1185,8 @@ class TestEpicCoverageExpansion:
         assert unlinked["id"] not in ids
 
     # E3
+    @pytest.mark.scenario
+    @pytest.mark.behavior("epics")
     def test_epic_progress_counts_reflect_ticket_statuses(
         self, client: TestClient, org_admin_token: tuple[str, str]
     ) -> None:
@@ -1224,6 +1229,8 @@ class TestEpicCoverageExpansion:
         assert status_counts == {"TODO": 1, "IN_PROGRESS": 1, "DONE": 1}
 
     # E4
+    @pytest.mark.scenario
+    @pytest.mark.behavior("epics")
     def test_delete_epic_unlinks_tickets_or_blocks(self, client: TestClient, org_admin_token: tuple[str, str]) -> None:
         """Deleting an epic: current production behavior.
 
@@ -1250,6 +1257,8 @@ class TestEpicCoverageExpansion:
         assert get_ticket.status_code == 200
 
     # E5
+    @pytest.mark.scenario
+    @pytest.mark.behavior("epics")
     def test_update_epic_name_conflict_in_project_fails(
         self, client: TestClient, org_admin_token: tuple[str, str]
     ) -> None:

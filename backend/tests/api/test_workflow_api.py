@@ -955,6 +955,8 @@ class TestWorkflowCoverageExpansion:
     """Coverage-expansion tests added per docs/tasks/test-coverage-expansion/plan.md."""
 
     # W1 — current data model has no transitions, only status names.
+    @pytest.mark.scenario
+    @pytest.mark.error
     def test_create_workflow_with_cyclic_transitions_rejected(
         self, client: TestClient, org_admin_token: tuple[str, str]
     ) -> None:
@@ -973,6 +975,8 @@ class TestWorkflowCoverageExpansion:
         assert response.status_code == 422
 
     # W2
+    @pytest.mark.scenario
+    @pytest.mark.behavior("workflows")
     def test_create_workflow_with_single_status_rejected(
         self, client: TestClient, org_admin_token: tuple[str, str]
     ) -> None:
@@ -1030,6 +1034,8 @@ class TestWorkflowCoverageExpansion:
         assert bad.status_code == 422
 
     # W4
+    @pytest.mark.scenario
+    @pytest.mark.behavior("workflows")
     def test_remove_workflow_from_project_falls_back_to_default_statuses(
         self, client: TestClient, org_admin_token: tuple[str, str]
     ) -> None:
@@ -1066,6 +1072,8 @@ class TestWorkflowCoverageExpansion:
         assert response.json()["workflow_id"] == default_wf["id"]
 
     # W5
+    @pytest.mark.scenario
+    @pytest.mark.behavior("workflows")
     def test_workflow_scoped_to_org(self, client: TestClient, super_admin_token: str) -> None:
         """Workflows belong to an organization; users from other orgs cannot access them."""
         from tests.helpers import create_admin_user, create_test_org

@@ -830,6 +830,7 @@ class TestCommentCoverageExpansion:
         ).json()["id"]
 
     # C1
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_read_user_can_list_comments_but_cannot_create(
         self,
@@ -859,6 +860,7 @@ class TestCommentCoverageExpansion:
         assert create_response.status_code == 403
 
     # C2
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_update_others_comment_forbidden(
         self,
@@ -884,6 +886,7 @@ class TestCommentCoverageExpansion:
         assert response.status_code == 403
 
     # C3
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_delete_others_comment_forbidden(
         self,
@@ -905,6 +908,7 @@ class TestCommentCoverageExpansion:
         assert response.status_code == 403
 
     # C4
+    @pytest.mark.scenario
     @pytest.mark.error
     def test_comment_on_ticket_in_other_org_forbidden(self, client: TestClient, super_admin_token: str) -> None:
         """A user cannot comment on a ticket whose project belongs to another org."""
@@ -935,6 +939,8 @@ class TestCommentCoverageExpansion:
         assert response.status_code in (403, 404)
 
     # C5
+    @pytest.mark.scenario
+    @pytest.mark.behavior("comments")
     def test_list_comments_chronological_order(
         self, client: TestClient, shared_org_admin_token: tuple[str, str]
     ) -> None:
