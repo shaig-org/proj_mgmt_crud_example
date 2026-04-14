@@ -64,9 +64,19 @@ const STATUS_ORDER: CapabilityStatus[] = [
 type FilterMode = 'all' | CapabilityStatus;
 type DiffMode = 'current' | 'baseline' | 'diff';
 
+/**
+ * Render capability names without the trailing `Capability` suffix, which is
+ * boilerplate on every concrete capability class name. Raw strings stay
+ * untouched in the data model so search can still match either form.
+ */
+export function formatCapability(raw: string): string {
+  return raw.replace(/Capability$/, '');
+}
+
 function CapabilitiesBody({ data }: { data: CapabilitiesData }) {
   const [filter, setFilter] = useState<FilterMode>('all');
   const [diffMode, setDiffMode] = useState<DiffMode>('current');
+  const [query, setQuery] = useState<string>('');
 
   const visible = useMemo(() => {
     let rows = data.rows;
@@ -76,8 +86,20 @@ function CapabilitiesBody({ data }: { data: CapabilitiesData }) {
     if (filter !== 'all') {
       rows = rows.filter((r) => r.status === filter);
     }
+    const q = query.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter((r) => {
+        const caps = [...(r.current ?? []), ...(r.baseline ?? [])];
+        return (
+          r.method.toLowerCase().includes(q) ||
+          r.path.toLowerCase().includes(q) ||
+          r.handler.toLowerCase().includes(q) ||
+          caps.some((c) => c.toLowerCase().includes(q))
+        );
+      });
+    }
     return rows;
-  }, [data, filter, diffMode]);
+  }, [data, filter, diffMode, query]);
 
   return (
     <div>
@@ -90,7 +112,14 @@ function CapabilitiesBody({ data }: { data: CapabilitiesData }) {
           report.json missing — showing baseline only. Diff toggle disabled.
         </div>
       )}
-      <div style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          data-testid="cap-search"
+          placeholder="search by method, path, handler, or capability…"
+          value={query}
+          onChange={(e) => setQuery(e.currentTarget.value)}
+          style={{ minWidth: '280px' }}
+        />
         <label>
           Filter:{' '}
           <select
@@ -125,9 +154,9 @@ function CapabilitiesBody({ data }: { data: CapabilitiesData }) {
           <tr>
             <th>Method</th>
             <th>Path</th>
+            <th>Capabilities</th>
             <th>Status</th>
             <th>Handler</th>
-            <th>Capabilities</th>
           </tr>
         </thead>
         <tbody>
@@ -162,17 +191,23 @@ function Row({ row, diffMode }: { row: CapabilityRow; diffMode: DiffMode }) {
     >
       <td className="mono">{row.method}</td>
       <td className="mono">{row.path}</td>
-      <td>{row.status}</td>
-      <td className="mono">{row.handler}</td>
       <td className="mono">
-        {(shown ?? []).join(', ')}
+        {(shown ?? []).map(formatCapability).join(', ')}
         {added.length > 0 && (
-          <span style={{ color: 'var(--new)' }}> +{added.join(',')}</span>
+          <span style={{ color: 'var(--new)' }}>
+            {' '}
+            +{added.map(formatCapability).join(',')}
+          </span>
         )}
         {removed.length > 0 && (
-          <span style={{ color: 'var(--removed)' }}> -{removed.join(',')}</span>
+          <span style={{ color: 'var(--removed)' }}>
+            {' '}
+            -{removed.map(formatCapability).join(',')}
+          </span>
         )}
       </td>
+      <td>{row.status}</td>
+      <td className="mono">{row.handler}</td>
     </tr>
   );
 }

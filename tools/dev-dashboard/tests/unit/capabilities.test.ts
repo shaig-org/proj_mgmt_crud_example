@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildRows, classifyRoute } from '../../src/aspects/capabilities/classifier';
 import type { CapabilityDocument } from '../../src/aspects/capabilities/types';
+import { formatCapability } from '../../src/aspects/capabilities/CapabilitiesAspect';
 
 describe('capabilities classifier', () => {
   it('capabilities_status_classifier_unchanged', () => {
@@ -52,5 +53,18 @@ describe('capabilities classifier', () => {
     expect(statuses['GET /a']).toBe('expanded');
     expect(statuses['POST /b']).toBe('removed');
     expect(statuses['PUT /c']).toBe('new');
+  });
+});
+
+describe('capabilities suffix formatting', () => {
+  it('iter3_capabilities_strips_capability_suffix', () => {
+    expect(formatCapability('ActivityLogReadCapability')).toBe(
+      'ActivityLogRead',
+    );
+    expect(formatCapability('OrgReadCapability')).toBe('OrgRead');
+    // No suffix → pass-through.
+    expect(formatCapability('ActivityLogRead')).toBe('ActivityLogRead');
+    // Capability appears mid-string → left alone (only trailing).
+    expect(formatCapability('CapabilityThing')).toBe('CapabilityThing');
   });
 });

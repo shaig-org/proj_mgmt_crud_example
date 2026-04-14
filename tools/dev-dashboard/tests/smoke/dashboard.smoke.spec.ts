@@ -920,3 +920,50 @@ test('iter3_gallery_strip_img_attrs_set', async ({ page }) => {
     expect(['eager', 'lazy']).toContain(a.loading);
   }
 });
+
+test('iter3_capabilities_search_filters_by_path_and_verb', async ({ page }) => {
+  await withArtifacts({
+    scenarios: false,
+    capabilities: true,
+    capabilitiesMode: 'full',
+    traces: false,
+  });
+  await page.goto('/#/capabilities');
+  const search = page.getByTestId('cap-search');
+  await expect(search).toBeVisible();
+
+  // Filter by path substring.
+  await search.fill('expanded');
+  await expect(page.getByTestId('cap-row-POST-/api/expanded')).toBeVisible();
+  await expect(page.getByTestId('cap-row-GET-/api/unchanged')).toHaveCount(0);
+
+  // Filter by HTTP verb.
+  await search.fill('DELETE');
+  await expect(page.getByTestId('cap-row-DELETE-/api/removed')).toBeVisible();
+  await expect(page.getByTestId('cap-row-POST-/api/expanded')).toHaveCount(0);
+
+  // Empty query restores all rows.
+  await search.fill('');
+  await expect(page.getByTestId('cap-row-GET-/api/unchanged')).toBeVisible();
+});
+
+test('iter3_capabilities_columns_in_new_order', async ({ page }) => {
+  await withArtifacts({
+    scenarios: false,
+    capabilities: true,
+    capabilitiesMode: 'full',
+    traces: false,
+  });
+  await page.goto('/#/capabilities');
+  const headers = await page
+    .getByTestId('cap-table')
+    .locator('thead th')
+    .allInnerTexts();
+  expect(headers).toEqual([
+    'Method',
+    'Path',
+    'Capabilities',
+    'Status',
+    'Handler',
+  ]);
+});
