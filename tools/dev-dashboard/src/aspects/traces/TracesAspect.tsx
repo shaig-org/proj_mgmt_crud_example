@@ -82,6 +82,18 @@ async function loadTraces(): Promise<TracesData> {
   return { entries };
 }
 
+/**
+ * Extract the mermaid diagram source from a markdown-wrapped file.
+ * Real pytest-tracer writes mermaid.md as a markdown file with a
+ * ` ```mermaid ` fenced code block; older fixtures wrote the raw
+ * diagram source directly.
+ */
+export function extractMermaidSource(text: string): string {
+  const fence = /```mermaid\s*\n([\s\S]*?)\n```/.exec(text);
+  if (fence) return fence[1]!.trim();
+  return text.trim();
+}
+
 function MermaidView({ text }: { text: string }) {
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,9 +103,17 @@ function MermaidView({ text }: { text: string }) {
     void (async () => {
       try {
         const mermaid = (await import('mermaid')).default;
-        mermaid.initialize({ startOnLoad: false });
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: 'loose',
+          maxTextSize: 500_000,
+          // Real traces can exceed the default 500-edge cap.
+          flowchart: { htmlLabels: true },
+          sequence: { useMaxWidth: true },
+        });
+        const source = extractMermaidSource(text);
         const id = `mmd-${Math.random().toString(36).slice(2)}`;
-        const result = await mermaid.render(id, text);
+        const result = await mermaid.render(id, source);
         if (!cancelled) setSvg(result.svg);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
@@ -106,7 +126,7 @@ function MermaidView({ text }: { text: string }) {
 
   if (error) {
     return (
-      <div>
+      <div data-testid="mermaid-fallback">
         <p>Mermaid render failed: {error}</p>
         <pre>{text}</pre>
       </div>
