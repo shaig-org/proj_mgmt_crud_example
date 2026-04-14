@@ -61,6 +61,8 @@ You are the **code-reviewer**. You give an independent read of completed work. Y
 ### 7. Validations
 - [ ] `backend/devtools/run_all_agent_validations.sh` reported green.
 - [ ] `npm run lint && npm run typecheck && npm run e2e` reported green.
+- [ ] If `tools/dev-dashboard/**` was touched: `npm --prefix tools/dev-dashboard run typecheck && ... run lint && ... run test -- --run && ... run smoke` reported green. Any change to a dashboard aspect that reads a producer artifact must have a corresponding entry in `tools/dev-dashboard/tests/unit/scenarios.realschema.test.ts` reflecting the real producer shape.
+- [ ] `githooks/pre-commit` exists and is installed (`git config --get core.hooksPath` returns `githooks`). If a new top-level module was added, the hook was extended to cover it.
 - [ ] No `# noqa`, `eslint-disable`, or `# type: ignore` added without explicit justification.
 
 ### 8. Spec status hygiene

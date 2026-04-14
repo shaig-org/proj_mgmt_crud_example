@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Repo-level pre-commit hook.
+#
+# Intentionally narrow: only runs checks for modules whose files are staged.
+# Kept fast (<15s typical) so developers don't bypass the hook.
+#
+# Enable with:
+#   ./devtools/install-git-hooks.sh
+#
+# Bypass (discouraged) with: git commit --no-verify
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+staged() {
+  git diff --cached --name-only --diff-filter=ACMR | grep -E "^$1" || true
+}
+
+fail=0
+
+# ---- tools/dev-dashboard/ -----------------------------------------------
+if [ -n "$(staged 'tools/dev-dashboard/')" ]; then
+  echo "[pre-commit] tools/dev-dashboard/ changes staged — running typecheck + lint + unit tests"
+  if ! npm --prefix tools/dev-dashboard --silent run typecheck; then fail=1; fi
+  if ! npm --prefix tools/dev-dashboard --silent run lint; then fail=1; fi
+  if ! npm --prefix tools/dev-dashboard --silent run test -- --run; then fail=1; fi
+  # Playwright smoke is intentionally NOT run here (slow); run manually:
+  #   npm --prefix tools/dev-dashboard run smoke
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo "[pre-commit] FAILED — fix the issues above, or bypass with --no-verify (not recommended)"
+  exit 1
+fi
