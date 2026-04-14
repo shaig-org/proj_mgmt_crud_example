@@ -753,3 +753,90 @@ test('iter3_detail_has_no_refresh_trigger', async ({ page }) => {
   await page.goto('/#/scenarios');
   await expect(page.getByTestId('refresh-modal-open')).toBeVisible();
 });
+
+test('iter3_detail_metadata_appears_before_media', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+  await expect(page.getByTestId('scenario-detail')).toBeVisible();
+  const order = await page.evaluate(() => {
+    const meta = document.querySelector('[data-testid="scenario-metadata"]');
+    const media = document.querySelector('[data-testid="scenario-media"]');
+    if (!meta || !media) return 'missing';
+    const pos = meta.compareDocumentPosition(media);
+    // DOCUMENT_POSITION_FOLLOWING === 4 means media follows metadata.
+    return (pos & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+      ? 'metadata-first'
+      : 'media-first';
+  });
+  expect(order).toBe('metadata-first');
+});
+
+test('iter3_detail_flipbook_and_motion_have_explanatory_tooltips', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+  await expect(page.getByTestId('detail-flipbook')).toHaveAttribute(
+    'title',
+    /Flipbook.*one frame per step.*1\.5s/i,
+  );
+  await expect(page.getByTestId('detail-motion')).toHaveAttribute(
+    'title',
+    /Motion.*video.*slowed 2x/i,
+  );
+});
+
+test('iter3_detail_video_speed_is_prominent', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+  await expect(
+    page.locator('.detail__video-speed-heading'),
+  ).toContainText('Playback speed:');
+  await expect(page.getByTestId('video-speed-current')).toBeVisible();
+  await expect(page.getByTestId('video-speed-current')).toContainText('x');
+});
+
+test('iter3_detail_default_video_speed_is_0_25', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+  await expect(page.getByTestId('video-speed')).toHaveValue('0.25');
+  await expect(page.getByTestId('video-speed-current')).toContainText('0.25');
+  // Wait for metadata so playbackRate has been set by effect.
+  await page.waitForFunction(() => {
+    const v = document.querySelector(
+      '[data-testid="scenario-video"]',
+    ) as HTMLVideoElement | null;
+    return v !== null && v.playbackRate === 0.25;
+  });
+
+  // Change to 0.5 — persists.
+  await page.getByTestId('video-speed').selectOption('0.5');
+  const stored = await page.evaluate(() =>
+    localStorage.getItem('dev-dashboard.videoSpeed'),
+  );
+  expect(stored).toBe('0.5');
+
+  // Reload — still 0.5.
+  await page.reload();
+  await expect(page.getByTestId('video-speed')).toHaveValue('0.5');
+  await expect(page.getByTestId('video-speed-current')).toContainText('0.5');
+
+  // Lightbox video also inherits the stored speed.
+  await page.getByTestId('video-lightbox-open').click();
+  await expect(page.getByTestId('lightbox-video-speed')).toHaveValue('0.5');
+});
+
+test('iter3_detail_screenshots_are_a_strip', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+  const strip = page.getByTestId('screenshot-strip');
+  await expect(strip).toBeVisible();
+  // Uses the same horizontal-scroll frame layout as gallery strip mode.
+  await expect(strip.locator('.scen-strip__frames')).toBeVisible();
+  await expect(strip.locator('.scen-strip__frame')).toHaveCount(3);
+  // Overflow-x set to auto by the shared .scen-strip__frames rule.
+  const overflowX = await strip
+    .locator('.scen-strip__frames')
+    .evaluate((el) => getComputedStyle(el).overflowX);
+  expect(overflowX).toBe('auto');
+});

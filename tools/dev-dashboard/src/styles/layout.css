@@ -490,6 +490,56 @@ html[data-rail-collapsed='1'] .app {
   color: var(--text-muted);
 }
 
+.pill--speed {
+  background: var(--bg-elevated);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  text-transform: none;
+  font-size: 12px;
+  padding: 2px 10px;
+}
+
+.detail__video-controls--prominent {
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+}
+
+.detail__video-speed-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+}
+
+.detail__video-speed-heading {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.detail__video-speed-label select {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font: inherit;
+}
+
+.scen-strip--detail {
+  margin-bottom: var(--space-3);
+}
+
+.scen-strip--detail .scen-strip__frame {
+  width: 180px;
+}
+
+.scen-strip--detail .scen-strip__frame img {
+  aspect-ratio: 16/9;
+}
+
 .detail__steps {
   padding-left: var(--space-4);
   margin: var(--space-3) 0;

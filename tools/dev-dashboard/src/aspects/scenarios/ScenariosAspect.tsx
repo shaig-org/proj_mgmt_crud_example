@@ -20,6 +20,12 @@ import {
   writeTileSize,
   type GalleryView,
 } from '../../lib/gallery';
+import {
+  VIDEO_SPEEDS,
+  readVideoSpeed,
+  writeVideoSpeed,
+  type VideoSpeed,
+} from '../../lib/videoSpeed';
 
 const ARTIFACT_URL = '/artifacts/scenarios/manifest.json';
 
@@ -293,8 +299,6 @@ function FlowPage({ entry }: { entry: ScenarioEntry }) {
   );
 }
 
-const VIDEO_SPEEDS = [0.1, 0.15, 0.25, 0.5, 1, 1.5, 2] as const;
-
 type LightboxState =
   | { kind: 'closed' }
   | { kind: 'screenshot'; index: number }
@@ -311,27 +315,39 @@ function ScreenshotStrip({
   onOpen: (index: number) => void;
 }) {
   if (screenshots.length === 0) return null;
-  const shown = screenshots.slice(0, 5);
   const total = screenshots.length;
   return (
-    <div className="detail__strip" data-testid="screenshot-strip">
-      {shown.map((src, i) => (
-        <button
-          key={`${src}-${i}`}
-          type="button"
-          className="detail__strip-thumb"
-          data-testid={`strip-thumb-${i}`}
-          onClick={() => onOpen(i)}
-        >
-          <img src={src} alt={`screenshot ${i + 1} of ${total}`} />
-        </button>
-      ))}
+    <div
+      className="scen-strip scen-strip--detail"
+      data-testid="screenshot-strip"
+    >
+      <div className="scen-strip__frames">
+        {screenshots.map((src, i) => (
+          <button
+            key={`${src}-${i}`}
+            type="button"
+            className="scen-strip__frame"
+            data-testid={`strip-thumb-${i}`}
+            onClick={() => onOpen(i)}
+          >
+            <img
+              src={src}
+              alt={`screenshot ${i + 1} of ${total}`}
+              loading={i < 3 ? 'eager' : 'lazy'}
+              decoding="async"
+              width={320}
+              height={180}
+            />
+            <span className="strip-n">{i + 1}</span>
+          </button>
+        ))}
+      </div>
       <a
         href={`#/scenarios/${entryId}/screenshots`}
         className="detail__strip-more"
         data-testid="view-all-screenshots"
       >
-        view all ({total})
+        view all ({total}) →
       </a>
     </div>
   );
@@ -339,8 +355,18 @@ function ScreenshotStrip({
 
 function VideoBlock({ src }: { src: string }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [speed, setSpeed] = useState<VideoSpeed>(() =>
+    typeof window === 'undefined' ? 0.25 : readVideoSpeed(),
+  );
+
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.playbackRate = speed;
+  }, [speed, src]);
+
   function onSpeedChange(e: React.ChangeEvent<HTMLSelectElement>): void {
-    const rate = Number(e.currentTarget.value);
+    const rate = Number(e.currentTarget.value) as VideoSpeed;
+    setSpeed(rate);
+    writeVideoSpeed(rate);
     if (videoRef.current) videoRef.current.playbackRate = rate;
   }
   return (
@@ -351,13 +377,16 @@ function VideoBlock({ src }: { src: string }) {
         src={src}
         controls
         style={{ maxWidth: '100%' }}
+        onLoadedMetadata={() => {
+          if (videoRef.current) videoRef.current.playbackRate = speed;
+        }}
       />
-      <div className="detail__video-controls">
-        <label>
-          speed{' '}
+      <div className="detail__video-controls detail__video-controls--prominent">
+        <label className="detail__video-speed-label">
+          <span className="detail__video-speed-heading">Playback speed:</span>{' '}
           <select
             data-testid="video-speed"
-            defaultValue="1"
+            value={String(speed)}
             onChange={onSpeedChange}
           >
             {VIDEO_SPEEDS.map((s) => (
@@ -367,6 +396,12 @@ function VideoBlock({ src }: { src: string }) {
             ))}
           </select>
         </label>
+        <span
+          className="pill pill--speed"
+          data-testid="video-speed-current"
+        >
+          {speed}x
+        </span>
         <a
           href={src}
           download
@@ -468,6 +503,14 @@ function StepList({ entry }: { entry: ScenarioEntry }) {
 
 function LightboxVideo({ src }: { src: string }) {
   const ref = useRef<HTMLVideoElement | null>(null);
+  const [speed, setSpeed] = useState<VideoSpeed>(() =>
+    typeof window === 'undefined' ? 0.25 : readVideoSpeed(),
+  );
+
+  useEffect(() => {
+    if (ref.current) ref.current.playbackRate = speed;
+  }, [speed, src]);
+
   return (
     <div className="lightbox__video-wrap">
       <video
@@ -477,15 +520,20 @@ function LightboxVideo({ src }: { src: string }) {
         src={src}
         controls
         autoPlay
+        onLoadedMetadata={() => {
+          if (ref.current) ref.current.playbackRate = speed;
+        }}
       />
       <div className="lightbox__video-controls">
-        <label>
-          speed{' '}
+        <label className="detail__video-speed-label">
+          <span className="detail__video-speed-heading">Playback speed:</span>{' '}
           <select
             data-testid="lightbox-video-speed"
-            defaultValue="1"
+            value={String(speed)}
             onChange={(e) => {
-              const rate = Number(e.currentTarget.value);
+              const rate = Number(e.currentTarget.value) as VideoSpeed;
+              setSpeed(rate);
+              writeVideoSpeed(rate);
               if (ref.current) ref.current.playbackRate = rate;
             }}
           >
@@ -496,6 +544,12 @@ function LightboxVideo({ src }: { src: string }) {
             ))}
           </select>
         </label>
+        <span
+          className="pill pill--speed"
+          data-testid="lightbox-video-speed-current"
+        >
+          {speed}x
+        </span>
         <a href={src} download data-testid="lightbox-download-webm">
           download .webm
         </a>
@@ -625,66 +679,73 @@ function Detail({
       <Breadcrumb entry={entry} />
       <h3 className="detail__title">{entry.title}</h3>
 
-      <div className="detail__media-row">
-        {entry.gif && (
-          <button
-            type="button"
-            className="detail__media detail__media--flipbook"
-            data-testid="detail-flipbook"
-            onClick={() =>
-              setLightbox({ kind: 'gif', src: entry.gif!, alt: entry.title })
-            }
-          >
-            <img src={entry.gif} alt={`${entry.title} flipbook`} />
-            <figcaption>flipbook</figcaption>
-          </button>
-        )}
-        {entry.motionGif && (
-          <button
-            type="button"
-            className="detail__media detail__media--motion"
-            data-testid="detail-motion"
-            onClick={() =>
-              setLightbox({
-                kind: 'gif',
-                src: entry.motionGif!,
-                alt: `${entry.title} motion`,
-              })
-            }
-          >
-            <img src={entry.motionGif} alt={`${entry.title} motion`} />
-            <figcaption>motion</figcaption>
-          </button>
-        )}
+      <div data-testid="scenario-metadata">
+        <MetadataKV
+          entry={entry}
+          hasTrace={hasTrace}
+          onViewTrace={() => onViewTrace(traceSlug)}
+        />
       </div>
 
-      <ScreenshotStrip
-        screenshots={screenshots}
-        entryId={entry.id}
-        onOpen={(i) => setLightbox({ kind: 'screenshot', index: i })}
-      />
+      <div data-testid="scenario-media">
+        <div className="detail__media-row">
+          {entry.gif && (
+            <button
+              type="button"
+              className="detail__media detail__media--flipbook"
+              data-testid="detail-flipbook"
+              title="Flipbook — one frame per step, 1.5s hold — good for scanning"
+              onClick={() =>
+                setLightbox({ kind: 'gif', src: entry.gif!, alt: entry.title })
+              }
+            >
+              <img src={entry.gif} alt={`${entry.title} flipbook`} />
+              <figcaption>flipbook</figcaption>
+            </button>
+          )}
+          {entry.motionGif && (
+            <button
+              type="button"
+              className="detail__media detail__media--motion"
+              data-testid="detail-motion"
+              title="Motion — video-derived, slowed 2x — good for watching the flow"
+              onClick={() =>
+                setLightbox({
+                  kind: 'gif',
+                  src: entry.motionGif!,
+                  alt: `${entry.title} motion`,
+                })
+              }
+            >
+              <img src={entry.motionGif} alt={`${entry.title} motion`} />
+              <figcaption>motion</figcaption>
+            </button>
+          )}
+        </div>
 
-      {entry.video && (
-        <button
-          type="button"
-          className="detail__video-trigger"
-          data-testid="video-lightbox-open"
-          onClick={() =>
-            entry.video
-              ? setLightbox({ kind: 'video', src: entry.video })
-              : undefined
-          }
-        >
-          open video in lightbox
-        </button>
-      )}
-      {entry.video && <VideoBlock src={entry.video} />}
+        <ScreenshotStrip
+          screenshots={screenshots}
+          entryId={entry.id}
+          onOpen={(i) => setLightbox({ kind: 'screenshot', index: i })}
+        />
 
-      <MetadataKV
-        entry={entry}
-        hasTrace={hasTrace}
-        onViewTrace={() => onViewTrace(traceSlug)}
-      />
+        {entry.video && (
+          <button
+            type="button"
+            className="detail__video-trigger"
+            data-testid="video-lightbox-open"
+            onClick={() =>
+              entry.video
+                ? setLightbox({ kind: 'video', src: entry.video })
+                : undefined
+            }
+          >
+            open video in lightbox
+          </button>
+        )}
+        {entry.video && <VideoBlock src={entry.video} />}
+      </div>
+
       <StepList entry={entry} />
 
       {hasTrace && (
