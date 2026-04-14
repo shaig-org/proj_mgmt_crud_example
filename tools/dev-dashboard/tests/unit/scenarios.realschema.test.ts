@@ -9,6 +9,7 @@
 import { describe, it, expect } from 'vitest';
 import { validate as validateScenarios } from '../../src/aspects/scenarios/ScenariosAspect';
 import { buildRows } from '../../src/aspects/capabilities/classifier';
+import { parseRequestTrace } from '../../src/aspects/e2e-traces/types';
 
 describe('scenarios manifest — real walkthrough-generator schema', () => {
   const realManifest = {
@@ -169,5 +170,79 @@ describe('capabilities — real analyze_capabilities.py schema', () => {
     const rows = buildRows(realBaseline, null);
     expect(rows).toHaveLength(2);
     for (const r of rows) expect(r.status).toBe('unchanged');
+  });
+});
+
+describe('e2e-traces — real E2eTracingMiddleware schema', () => {
+  // Shape copied verbatim from a real backend/e2e-traces/{id}/req-NNN.json file
+  // produced by backend/project_management_crud_example/middleware/e2e_tracing.py.
+  // When the middleware changes its JSON output shape, this test should fail loudly.
+  const realRequestTrace = {
+    seq: 1,
+    method: 'GET',
+    path: '/health',
+    status_code: 200,
+    duration_ms: 5,
+    timestamp_ms: 1734567890000,
+    call_events: [
+      {
+        event: 'call',
+        file: 'routers/health.py',
+        function: 'health_check',
+        line: 10,
+        depth: 0,
+        timestamp_ns: 0,
+      },
+      {
+        event: 'return',
+        file: 'routers/health.py',
+        function: 'health_check',
+        line: 10,
+        depth: 0,
+        timestamp_ns: 500,
+      },
+    ],
+  };
+
+  it('accepts all required fields from real middleware output', () => {
+    const trace = parseRequestTrace(realRequestTrace);
+    expect(trace.seq).toBe(1);
+    expect(trace.method).toBe('GET');
+    expect(trace.path).toBe('/health');
+    expect(trace.status_code).toBe(200);
+    expect(trace.duration_ms).toBe(5);
+    expect(trace.timestamp_ms).toBe(1734567890000);
+    expect(trace.call_events).toHaveLength(2);
+  });
+
+  it('call_events have all required fields with correct types', () => {
+    const trace = parseRequestTrace(realRequestTrace);
+    const evt = trace.call_events[0]!;
+    expect(evt.event).toBe('call');
+    expect(typeof evt.file).toBe('string');
+    expect(typeof evt.function).toBe('string');
+    expect(typeof evt.line).toBe('number');
+    expect(typeof evt.depth).toBe('number');
+    expect(typeof evt.timestamp_ns).toBe('number');
+  });
+
+  it('throws with field path when seq is missing', () => {
+    const noSeq = Object.fromEntries(
+      Object.entries(realRequestTrace).filter(([k]) => k !== 'seq'),
+    );
+    expect(() => parseRequestTrace(noSeq)).toThrow(/seq/);
+  });
+
+  it('throws when status_code is missing', () => {
+    const noStatus = Object.fromEntries(
+      Object.entries(realRequestTrace).filter(([k]) => k !== 'status_code'),
+    );
+    expect(() => parseRequestTrace(noStatus)).toThrow(/status_code/);
+  });
+
+  it('throws when call_events is not an array', () => {
+    expect(() => parseRequestTrace({ ...realRequestTrace, call_events: 'oops' })).toThrow(
+      /call_events/,
+    );
   });
 });

@@ -75,7 +75,7 @@ def _should_trace(filename: str) -> bool:
     return True
 
 
-def _on_py_start(code: types.CodeType, instruction_offset: int) -> None:
+def _on_py_start(code: types.CodeType, _instruction_offset: int) -> None:
     buf = _current_buffer.get()
     if buf is None:
         return
@@ -96,7 +96,7 @@ def _on_py_start(code: types.CodeType, instruction_offset: int) -> None:
     buf.depth += 1
 
 
-def _on_py_return(code: types.CodeType, instruction_offset: int, retval: object) -> None:
+def _on_py_return(code: types.CodeType, _instruction_offset: int, _retval: object) -> None:
     buf = _current_buffer.get()
     if buf is None:
         return
@@ -153,9 +153,8 @@ class E2eTracingMiddleware(BaseHTTPMiddleware):
 
         _start_tracer()
 
-        # Thread-safe sequence number per correlation ID
-        if scenario_id not in self._seq_locks:
-            self._seq_locks[scenario_id] = asyncio.Lock()
+        # Atomic creation of the per-scenario lock (setdefault is thread-safe in CPython)
+        self._seq_locks.setdefault(scenario_id, asyncio.Lock())
         async with self._seq_locks[scenario_id]:
             seq = self._seq_counters.get(scenario_id, 0) + 1
             self._seq_counters[scenario_id] = seq
@@ -202,7 +201,7 @@ class E2eTracingMiddleware(BaseHTTPMiddleware):
             ],
         }
         out_file = out_dir / f"req-{buf.seq:03d}.json"
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None,
             lambda: out_file.write_text(json.dumps(data, indent=2), encoding="utf-8"),
