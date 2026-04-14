@@ -11,6 +11,8 @@ export interface TraceEntry {
   hasMermaid: boolean;
   hasFlame: boolean;
   hasFolded: boolean;
+  /** Actual filename used for folded stacks (real: "folded-compact.txt"; legacy: "folded.txt"). */
+  foldedFile?: string;
   summary: TraceSummary | null;
 }
 

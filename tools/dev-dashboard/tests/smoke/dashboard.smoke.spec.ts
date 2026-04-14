@@ -1,4 +1,4 @@
-import { test, expect, withArtifacts } from './fixtures';
+import { test, expect, withArtifacts, withRealTraceArtifacts } from './fixtures';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -231,6 +231,33 @@ test('unknown_aspect_id_in_url_hash_falls_back_to_first_aspect', async ({
   await page.goto('/#/nonsense');
   await expect(page.getByTestId('aspect-scenarios')).toBeVisible();
   await expect.poll(() => page.url()).toMatch(/#\/scenarios$/);
+});
+
+test('user_ask_5_traces_aspect_renders_real_artifacts', async ({ page }) => {
+  // Guards against the regression where TracesAspect looked for
+  // `folded.txt` but the real producer writes `folded-compact.txt`.
+  const picked = await withRealTraceArtifacts();
+  expect(picked.length).toBeGreaterThan(0);
+  await page.goto('/#/traces');
+
+  // Scenario list is non-empty with real artifact names.
+  const first = picked[0]!;
+  const item = page.getByTestId(`trace-item-${first}`);
+  await expect(item).toBeVisible();
+  await item.click();
+
+  // Mermaid SVG renders (real artifacts include mermaid.md).
+  await expect(page.getByTestId('mermaid-svg')).toBeVisible();
+
+  // Flame iframe is present.
+  await expect(page.getByTestId('flame-iframe')).toHaveAttribute(
+    'src',
+    /flame\.html$/,
+  );
+
+  // Folded stacks: expand → content appears (loads folded-compact.txt).
+  await page.getByTestId('folded-expand').click();
+  await expect(page.getByTestId('folded-content')).toBeVisible();
 });
 
 test('repo_root_is_displayed_in_top_bar', async ({ page }) => {

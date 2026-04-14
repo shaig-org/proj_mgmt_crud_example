@@ -23,6 +23,16 @@ async function listDir(url: string): Promise<DirListing | null> {
   }
 }
 
+/**
+ * Pick the folded-stacks filename. Real pytest-tracer writes
+ * "folded-compact.txt"; older fixtures used "folded.txt".
+ */
+export function pickFoldedFilename(names: Set<string>): string | null {
+  if (names.has('folded-compact.txt')) return 'folded-compact.txt';
+  if (names.has('folded.txt')) return 'folded.txt';
+  return null;
+}
+
 async function loadEntry(id: string): Promise<TraceEntry> {
   const listing = await listDir(`${BASE}/${id}/`);
   const names = new Set(listing?.entries.map((e) => e.name) ?? []);
@@ -46,11 +56,13 @@ async function loadEntry(id: string): Promise<TraceEntry> {
       if (!(e instanceof ArtifactMissingError)) throw e;
     }
   }
+  const foldedName = pickFoldedFilename(names);
   return {
     id,
     hasMermaid: names.has('mermaid.md'),
     hasFlame: names.has('flame.html'),
-    hasFolded: names.has('folded.txt'),
+    hasFolded: foldedName !== null,
+    foldedFile: foldedName ?? undefined,
     summary,
   };
 }
@@ -134,7 +146,8 @@ function SelectedTrace({ entry }: { entry: TraceEntry }) {
       setFoldedExpanded(true);
       return;
     }
-    const r = await loadArtifactText(`${BASE}/${entry.id}/folded.txt`);
+    const name = entry.foldedFile ?? 'folded-compact.txt';
+    const r = await loadArtifactText(`${BASE}/${entry.id}/${name}`);
     setFolded(r.data);
     setFoldedExpanded(true);
   }

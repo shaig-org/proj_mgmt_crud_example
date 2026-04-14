@@ -118,5 +118,81 @@ export async function withArtifacts(
   );
 }
 
+/**
+ * Prepare the tmp repo with a subset of REAL pytest-tracer artifacts
+ * copied from `<repo>/backend/.trace-artifacts/`. Validates that the
+ * dashboard works against the actual producer schema (notably the
+ * `folded-compact.txt` filename vs the legacy `folded.txt`).
+ *
+ * Locates the real repo by walking up from the dashboard dir looking
+ * for a sibling `backend/.trace-artifacts` directory with at least one
+ * per-scenario subdirectory.
+ */
+export async function withRealTraceArtifacts(): Promise<string[]> {
+  await rmrf(TMP_REPO);
+  await fs.mkdir(TMP_REPO, { recursive: true });
+  await fs.mkdir(path.join(TMP_REPO, '.git'), { recursive: true });
+  await fs.mkdir(path.join(TMP_REPO, 'frontend/e2e/scenarios'), {
+    recursive: true,
+  });
+  await fs.mkdir(
+    path.join(TMP_REPO, 'backend/project_management_crud_example/routers'),
+    { recursive: true },
+  );
+  await fs.mkdir(path.join(TMP_REPO, 'backend/tests'), { recursive: true });
+
+  // Walk up to find the real repo's backend/.trace-artifacts.
+  let realRoot = DASHBOARD_DIR;
+  let realTraces: string | null = null;
+  for (let i = 0; i < 10; i++) {
+    const candidate = path.join(realRoot, 'backend/.trace-artifacts');
+    try {
+      const s = await fs.stat(candidate);
+      if (s.isDirectory()) {
+        realTraces = candidate;
+        break;
+      }
+    } catch {
+      /* walk */
+    }
+    const parent = path.dirname(realRoot);
+    if (parent === realRoot) break;
+    realRoot = parent;
+  }
+  if (!realTraces) {
+    throw new Error(
+      'Could not locate real backend/.trace-artifacts under parents of the dashboard dir.',
+    );
+  }
+  const entries = await fs.readdir(realTraces, { withFileTypes: true });
+  const dirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
+  if (dirs.length === 0) {
+    throw new Error(
+      `Real ${realTraces} contains no per-scenario subdirectories.`,
+    );
+  }
+  const dst = path.join(TMP_REPO, 'backend/.trace-artifacts');
+  await fs.mkdir(dst, { recursive: true });
+  // Copy up to 3 scenarios to keep the smoke fast.
+  const picked = dirs.slice(0, 3);
+  for (const name of picked) {
+    await copyDir(path.join(realTraces, name), path.join(dst, name));
+  }
+
+  // Minimal stub sources for staleness.
+  const traceSrc = path.join(TMP_REPO, 'backend/tests/test_stub.py');
+  await fs.writeFile(traceSrc, '# stub\n');
+
+  const mod = (await import('../../scripts/check-staleness.mjs')) as {
+    computeStaleness: (repoRoot: string) => Promise<unknown>;
+  };
+  const doc = await mod.computeStaleness(TMP_REPO);
+  await fs.writeFile(
+    path.join(DASHBOARD_DIR, '.staleness.json'),
+    JSON.stringify(doc, null, 2),
+  );
+  return picked;
+}
+
 export const test = base.extend({});
 export { expect };
