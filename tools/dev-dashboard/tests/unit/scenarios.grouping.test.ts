@@ -24,6 +24,15 @@ describe('deriveFeature', () => {
     expect(deriveFeature('')).toBeNull();
     expect(deriveFeature('   ')).toBeNull();
   });
+
+  it('uses directory path as group when nested under scenarios/', () => {
+    expect(
+      deriveFeature('e2e/scenarios/auth/login.scenario.spec.ts'),
+    ).toBe('auth');
+    expect(
+      deriveFeature('e2e/scenarios/tickets/browse/filter.scenario.spec.ts'),
+    ).toBe('tickets/browse');
+  });
 });
 
 describe('groupByFeature', () => {

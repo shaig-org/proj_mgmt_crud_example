@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 # Build the pytest-tracer index AND a sample set of human-viewable flame-graph
 # artifacts for every scenario. Run from anywhere; resolves paths relative to
 # the script location.
@@ -19,8 +19,8 @@
 #   backend/devtools/build_trace_artifacts.sh
 set -euo pipefail
 
-SCRIPT_DIR="${0:A:h}"
-BACKEND_DIR="${SCRIPT_DIR:h}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TRACE_BIN="/Users/shai/proj/shaig/learn/agent_tracer/projects/trace_analyzer/target/release/trace"
 ART_DIR="${BACKEND_DIR}/.trace-artifacts"
 

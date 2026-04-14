@@ -30,6 +30,9 @@ export function LeftRail({
       ? null
       : parseScenariosHash(window.location.hash).group,
   );
+  const [scenariosSubOpen, setScenariosSubOpen] = useState<boolean>(
+    () => activeId === 'scenarios',
+  );
 
   useEffect(() => {
     function onHash() {
@@ -38,6 +41,11 @@ export function LeftRail({
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+
+  useEffect(() => {
+    if (activeId === 'scenarios') setScenariosSubOpen(true);
+    else setScenariosSubOpen(false);
+  }, [activeId]);
 
   useEffect(() => {
     writeStoredRailCollapsed(collapsed);
@@ -74,6 +82,7 @@ export function LeftRail({
           !collapsed &&
           isActive &&
           a.id === 'scenarios' &&
+          scenariosSubOpen &&
           (scenarioGroups?.length ?? 0) > 0;
         return (
           <div key={a.id} className="rail__section">
@@ -81,9 +90,14 @@ export function LeftRail({
               role="tab"
               aria-selected={isActive}
               onClick={() => {
+                if (a.id === 'scenarios' && activeId === 'scenarios') {
+                  // Re-click on active Scenarios tab → toggle sub-items.
+                  setScenariosSubOpen((o) => !o);
+                  window.location.hash = '#/scenarios';
+                  return;
+                }
                 onSelect(a.id);
                 if (a.id === 'scenarios') {
-                  // Clear any group filter when reselecting the top-level tab.
                   window.location.hash = '#/scenarios';
                 }
               }}

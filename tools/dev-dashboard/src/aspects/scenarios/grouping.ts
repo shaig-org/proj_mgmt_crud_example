@@ -25,22 +25,41 @@ function slugify(s: string): string {
 }
 
 /**
- * Derive a feature label from a `specFile` path. `e2e/scenarios/org-create.scenario.spec.ts`
- * → `org-create`. Returns null when we cannot derive one (so callers can fall back
- * to the uncategorized bucket).
+ * Derive a feature label from a `specFile` path.
+ *
+ * Directory-based grouping relative to `e2e/scenarios/`:
+ *   `e2e/scenarios/foo.scenario.spec.ts`          → `foo`              (top-level, standalone)
+ *   `e2e/scenarios/auth/login.scenario.spec.ts`   → `auth`             (nested → dir path)
+ *   `e2e/scenarios/auth/x/y.scenario.spec.ts`     → `auth/x`           (full dir path)
+ *
+ * Returns null when we cannot derive one (so callers can fall back to
+ * the uncategorized bucket).
  */
 export function deriveFeature(specFile: string | undefined): string | null {
   if (typeof specFile !== 'string') return null;
   const trimmed = specFile.trim();
   if (!trimmed) return null;
-  const base = trimmed.split(/[\\/]/).pop() ?? trimmed;
-  // Strip common scenario suffixes: `.scenario.spec.ts`, `.spec.ts`, `.ts`.
-  const stripped = base
-    .replace(/\.scenario\.spec\.ts$/i, '')
-    .replace(/\.spec\.ts$/i, '')
-    .replace(/\.tsx?$/i, '');
-  if (!stripped) return null;
-  return stripped;
+  // Normalize separators.
+  const normalized = trimmed.replace(/\\/g, '/');
+  // Find the scenarios root; everything after it is the grouping-relevant path.
+  const marker = 'scenarios/';
+  const markerIdx = normalized.indexOf(marker);
+  const relative = markerIdx >= 0
+    ? normalized.slice(markerIdx + marker.length)
+    : normalized.split('/').pop() ?? normalized;
+  const parts = relative.split('/').filter(Boolean);
+  if (parts.length === 0) return null;
+  if (parts.length === 1) {
+    // Top-level file: group is the file's base name (one-item standalone group).
+    const base = parts[0]!;
+    const stripped = base
+      .replace(/\.scenario\.spec\.ts$/i, '')
+      .replace(/\.spec\.ts$/i, '')
+      .replace(/\.tsx?$/i, '');
+    return stripped || null;
+  }
+  // Nested: group is the directory path (all segments except the file).
+  return parts.slice(0, -1).join('/') || null;
 }
 
 /**

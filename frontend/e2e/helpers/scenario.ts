@@ -123,7 +123,7 @@ class StepCollector {
       status = 'failed';
       try {
         await ensureDir(path.dirname(screenshotAbs));
-        await this.page.screenshot({ path: screenshotAbs, fullPage: true });
+        await this.page.screenshot({ path: screenshotAbs, fullPage: false });
       } catch {
         // best effort
       }
@@ -140,7 +140,7 @@ class StepCollector {
     }
     try {
       await ensureDir(path.dirname(screenshotAbs));
-      await this.page.screenshot({ path: screenshotAbs, fullPage: true });
+      await this.page.screenshot({ path: screenshotAbs, fullPage: false });
     } catch {
       // best effort
     }
