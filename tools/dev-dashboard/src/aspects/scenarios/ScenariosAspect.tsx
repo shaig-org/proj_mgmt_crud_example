@@ -26,34 +26,73 @@ function validate(doc: unknown): ScenariosManifest {
       throw new ArtifactSchemaError(ARTIFACT_URL, `scenarios[${i}]`);
     }
     const r = raw as Record<string, unknown>;
-    if (typeof r.id !== 'string') {
-      throw new ArtifactSchemaError(ARTIFACT_URL, `scenarios[${i}].id`);
+    const id =
+      typeof r.id === 'string'
+        ? r.id
+        : typeof r.slug === 'string'
+          ? r.slug
+          : null;
+    if (id === null) {
+      throw new ArtifactSchemaError(ARTIFACT_URL, `scenarios[${i}].id|slug`);
     }
-    if (typeof r.title !== 'string') {
-      throw new ArtifactSchemaError(ARTIFACT_URL, `scenarios[${i}].title`);
+    const title =
+      typeof r.title === 'string'
+        ? r.title
+        : typeof r.name === 'string'
+          ? r.name
+          : null;
+    if (title === null) {
+      throw new ArtifactSchemaError(ARTIFACT_URL, `scenarios[${i}].title|name`);
     }
+    const rawStatus = typeof r.status === 'string' ? r.status : undefined;
+    const normalizedStatus =
+      rawStatus === 'passing' || rawStatus === 'passed'
+        ? 'passing'
+        : rawStatus === 'failing' || rawStatus === 'failed'
+          ? 'failing'
+          : undefined;
+    const gif =
+      typeof r.gif === 'string'
+        ? r.gif
+        : typeof r.gifPath === 'string'
+          ? r.gifPath
+          : undefined;
+    const video =
+      typeof r.video === 'string'
+        ? r.video
+        : typeof r.videoGalleryPath === 'string'
+          ? r.videoGalleryPath
+          : typeof r.videoPath === 'string'
+            ? r.videoPath
+            : undefined;
+    const steps = Array.isArray(r.steps)
+      ? (r.steps as Record<string, unknown>[]).map((s, idx) => ({
+          index: typeof s.index === 'number' ? s.index : idx,
+          label:
+            typeof s.label === 'string'
+              ? s.label
+              : typeof s.name === 'string'
+                ? s.name
+                : '',
+          screenshot: resolveMediaUrl(
+            typeof s.screenshot === 'string' ? s.screenshot : undefined,
+          ),
+        }))
+      : undefined;
+    const firstShot = steps?.find((s) => s.screenshot)?.screenshot;
     scenarios.push({
-      id: r.id,
-      title: r.title,
+      id,
+      title,
       tags: Array.isArray(r.tags) ? (r.tags as string[]) : undefined,
-      status:
-        r.status === 'passing' || r.status === 'failing' ? r.status : undefined,
+      status: normalizedStatus,
       correlationId:
         typeof r.correlationId === 'string' ? r.correlationId : undefined,
-      gif: resolveMediaUrl(typeof r.gif === 'string' ? r.gif : undefined),
-      video: resolveMediaUrl(typeof r.video === 'string' ? r.video : undefined),
-      thumbnail: resolveMediaUrl(
-        typeof r.thumbnail === 'string' ? r.thumbnail : undefined,
-      ),
-      steps: Array.isArray(r.steps)
-        ? (r.steps as Record<string, unknown>[]).map((s, idx) => ({
-            index: typeof s.index === 'number' ? s.index : idx,
-            label: typeof s.label === 'string' ? s.label : '',
-            screenshot: resolveMediaUrl(
-              typeof s.screenshot === 'string' ? s.screenshot : undefined,
-            ),
-          }))
-        : undefined,
+      gif: resolveMediaUrl(gif),
+      video: resolveMediaUrl(video),
+      thumbnail:
+        resolveMediaUrl(typeof r.thumbnail === 'string' ? r.thumbnail : undefined) ??
+        firstShot,
+      steps,
     });
   }
   return { scenarios };
