@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AnyAspect, AspectStalenessState } from '../aspects/types';
-import { CommandBlock } from './CommandBlock';
+import { RefreshModal } from './RefreshModal';
 import { StaleBadge } from './StaleBadge';
 import { EmptyState } from './EmptyState';
 import {
@@ -20,8 +20,23 @@ type LoadState =
   | { kind: 'missing' }
   | { kind: 'error'; message: string };
 
+function useHash(): string {
+  const [hash, setHash] = useState<string>(
+    typeof window === 'undefined' ? '' : window.location.hash,
+  );
+  useEffect(() => {
+    function onHash() {
+      setHash(window.location.hash);
+    }
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  return hash;
+}
+
 export function AspectShell({ aspect, staleness }: AspectShellProps) {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
+  const hash = useHash();
 
   useEffect(() => {
     let cancelled = false;
@@ -58,6 +73,11 @@ export function AspectShell({ aspect, staleness }: AspectShellProps) {
   const showEmpty =
     state.kind === 'missing' || (state.kind !== 'ok' && !primaryArtifactExists);
 
+  const suppressRefresh = aspect.suppressRefresh?.(hash) ?? false;
+  // Also force-hide refresh on the empty state — the empty state itself
+  // already surfaces the command prominently.
+  const showRefresh = !suppressRefresh && !showEmpty;
+
   return (
     <section aria-labelledby={`aspect-title-${aspect.id}`} data-testid={`aspect-${aspect.id}`}>
       <header className="shell__header">
@@ -71,13 +91,15 @@ export function AspectShell({ aspect, staleness }: AspectShellProps) {
               last generated: {staleness.primaryArtifactMtime}
             </span>
           )}
+          {showRefresh && (
+            <RefreshModal
+              command={aspect.refreshCommand}
+              cwd={aspect.refreshCwd}
+              description={aspect.refreshDescription}
+              output={aspect.artifacts[0].repoPath}
+            />
+          )}
         </div>
-        <CommandBlock
-          command={aspect.refreshCommand}
-          cwd={aspect.refreshCwd}
-          description={aspect.refreshDescription}
-          output={aspect.artifacts[0].repoPath}
-        />
       </header>
       <div className="shell__body">
         {showEmpty ? (

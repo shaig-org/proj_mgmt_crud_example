@@ -28,7 +28,7 @@ test('clicking_each_aspect_tab_renders_its_panel_header', async ({ page }) => {
       `id=${id} logs=${logs.join('||')}`,
     ).toBeVisible({ timeout: 3000 });
     await expect(
-      page.getByTestId(`aspect-${id}`).getByTestId('cmd-block'),
+      page.getByTestId(`aspect-${id}`).getByTestId('refresh-modal-open'),
     ).toBeVisible();
   }
 });
@@ -71,6 +71,7 @@ test('refresh_command_block_copies_only_the_command_to_clipboard', async ({
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await withArtifacts({ scenarios: true, capabilities: true, traces: true });
   await page.goto('/#/scenarios');
+  await page.getByTestId('refresh-modal-open').click();
   const cmdText = await page.getByTestId('cmd-block-command').innerText();
   await page.getByTestId('cmd-block-copy').click();
   const pasted = await page.evaluate(() => navigator.clipboard.readText());
@@ -717,4 +718,38 @@ test('repo_root_is_displayed_in_top_bar', async ({ page }) => {
   await page.goto('/');
   const text = await page.getByTestId('repo-root').innerText();
   expect(text).toContain('.tmp-repo');
+});
+
+test('iter3_global_refresh_collapses_to_modal', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: true, traces: true });
+  for (const id of ['scenarios', 'capabilities', 'traces'] as const) {
+    await page.goto(`/#/${id}`);
+    const trigger = page
+      .getByTestId(`aspect-${id}`)
+      .getByTestId('refresh-modal-open');
+    await expect(trigger).toBeVisible();
+    await trigger.click();
+    const modal = page.getByTestId('refresh-modal');
+    await expect(modal).toBeVisible();
+    await expect(modal.getByTestId('cmd-block-command')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('refresh-modal')).toHaveCount(0);
+  }
+});
+
+test('iter3_detail_has_no_refresh_trigger', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios/org-create-1776000000000-w0');
+  await expect(page.getByTestId('scenario-detail')).toBeVisible();
+  await expect(page.getByTestId('refresh-modal-open')).toHaveCount(0);
+  // Same for screenshots and flow sub-routes.
+  await page.goto('/#/scenarios/org-create-1776000000000-w0/screenshots');
+  await expect(page.getByTestId('screenshots-page')).toBeVisible();
+  await expect(page.getByTestId('refresh-modal-open')).toHaveCount(0);
+  await page.goto('/#/scenarios/org-create-1776000000000-w0/flow');
+  await expect(page.getByTestId('flow-page')).toBeVisible();
+  await expect(page.getByTestId('refresh-modal-open')).toHaveCount(0);
+  // Back on gallery → trigger present.
+  await page.goto('/#/scenarios');
+  await expect(page.getByTestId('refresh-modal-open')).toBeVisible();
 });

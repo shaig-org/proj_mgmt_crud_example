@@ -994,6 +994,11 @@ export const scenariosAspect: Aspect<ScenariosData> = {
   refreshCwd: '<repo-root>',
   refreshDescription:
     're-runs scenario tests headed and captures GIFs, screenshots, and step transcripts.',
+  suppressRefresh: (hash: string) => {
+    // Hide refresh trigger on scenario detail drill-downs
+    // (#/scenarios/<slug>, #/scenarios/<slug>/screenshots, etc.)
+    return /^#\/?scenarios\/[^?]+/.test(hash);
+  },
   load: async () => {
     const { data } = await loadArtifact<unknown>(ARTIFACT_URL);
     const manifest = validate(data);

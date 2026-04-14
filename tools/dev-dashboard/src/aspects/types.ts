@@ -33,6 +33,11 @@ export interface Aspect<TData = unknown> {
   load: () => Promise<TData>;
   /** Renderer: receives loaded data. */
   render: (data: TData) => ReactNode;
+  /**
+   * Optional predicate: given the current URL hash, return true to suppress
+   * the aspect-level refresh trigger (e.g. on scenario detail drill-down).
+   */
+  suppressRefresh?: (hash: string) => boolean;
 }
 
 export interface AspectStalenessState {
