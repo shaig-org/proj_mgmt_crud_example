@@ -5,15 +5,15 @@
  */
 
 import { expect } from '@playwright/test';
-import { scenarioTest } from '../helpers/scenario';
+import { scenarioTest } from '../../helpers/scenario';
 import {
   createOrgAndPM,
   createProjectForPM,
   createTicket,
   loginViaUI,
   type PMProjectContext,
-} from '../helpers/fixtures';
-import { generateTestTicketTitle } from '../utils/test-config';
+} from '../../helpers/fixtures';
+import { generateTestTicketTitle } from '../../utils/test-config';
 
 interface Ctx {
   project: PMProjectContext;

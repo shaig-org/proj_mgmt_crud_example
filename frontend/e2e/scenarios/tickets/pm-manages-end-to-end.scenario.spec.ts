@@ -8,7 +8,7 @@
  */
 
 import { expect } from '@playwright/test';
-import { scenarioTest } from '../helpers/scenario';
+import { scenarioTest } from '../../helpers/scenario';
 import {
   createEpicForProject,
   createOrgAndPM,
@@ -16,8 +16,8 @@ import {
   loginViaUI,
   type EpicRef,
   type PMProjectContext,
-} from '../helpers/fixtures';
-import { generateTestEpicTitle, generateTestTicketTitle } from '../utils/test-config';
+} from '../../helpers/fixtures';
+import { generateTestEpicTitle, generateTestTicketTitle } from '../../utils/test-config';
 
 interface Ctx {
   project: PMProjectContext;
