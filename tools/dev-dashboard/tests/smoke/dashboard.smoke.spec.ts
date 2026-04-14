@@ -288,6 +288,34 @@ test('user_ask_2_dark_is_default_and_toggle_persists_across_reload', async ({
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 });
 
+test('user_ask_4_rail_collapses_to_icons_and_persists', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: true, traces: true });
+
+  // Expanded by default — full aspect labels visible.
+  await page.goto('/');
+  const rail = page.locator('nav.rail');
+  await expect(rail).toHaveAttribute('data-collapsed', '0');
+  await expect(page.getByTestId('rail-scenarios')).toContainText('Scenarios');
+
+  // Click hamburger → collapses; stored to localStorage.
+  await page.getByTestId('rail-hamburger').click();
+  await expect(rail).toHaveAttribute('data-collapsed', '1');
+  const stored = await page.evaluate(() =>
+    localStorage.getItem('dev-dashboard.railCollapsed'),
+  );
+  expect(stored).toBe('1');
+
+  // Reload → still collapsed.
+  await page.reload();
+  await expect(page.locator('nav.rail')).toHaveAttribute('data-collapsed', '1');
+
+  // Expand again and confirm persistence.
+  await page.getByTestId('rail-hamburger').click();
+  await expect(page.locator('nav.rail')).toHaveAttribute('data-collapsed', '0');
+  await page.reload();
+  await expect(page.locator('nav.rail')).toHaveAttribute('data-collapsed', '0');
+});
+
 test('repo_root_is_displayed_in_top_bar', async ({ page }) => {
   await withArtifacts({ scenarios: true, capabilities: true, traces: true });
   await page.goto('/');
