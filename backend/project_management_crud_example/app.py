@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from project_management_crud_example.capabilities import CapabilityPermissionError, PasswordChangeError
 from project_management_crud_example.dependencies import get_database
 from project_management_crud_example.exceptions import AuthHTTPException
+from project_management_crud_example.middleware.e2e_tracing import E2eTracingMiddleware
 from project_management_crud_example.routers import (
     activity_log_api,
     auth_api,
@@ -103,6 +104,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(E2eTracingMiddleware)
 
 # Include routers
 app.include_router(auth_api.router)
