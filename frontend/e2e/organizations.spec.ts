@@ -37,32 +37,7 @@ test.describe('Organizations Page', () => {
     await expect(tableRow).toBeVisible();
   });
 
-  test('super admin can create new organization', async ({ page }) => {
-    await page.goto('/organizations');
-
-    // Click New Organization button
-    await page.getByRole('button', { name: 'New Organization' }).click();
-
-    // Should show create form modal
-    await expect(page.locator('.modal-overlay')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Create New Organization' })).toBeVisible();
-
-    // Fill in form
-    const orgName = `Test Org ${Date.now()}`;
-    const orgDescription = 'This is a test organization';
-    await page.getByLabel('Organization Name *').fill(orgName);
-    await page.getByLabel('Description').fill(orgDescription);
-
-    // Submit form
-    await page.getByRole('button', { name: 'Create Organization' }).click();
-
-    // Modal should close
-    await expect(page.locator('.modal-overlay')).not.toBeVisible();
-
-    // New organization should appear in the list
-    await expect(page.getByText(orgName)).toBeVisible();
-    await expect(page.getByText(orgDescription)).toBeVisible();
-  });
+  // Create-organization happy path is covered by create-organization.scenario.spec.ts.
 
   test('organization name field is required', async ({ page }) => {
     await page.goto('/organizations');
