@@ -599,6 +599,119 @@ test('old_feature_18_21_flow_page_shows_compact_strip_with_labels', async ({
   await expect(page.getByTestId('breadcrumb-leaf')).toHaveText('flow');
 });
 
+test('old_feature_03_tile_size_slider_changes_grid_size_and_persists', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+
+  const grid = page.getByTestId('scenario-grid');
+  await expect(grid).toBeVisible();
+
+  // Default is 320px per the gallery lib default.
+  await expect(page.getByTestId('tile-size-readout')).toContainText('320');
+  const initialTile = await grid.evaluate(
+    (el) => getComputedStyle(el).getPropertyValue('--tile-size').trim(),
+  );
+  expect(initialTile).toBe('320px');
+
+  // Move the slider to 640. Use the native value setter so React's
+  // synthetic event system picks it up.
+  const slider = page.getByTestId('tile-size-slider');
+  await slider.evaluate((el) => {
+    const input = el as HTMLInputElement;
+    const proto = Object.getPrototypeOf(input) as HTMLInputElement;
+    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+    setter?.call(input, '640');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect(page.getByTestId('tile-size-readout')).toContainText('640');
+  const afterMove = await grid.evaluate(
+    (el) => getComputedStyle(el).getPropertyValue('--tile-size').trim(),
+  );
+  expect(afterMove).toBe('640px');
+
+  // Persisted to localStorage.
+  const stored = await page.evaluate(() =>
+    localStorage.getItem('dev-dashboard.tileSize'),
+  );
+  expect(stored).toBe('640');
+
+  // Reload: still 640px.
+  await page.reload();
+  await expect(page.getByTestId('tile-size-readout')).toContainText('640');
+  const afterReload = await page
+    .getByTestId('scenario-grid')
+    .evaluate((el) =>
+      getComputedStyle(el).getPropertyValue('--tile-size').trim(),
+    );
+  expect(afterReload).toBe('640px');
+});
+
+test('old_feature_02_view_toggle_switches_between_gif_cards_and_strip_cards', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+
+  // Default: GIF cards — grid visible, strip rows absent.
+  await expect(page.getByTestId('scenario-grid')).toBeVisible();
+  await expect(page.getByTestId('view-toggle-gif')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(
+    page.getByTestId('scenario-card-org-create-1776000000000-w0'),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId('scenario-strip-org-create-1776000000000-w0'),
+  ).toHaveCount(0);
+
+  // Click strip toggle.
+  await page.getByTestId('view-toggle-strip').click();
+  await expect(page.getByTestId('view-toggle-strip')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(
+    page.getByTestId('scenario-strip-org-create-1776000000000-w0'),
+  ).toBeVisible();
+  await expect(page.getByTestId('scenario-grid')).toHaveCount(0);
+
+  // Persisted.
+  const stored = await page.evaluate(() =>
+    localStorage.getItem('dev-dashboard.galleryView'),
+  );
+  expect(stored).toBe('strip');
+
+  // Reload: still strip mode.
+  await page.reload();
+  await expect(
+    page.getByTestId('scenario-strip-org-create-1776000000000-w0'),
+  ).toBeVisible();
+  await expect(page.getByTestId('scenario-grid')).toHaveCount(0);
+});
+
+test('old_feature_05_strip_frame_click_opens_screenshot_lightbox_at_step_index', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+
+  await page.getByTestId('view-toggle-strip').click();
+  await expect(
+    page.getByTestId('scenario-strip-org-create-1776000000000-w0'),
+  ).toBeVisible();
+
+  // Click frame index 1 (the second step) — lightbox opens at "2 of 3".
+  await page
+    .getByTestId('strip-frame-org-create-1776000000000-w0-1')
+    .click();
+  await expect(page.getByTestId('lightbox')).toBeVisible();
+  await expect(page.getByTestId('lightbox-counter')).toContainText('2 of 3');
+});
+
 test('repo_root_is_displayed_in_top_bar', async ({ page }) => {
   await withArtifacts({ scenarios: true, capabilities: true, traces: true });
   await page.goto('/');

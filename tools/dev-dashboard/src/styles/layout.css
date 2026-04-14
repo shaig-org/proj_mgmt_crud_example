@@ -618,10 +618,106 @@ html[data-rail-collapsed='1'] .app {
   color: #9cf;
 }
 
+.scen-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.scen-toolbar__size {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.scen-toolbar__readout {
+  font-variant-numeric: tabular-nums;
+  min-width: 4ch;
+  color: var(--text-muted, #888);
+}
+
+.scen-toolbar__view {
+  display: inline-flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.scen-toolbar__view button {
+  background: transparent;
+  border: none;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  color: inherit;
+}
+
+.scen-toolbar__view button.is-active {
+  background: var(--tab-active-bg);
+  font-weight: 600;
+}
+
 .scen-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--tile-size, 320px), 1fr));
   gap: var(--space-4);
+}
+
+.scen-strips {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.scen-strip {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  padding: var(--space-3);
+}
+
+.scen-strip__title {
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+
+.scen-strip__frames {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+}
+
+.scen-strip__frame {
+  position: relative;
+  flex: 0 0 auto;
+  width: calc(var(--tile-size, 320px) / 2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.scen-strip__frame img {
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  display: block;
+}
+
+.scen-strip__frame .strip-n {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-variant-numeric: tabular-nums;
 }
 
 .scen-card {

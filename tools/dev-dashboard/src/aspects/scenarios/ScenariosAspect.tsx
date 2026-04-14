@@ -7,6 +7,19 @@ import {
   parseScenariosHash,
   type FeatureGroup,
 } from './grouping';
+import {
+  GALLERY_VIEW_DEFAULT,
+  TILE_SIZE_DEFAULT,
+  TILE_SIZE_MAX,
+  TILE_SIZE_MIN,
+  TILE_SIZE_STOPS,
+  clampTileSize,
+  readGalleryView,
+  readTileSize,
+  writeGalleryView,
+  writeTileSize,
+  type GalleryView,
+} from '../../lib/gallery';
 
 const ARTIFACT_URL = '/artifacts/scenarios/manifest.json';
 
@@ -694,6 +707,40 @@ function Detail({
   );
 }
 
+function StripRow({
+  entry,
+  onOpenAt,
+}: {
+  entry: ScenarioEntry;
+  onOpenAt: (scenarioId: string, stepIndex: number) => void;
+}) {
+  const frames = (entry.steps ?? [])
+    .map((s) => s.screenshot)
+    .filter((s): s is string => Boolean(s));
+  return (
+    <div
+      className="scen-strip"
+      data-testid={`scenario-strip-${entry.id}`}
+    >
+      <div className="scen-strip__title">{entry.title}</div>
+      <div className="scen-strip__frames">
+        {frames.map((src, i) => (
+          <button
+            key={`${src}-${i}`}
+            type="button"
+            className="scen-strip__frame"
+            data-testid={`strip-frame-${entry.id}-${i}`}
+            onClick={() => onOpenAt(entry.id, i)}
+          >
+            <img src={src} alt={`${entry.title} step ${i + 1}`} />
+            <span className="strip-n">{i + 1}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Grid({
   manifest,
   traceScenarioIds,
@@ -708,6 +755,17 @@ function Grid({
   onSelect: (id: string) => void;
 }) {
   const [query, setQuery] = useState('');
+  const [tileSize, setTileSize] = useState<number>(() =>
+    typeof window === 'undefined' ? TILE_SIZE_DEFAULT : readTileSize(),
+  );
+  const [view, setView] = useState<GalleryView>(() =>
+    typeof window === 'undefined' ? GALLERY_VIEW_DEFAULT : readGalleryView(),
+  );
+  const [stripLightbox, setStripLightbox] = useState<{
+    scenarioId: string;
+    index: number;
+  } | null>(null);
+
   const filtered = useMemo(() => {
     let items = manifest.scenarios;
     if (groupFilter) {
@@ -725,38 +783,139 @@ function Grid({
     );
   }, [manifest, query, groupFilter, groups]);
 
-  void traceScenarioIds; // used in detail view
+  void traceScenarioIds;
+
+  function onTileSizeChange(e: React.ChangeEvent<HTMLInputElement>): void {
+    const next = clampTileSize(Number(e.currentTarget.value));
+    setTileSize(next);
+    writeTileSize(next);
+  }
+
+  function pickView(next: GalleryView): void {
+    setView(next);
+    writeGalleryView(next);
+  }
+
+  const stripScenario =
+    stripLightbox !== null
+      ? manifest.scenarios.find((s) => s.id === stripLightbox.scenarioId) ??
+        null
+      : null;
+  const stripScreenshots =
+    stripScenario !== null
+      ? (stripScenario.steps ?? [])
+          .map((s) => s.screenshot)
+          .filter((s): s is string => Boolean(s))
+      : [];
+
   return (
     <div>
-      <div style={{ marginBottom: 'var(--space-3)' }}>
+      <div className="scen-toolbar" data-testid="scenario-toolbar">
         <input
           data-testid="scenario-search"
           placeholder="search scenarios"
           value={query}
           onChange={(e) => setQuery(e.currentTarget.value)}
         />
+        <label className="scen-toolbar__size">
+          tile size{' '}
+          <input
+            type="range"
+            min={TILE_SIZE_MIN}
+            max={TILE_SIZE_MAX}
+            step={10}
+            list="tile-size-stops"
+            value={tileSize}
+            onChange={onTileSizeChange}
+            data-testid="tile-size-slider"
+          />
+          <datalist id="tile-size-stops">
+            {TILE_SIZE_STOPS.map((s) => (
+              <option key={s} value={String(s)} />
+            ))}
+          </datalist>
+          <span className="scen-toolbar__readout" data-testid="tile-size-readout">
+            {tileSize}px
+          </span>
+        </label>
+        <div className="scen-toolbar__view" role="group" aria-label="view">
+          <button
+            type="button"
+            data-testid="view-toggle-gif"
+            aria-pressed={view === 'gif'}
+            className={view === 'gif' ? 'is-active' : ''}
+            onClick={() => pickView('gif')}
+          >
+            GIF cards
+          </button>
+          <button
+            type="button"
+            data-testid="view-toggle-strip"
+            aria-pressed={view === 'strip'}
+            className={view === 'strip' ? 'is-active' : ''}
+            onClick={() => pickView('strip')}
+          >
+            Screenshot strips
+          </button>
+        </div>
       </div>
-      <div className="scen-grid" data-testid="scenario-grid">
-        {filtered.map((s) => {
-          const media = s.gif ?? s.thumbnail;
-          return (
-            <button
+      {view === 'gif' ? (
+        <div
+          className="scen-grid"
+          data-testid="scenario-grid"
+          style={{ ['--tile-size' as string]: `${tileSize}px` }}
+        >
+          {filtered.map((s) => {
+            const media = s.gif ?? s.thumbnail;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                className="scen-card"
+                data-testid={`scenario-card-${s.id}`}
+                onClick={() => onSelect(s.id)}
+              >
+                {media ? (
+                  <img src={media} alt={s.title} className="scen-card__media" />
+                ) : (
+                  <div className="scen-card__media" />
+                )}
+                <div className="scen-card__title">{s.title}</div>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div
+          className="scen-strips"
+          data-testid="scenario-strips"
+          style={{ ['--tile-size' as string]: `${tileSize}px` }}
+        >
+          {filtered.map((s) => (
+            <StripRow
               key={s.id}
-              type="button"
-              className="scen-card"
-              data-testid={`scenario-card-${s.id}`}
-              onClick={() => onSelect(s.id)}
-            >
-              {media ? (
-                <img src={media} alt={s.title} className="scen-card__media" />
-              ) : (
-                <div className="scen-card__media" />
-              )}
-              <div className="scen-card__title">{s.title}</div>
-            </button>
-          );
-        })}
-      </div>
+              entry={s}
+              onOpenAt={(id, idx) =>
+                setStripLightbox({ scenarioId: id, index: idx })
+              }
+            />
+          ))}
+        </div>
+      )}
+      <Lightbox
+        state={
+          stripLightbox === null
+            ? { kind: 'closed' }
+            : { kind: 'screenshot', index: stripLightbox.index }
+        }
+        screenshots={stripScreenshots}
+        onClose={() => setStripLightbox(null)}
+        onIndex={(i) =>
+          setStripLightbox((prev) =>
+            prev === null ? prev : { scenarioId: prev.scenarioId, index: i },
+          )
+        }
+      />
     </div>
   );
 }
