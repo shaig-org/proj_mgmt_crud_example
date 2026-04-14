@@ -41,7 +41,13 @@ Commit freely on the current branch/worktree. Natural checkpoints: plan written,
 Backend tests marked with `@pytest.mark.scenario` are indexed into `backend/.trace-index` by pytest-tracer. Query the index with the `trace` CLI to find which tests cover which code **before editing backend code**. Full CLI reference and rebuild steps live in the `trace-analyzer` skill — invoke it when working with traces. Markers (`scenario`, `behavior`, `error`) are registered in `backend/pytest.ini`.
 
 ## Validations
-Any completed backend work must pass `cd backend && ./devtools/run_all_agent_validations.sh`. Any completed frontend work must pass `npm run lint && npm run typecheck && npm run e2e`. Zero errors, zero warnings. See principles.md for the full contract.
+Any completed backend work must pass `cd backend && ./devtools/run_all_agent_validations.sh`. Any completed frontend work must pass `npm run lint && npm run typecheck && npm run e2e`. Any completed `tools/dev-dashboard/` work must pass `npm --prefix tools/dev-dashboard run typecheck && npm --prefix tools/dev-dashboard run lint && npm --prefix tools/dev-dashboard run test -- --run && npm --prefix tools/dev-dashboard run smoke`. Zero errors, zero warnings. See principles.md for the full contract.
+
+## Git hooks
+Run `./devtools/install-git-hooks.sh` once per clone/worktree to wire up the repo-tracked pre-commit hook in `githooks/`. The hook runs typecheck + lint + unit tests for any module whose files are staged (currently `tools/dev-dashboard/`; extend `githooks/pre-commit` when adding more modules). Playwright/E2E suites are intentionally NOT in the hook — run them manually before declaring work done.
+
+## Dev dashboard (tools/dev-dashboard/)
+Standalone Vite + React + TS app that consolidates the Scenarios walkthroughs, Capabilities analyzer report, and pytest-tracer artifacts behind per-aspect tabs. View-only: each panel shows a copyable refresh command, last-generated mtime, and a stale indicator. The aspect-plugin contract (`Aspect<TData>` in `src/aspects/types.ts`) is the extension point — add a new angle on the project by registering a new aspect. Real-producer schemas are locked in by `tests/unit/scenarios.realschema.test.ts`; extend that file whenever a producer's artifact shape changes.
 
 ## Capability layer
 Backend route handlers depend on narrow **Capability** objects, not on the full `Repository`. See `docs/architecture/principles.md` §Capability layer for the rule. When a change alters a route's capability set:

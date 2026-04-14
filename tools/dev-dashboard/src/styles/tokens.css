@@ -1,0 +1,129 @@
+/*
+ * Semantic color tokens.
+ *
+ * Default theme is dark (also applied when no [data-theme] is set).
+ * Light theme is opt-in via [data-theme="light"].
+ *
+ * All non-color tokens (spacing, radius, fonts) live at :root because
+ * they do not change across themes.
+ */
+
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --radius: 6px;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+/* Dark theme — default, applied to :root so the very first paint
+ * is dark even before React attaches. */
+:root,
+[data-theme='dark'] {
+  --bg: #0b0d10;
+  --bg-panel: #14171c;
+  --bg-elevated: #1b1f26;
+  --border: #2a2f38;
+  --text: #e6e8eb;
+  --text-muted: #8a92a0;
+  --accent: #60a5fa;
+  --stale: #f59e0b;
+  --stale-bg: #3a2a08;
+  --fresh: #34d399;
+  --fresh-bg: #0f2a20;
+  --removed: #f87171;
+  --reduced: #38bdf8;
+  --expanded: #fbbf24;
+  --new: #34d399;
+  --status-expanded-bg: #2a2107;
+  --status-reduced-bg: #0a1a28;
+  --status-new-bg: #07221a;
+  --status-removed-bg: #2a0a0a;
+  --tab-active-bg: #1b1f26;
+  --surface-accent: #223149;
+  --graph-bg: #f8fafc;
+  --strip-row-bg-a: #14171c;
+  --strip-row-bg-b: #1d222b;
+  --strip-row-hover-bg: #263140;
+}
+
+[data-theme='light'] {
+  --bg: #fafafa;
+  --bg-panel: #ffffff;
+  --bg-elevated: #f4f4f5;
+  --border: #e4e4e7;
+  --text: #18181b;
+  --text-muted: #71717a;
+  --accent: #2563eb;
+  --stale: #d97706;
+  --stale-bg: #fef3c7;
+  --fresh: #16a34a;
+  --fresh-bg: #dcfce7;
+  --removed: #dc2626;
+  --reduced: #0ea5e9;
+  --expanded: #d97706;
+  --new: #16a34a;
+  --status-expanded-bg: #fffbeb;
+  --status-reduced-bg: #eff6ff;
+  --status-new-bg: #f0fdf4;
+  --status-removed-bg: #fef2f2;
+  --tab-active-bg: #f4f4f5;
+  --surface-accent: #e0ecff;
+  --graph-bg: #f8fafc;
+  --strip-row-bg-a: #ffffff;
+  --strip-row-bg-b: #eaeef5;
+  --strip-row-hover-bg: #d6e4fb;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--sans);
+  color: var(--text);
+  background: var(--bg);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+code,
+pre,
+.mono {
+  font-family: var(--mono);
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Theme-aware defaults so inputs don't render with the browser's light
+ * default in dark mode. */
+input[type='text'],
+input[type='search'],
+input:not([type]) {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font: inherit;
+}
+
+input[type='text']::placeholder,
+input[type='search']::placeholder,
+input:not([type])::placeholder {
+  color: var(--text-muted);
+}

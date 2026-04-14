@@ -1,0 +1,105 @@
+{
+  "generatedAt": "2026-04-14T04:02:41.793Z",
+  "scenarios": [
+    {
+      "name": "Create an organization",
+      "slug": "org-create-1776000000000-w0",
+      "specFile": "e2e/scenarios/org-create.scenario.spec.ts",
+      "correlationId": "org-create-1776000000000-w0",
+      "startedAt": "2026-04-14T04:01:58.407Z",
+      "endedAt": "2026-04-14T04:01:58.834Z",
+      "durationMs": 427,
+      "status": "passed",
+      "steps": [
+        {
+          "index": 1,
+          "name": "Open signup",
+          "slug": "open-signup",
+          "screenshot": "media/org_create.gif",
+          "startedAt": "2026-04-14T04:01:58.407Z",
+          "durationMs": 258,
+          "status": "passed"
+        },
+        {
+          "index": 2,
+          "name": "Fill form",
+          "slug": "fill-form",
+          "screenshot": "media/org_create.gif",
+          "startedAt": "2026-04-14T04:01:58.665Z",
+          "durationMs": 128,
+          "status": "passed"
+        },
+        {
+          "index": 3,
+          "name": "Submit",
+          "slug": "submit",
+          "screenshot": "media/org_create.gif",
+          "startedAt": "2026-04-14T04:01:58.793Z",
+          "durationMs": 41,
+          "status": "passed"
+        }
+      ],
+      "videoPath": "media/org_create.webm",
+      "gifPath": "media/org_create.gif",
+      "motionGifPath": "media/org_create.gif",
+      "videoGalleryPath": "media/org_create.webm",
+      "feature": "org"
+    },
+    {
+      "name": "Create a project",
+      "slug": "project-create-1776000000001-w1",
+      "specFile": "e2e/scenarios/project-create.scenario.spec.ts",
+      "correlationId": "project-create-1776000000001-w1",
+      "startedAt": "2026-04-14T04:01:59.981Z",
+      "endedAt": "2026-04-14T04:02:01.313Z",
+      "durationMs": 1332,
+      "status": "passed",
+      "steps": [
+        {
+          "index": 1,
+          "name": "Open org",
+          "slug": "open-org",
+          "screenshot": "media/project_create.gif",
+          "startedAt": "2026-04-14T04:01:59.982Z",
+          "durationMs": 636,
+          "status": "passed"
+        },
+        {
+          "index": 2,
+          "name": "Create project",
+          "slug": "create-project",
+          "screenshot": "media/project_create.gif",
+          "startedAt": "2026-04-14T04:02:00.618Z",
+          "durationMs": 91,
+          "status": "passed"
+        }
+      ],
+      "videoPath": "media/project_create.webm",
+      "gifPath": "media/project_create.gif",
+      "motionGifPath": "media/project_create.gif",
+      "videoGalleryPath": "media/project_create.webm",
+      "feature": "project"
+    },
+    {
+      "name": "Invite a member",
+      "slug": "member-invite-1776000000002-w2",
+      "specFile": "e2e/scenarios/member-invite.scenario.spec.ts",
+      "correlationId": "member-invite-1776000000002-w2",
+      "startedAt": "2026-04-14T04:02:02.000Z",
+      "endedAt": "2026-04-14T04:02:02.500Z",
+      "durationMs": 500,
+      "status": "passed",
+      "steps": [
+        {
+          "index": 1,
+          "name": "Invite",
+          "slug": "invite",
+          "startedAt": "2026-04-14T04:02:02.000Z",
+          "durationMs": 500,
+          "status": "passed"
+        }
+      ],
+      "feature": "org"
+    }
+  ]
+}

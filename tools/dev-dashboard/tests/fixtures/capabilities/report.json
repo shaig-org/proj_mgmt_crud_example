@@ -1,0 +1,28 @@
+{
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/unchanged",
+      "handler": "h.unchanged",
+      "capabilities": ["read"]
+    },
+    {
+      "method": "POST",
+      "path": "/api/expanded",
+      "handler": "h.expanded",
+      "capabilities": ["write", "org_read"]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/reduced",
+      "handler": "h.reduced",
+      "capabilities": ["write"]
+    },
+    {
+      "method": "GET",
+      "path": "/api/new",
+      "handler": "h.new",
+      "capabilities": ["read"]
+    }
+  ]
+}

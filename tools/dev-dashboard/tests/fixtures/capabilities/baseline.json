@@ -1,0 +1,28 @@
+{
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/unchanged",
+      "handler": "h.unchanged",
+      "capabilities": ["read"]
+    },
+    {
+      "method": "POST",
+      "path": "/api/expanded",
+      "handler": "h.expanded",
+      "capabilities": ["write"]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/reduced",
+      "handler": "h.reduced",
+      "capabilities": ["write", "admin"]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/removed",
+      "handler": "h.removed",
+      "capabilities": ["admin"]
+    }
+  ]
+}

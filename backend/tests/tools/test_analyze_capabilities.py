@@ -305,5 +305,56 @@ def test_cli_update_baseline_returns_zero_even_on_unexpected_state(tmp_path: Pat
     assert (tmp_path / "baseline.json").exists()
 
 
+# ---------------------------------------------------------------------------
+# --emit-html flag gating
+# ---------------------------------------------------------------------------
+
+
+def test_analyze_capabilities_default_does_not_emit_html(tmp_path: Path) -> None:
+    app = _build_app_with_routes()
+    entries = collect_route_entries(app)
+    _write_baseline(tmp_path, entries)
+
+    assert run_cli([], app=app, out_dir=tmp_path) == 0
+
+    assert (tmp_path / "report.json").exists()
+    assert not (tmp_path / "index.html").exists()
+
+
+def test_analyze_capabilities_emit_html_flag_writes_html(tmp_path: Path) -> None:
+    app = _build_app_with_routes()
+    entries = collect_route_entries(app)
+    _write_baseline(tmp_path, entries)
+
+    assert run_cli(["--emit-html"], app=app, out_dir=tmp_path) == 0
+
+    html_path = tmp_path / "index.html"
+    assert html_path.exists()
+    html = html_path.read_text()
+    # Self-contained: no external stylesheet/script references.
+    assert "<!DOCTYPE html>" in html
+    assert "Capability Surface" in html
+    assert "<link" not in html
+    assert "<script" not in html
+
+
+def test_analyze_capabilities_update_baseline_without_emit_html_skips_html(tmp_path: Path) -> None:
+    app = _build_app_with_routes()
+
+    assert run_cli(["--update-baseline"], app=app, out_dir=tmp_path) == 0
+
+    assert (tmp_path / "baseline.json").exists()
+    assert (tmp_path / "report.json").exists()
+    assert not (tmp_path / "index.html").exists()
+
+
+def test_analyze_capabilities_update_baseline_with_emit_html_writes_html(tmp_path: Path) -> None:
+    app = _build_app_with_routes()
+
+    assert run_cli(["--update-baseline", "--emit-html"], app=app, out_dir=tmp_path) == 0
+
+    assert (tmp_path / "index.html").exists()
+
+
 if __name__ == "__main__":  # pragma: no cover
     pytest.main([__file__, "-v"])

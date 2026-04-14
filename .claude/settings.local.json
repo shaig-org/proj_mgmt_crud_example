@@ -163,7 +163,9 @@
       "Bash(mkdir -p /tmp/ffx3)",
       "Bash(rm -f /tmp/ffx3/*.png)",
       "Bash(rm -rf /tmp/ffx)",
-      "Bash(mkdir -p /tmp/ffx)"
+      "Bash(mkdir -p /tmp/ffx)",
+      "Bash(/Users/shai/proj/shaig/learn/ai_framework_posts/proj_mgmt_crud_example/main/.claude/worktrees/consolidate-dev-dashboard/backend/devtools/run_all_agent_validations.sh:*)",
+      "Bash(/Users/shai/proj/shaig/learn/ai_framework_posts/proj_mgmt_crud_example/main/.claude/worktrees/consolidate-dev-dashboard/backend/devtools/build_trace_artifacts.sh)"
     ],
     "deny": [],
     "ask": [],
