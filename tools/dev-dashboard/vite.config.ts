@@ -144,6 +144,7 @@ async function buildConfig() {
     '/scenarios': path.resolve(repoRoot, 'frontend/walkthroughs/gallery'),
     '/capabilities': path.resolve(repoRoot, 'backend/evidence/capabilities'),
     '/traces': path.resolve(repoRoot, 'backend/.trace-artifacts'),
+    '/e2e-traces': path.resolve(repoRoot, 'backend/e2e-traces'),
     '/staleness.json': path.resolve(dashboardDir, '.staleness.json'),
   };
 
@@ -163,6 +164,7 @@ async function buildConfig() {
           path.resolve(repoRoot, 'frontend/walkthroughs'),
           path.resolve(repoRoot, 'backend/evidence/capabilities'),
           path.resolve(repoRoot, 'backend/.trace-artifacts'),
+          path.resolve(repoRoot, 'backend/e2e-traces'),
         ],
       },
     },

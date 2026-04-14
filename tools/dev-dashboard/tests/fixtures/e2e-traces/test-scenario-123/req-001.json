@@ -1,0 +1,12 @@
+{
+  "seq": 1,
+  "method": "GET",
+  "path": "/health",
+  "status_code": 200,
+  "duration_ms": 5,
+  "timestamp_ms": 1734567890000,
+  "call_events": [
+    {"event": "call",   "file": "routers/health.py", "function": "health_check", "line": 10, "depth": 0, "timestamp_ns": 0},
+    {"event": "return", "file": "routers/health.py", "function": "health_check", "line": 10, "depth": 0, "timestamp_ns": 500}
+  ]
+}

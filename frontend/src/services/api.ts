@@ -115,6 +115,11 @@ class ApiClient {
       if (this.token) {
         config.headers.Authorization = `Bearer ${this.token}`;
       }
+      // Propagate E2E scenario correlation ID if injected by the scenario test fixture
+      const cid = (window as Window & { __CORRELATION_ID?: string }).__CORRELATION_ID;
+      if (cid) {
+        config.headers['X-E2E-Scenario-ID'] = cid;
+      }
       return config;
     });
   }

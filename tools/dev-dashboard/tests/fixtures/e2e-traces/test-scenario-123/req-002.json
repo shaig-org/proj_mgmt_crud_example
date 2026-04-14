@@ -1,0 +1,14 @@
+{
+  "seq": 2,
+  "method": "POST",
+  "path": "/auth/login",
+  "status_code": 200,
+  "duration_ms": 12,
+  "timestamp_ms": 1734567890100,
+  "call_events": [
+    {"event": "call",   "file": "routers/auth_api.py", "function": "login", "line": 45, "depth": 0, "timestamp_ns": 0},
+    {"event": "call",   "file": "capabilities/__init__.py", "function": "AuthCapability.authenticate", "line": 88, "depth": 1, "timestamp_ns": 100},
+    {"event": "return", "file": "capabilities/__init__.py", "function": "AuthCapability.authenticate", "line": 88, "depth": 1, "timestamp_ns": 900},
+    {"event": "return", "file": "routers/auth_api.py", "function": "login", "line": 45, "depth": 0, "timestamp_ns": 1100}
+  ]
+}

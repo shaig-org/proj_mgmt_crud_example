@@ -8,7 +8,7 @@ const DASHBOARD_DIR = path.resolve(here, '..', '..');
 const FIXTURES = path.resolve(here, '..', 'fixtures');
 const TMP_REPO = path.resolve(here, '..', '.tmp-repo');
 
-export type AspectId = 'scenarios' | 'capabilities' | 'traces';
+export type AspectId = 'scenarios' | 'capabilities' | 'traces' | 'e2e-traces';
 
 export interface Layout {
   scenarios: boolean;
@@ -16,6 +16,8 @@ export interface Layout {
   /** 'none' | 'baseline-only' | 'full' */
   capabilitiesMode?: 'none' | 'baseline-only' | 'full';
   traces: boolean;
+  /** Whether to copy e2e-traces fixture into the tmp repo. Defaults to false. */
+  e2eTraces?: boolean;
 }
 
 async function copyDir(src: string, dst: string): Promise<void> {
@@ -96,6 +98,10 @@ export async function withArtifacts(
   if (layout.traces) {
     const dst = path.join(TMP_REPO, 'backend/.trace-artifacts');
     await copyDir(path.join(FIXTURES, 'traces'), dst);
+  }
+  if (layout.e2eTraces === true) {
+    const dst = path.join(TMP_REPO, 'backend/e2e-traces');
+    await copyDir(path.join(FIXTURES, 'e2e-traces'), dst);
   }
 
   // Build and write .staleness.json using the real script logic, then optionally
