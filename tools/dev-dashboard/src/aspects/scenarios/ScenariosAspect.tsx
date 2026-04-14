@@ -1,7 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Aspect } from '../types';
 import { ArtifactSchemaError, loadArtifact } from '../../lib/loadArtifact';
 import type { ScenarioEntry, ScenariosManifest } from './types';
+import {
+  groupByFeature,
+  parseScenariosHash,
+  type FeatureGroup,
+} from './grouping';
 
 const ARTIFACT_URL = '/artifacts/scenarios/manifest.json';
 
@@ -93,13 +98,20 @@ export function validate(doc: unknown): ScenariosManifest {
         resolveMediaUrl(typeof r.thumbnail === 'string' ? r.thumbnail : undefined) ??
         firstShot,
       steps,
+      specFile: typeof r.specFile === 'string' ? r.specFile : undefined,
+      feature: typeof r.feature === 'string' ? r.feature : undefined,
     });
   }
-  return { scenarios };
+  const generatedAt =
+    typeof (doc as { generatedAt?: unknown }).generatedAt === 'string'
+      ? ((doc as { generatedAt: string }).generatedAt)
+      : undefined;
+  return { scenarios, generatedAt };
 }
 
 export interface ScenariosData extends ScenariosManifest {
   traceScenarioIds: Set<string>;
+  groups: FeatureGroup[];
 }
 
 async function fetchTraceIndex(): Promise<Set<string>> {
@@ -179,23 +191,33 @@ function Detail({
 function Grid({
   manifest,
   traceScenarioIds,
+  groupFilter,
+  groups,
   onSelect,
 }: {
   manifest: ScenariosManifest;
   traceScenarioIds: Set<string>;
+  groupFilter: string | null;
+  groups: FeatureGroup[];
   onSelect: (id: string) => void;
 }) {
   const [query, setQuery] = useState('');
   const filtered = useMemo(() => {
+    let items = manifest.scenarios;
+    if (groupFilter) {
+      const match = groups.find((g) => g.slug === groupFilter);
+      const allowed = new Set(match?.scenarioIds ?? []);
+      items = items.filter((s) => allowed.has(s.id));
+    }
     const q = query.trim().toLowerCase();
-    if (!q) return manifest.scenarios;
-    return manifest.scenarios.filter(
+    if (!q) return items;
+    return items.filter(
       (s) =>
         s.title.toLowerCase().includes(q) ||
         s.id.toLowerCase().includes(q) ||
         (s.tags ?? []).some((t) => t.toLowerCase().includes(q)),
     );
-  }, [manifest, query]);
+  }, [manifest, query, groupFilter, groups]);
 
   void traceScenarioIds; // used in detail view
   return (
@@ -233,9 +255,26 @@ function Grid({
   );
 }
 
+function useScenariosHash(): { group: string | null } {
+  const [group, setGroup] = useState<string | null>(() =>
+    typeof window === 'undefined'
+      ? null
+      : parseScenariosHash(window.location.hash).group,
+  );
+  useEffect(() => {
+    function onHash() {
+      setGroup(parseScenariosHash(window.location.hash).group);
+    }
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  return { group };
+}
+
 function ScenariosBody({ data }: { data: ScenariosData }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = data.scenarios.find((s) => s.id === selectedId) ?? null;
+  const { group } = useScenariosHash();
 
   function onViewTrace(slug: string) {
     window.location.hash = `#/traces?select=${encodeURIComponent(slug)}`;
@@ -255,6 +294,8 @@ function ScenariosBody({ data }: { data: ScenariosData }) {
     <Grid
       manifest={data}
       traceScenarioIds={data.traceScenarioIds}
+      groupFilter={group}
+      groups={data.groups}
       onSelect={setSelectedId}
     />
   );
@@ -280,6 +321,7 @@ export const scenariosAspect: Aspect<ScenariosData> = {
     const { data } = await loadArtifact<unknown>(ARTIFACT_URL);
     const manifest = validate(data);
     const traceScenarioIds = await fetchTraceIndex();
+    const groups = groupByFeature(manifest.scenarios);
     // Warn once on unmatched ids.
     const unmatched = manifest.scenarios
       .map((s) => slugify(s.id))
@@ -290,7 +332,7 @@ export const scenariosAspect: Aspect<ScenariosData> = {
         unmatched,
       );
     }
-    return { ...manifest, traceScenarioIds };
+    return { ...manifest, traceScenarioIds, groups };
   },
   render: (data) => <ScenariosBody data={data} />,
 };

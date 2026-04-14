@@ -14,8 +14,11 @@ export interface ScenarioEntry {
   video?: string;
   thumbnail?: string;
   steps?: ScenarioStep[];
+  specFile?: string;
+  feature?: string;
 }
 
 export interface ScenariosManifest {
   scenarios: ScenarioEntry[];
+  generatedAt?: string;
 }

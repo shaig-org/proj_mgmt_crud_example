@@ -29,8 +29,10 @@ export function resolveAspectFromHash(
   aspects: ReadonlyArray<AnyAspect>,
   hash: string,
 ): AnyAspect {
-  // hash looks like `#/scenarios` or empty.
+  // hash looks like `#/scenarios`, `#/scenarios?group=org`, `#/scenarios/<slug>`, or empty.
   const stripped = hash.replace(/^#\/?/, '');
-  const match = aspects.find((a) => a.id === stripped);
+  // The aspect id is the first path segment, before any `?` or `/`.
+  const firstSegment = stripped.split('?')[0]!.split('/')[0]!;
+  const match = aspects.find((a) => a.id === firstSegment);
   return match ?? aspects[0];
 }

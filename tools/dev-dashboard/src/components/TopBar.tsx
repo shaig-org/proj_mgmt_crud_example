@@ -12,9 +12,15 @@ interface TopBarProps {
   repoRoot: string;
   staleness: StalenessDocument | null;
   aspectCount: number;
+  generatedAt?: string | null;
 }
 
-export function TopBar({ repoRoot, staleness, aspectCount }: TopBarProps) {
+export function TopBar({
+  repoRoot,
+  staleness,
+  aspectCount,
+  generatedAt,
+}: TopBarProps) {
   const [theme, setTheme] = useState<Theme>(() => readStoredTheme());
 
   useEffect(() => {
@@ -34,6 +40,15 @@ export function TopBar({ repoRoot, staleness, aspectCount }: TopBarProps) {
         </span>
       </div>
       <div className="topbar__right">
+        {generatedAt && (
+          <span
+            className="topbar__generated-at"
+            data-testid="generated-at"
+            title={generatedAt}
+          >
+            generated {generatedAt}
+          </span>
+        )}
         <span data-testid="freshness-summary">
           {aspectCount} aspects · {staleCount} stale
         </span>

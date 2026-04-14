@@ -322,6 +322,54 @@ test('user_ask_4_rail_collapses_to_icons_and_persists', async ({ page }) => {
   await expect(page.locator('nav.rail')).toHaveAttribute('data-collapsed', '0');
 });
 
+test('user_ask_1_rail_shows_feature_subgroups_and_filters_grid', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+
+  // Sub-items derived from manifest `feature` field: fixture has "org" and
+  // "project".
+  const orgGroup = page.getByTestId('rail-group-org');
+  const projectGroup = page.getByTestId('rail-group-project');
+  await expect(orgGroup).toBeVisible();
+  await expect(projectGroup).toBeVisible();
+
+  // Grid starts with all three scenarios visible.
+  await expect(
+    page.getByTestId('scenario-card-org-create-1776000000000-w0'),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId('scenario-card-project-create-1776000000001-w1'),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId('scenario-card-member-invite-1776000000002-w2'),
+  ).toBeVisible();
+
+  // Click "project" sub-item → only project-create shows.
+  await projectGroup.click();
+  await expect(page).toHaveURL(/#\/scenarios\?group=project$/);
+  await expect(
+    page.getByTestId('scenario-card-project-create-1776000000001-w1'),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId('scenario-card-org-create-1776000000000-w0'),
+  ).toHaveCount(0);
+  await expect(projectGroup).toHaveAttribute('aria-selected', 'true');
+
+  // Click "org" sub-item → org scenarios show, project hidden.
+  await orgGroup.click();
+  await expect(
+    page.getByTestId('scenario-card-org-create-1776000000000-w0'),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId('scenario-card-member-invite-1776000000002-w2'),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId('scenario-card-project-create-1776000000001-w1'),
+  ).toHaveCount(0);
+});
+
 test('repo_root_is_displayed_in_top_bar', async ({ page }) => {
   await withArtifacts({ scenarios: true, capabilities: true, traces: true });
   await page.goto('/');

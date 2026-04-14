@@ -4,12 +4,15 @@ import {
   readStoredRailCollapsed,
   writeStoredRailCollapsed,
 } from '../lib/rail';
+import type { FeatureGroup } from '../aspects/scenarios/grouping';
+import { parseScenariosHash } from '../aspects/scenarios/grouping';
 
 interface LeftRailProps {
   aspects: ReadonlyArray<AnyAspect>;
   activeId: string;
   onSelect: (id: string) => void;
   staleness: StalenessDocument | null;
+  scenarioGroups?: FeatureGroup[];
 }
 
 export function LeftRail({
@@ -17,10 +20,24 @@ export function LeftRail({
   activeId,
   onSelect,
   staleness,
+  scenarioGroups,
 }: LeftRailProps) {
   const [collapsed, setCollapsed] = useState<boolean>(() =>
     readStoredRailCollapsed(),
   );
+  const [activeGroup, setActiveGroup] = useState<string | null>(() =>
+    typeof window === 'undefined'
+      ? null
+      : parseScenariosHash(window.location.hash).group,
+  );
+
+  useEffect(() => {
+    function onHash() {
+      setActiveGroup(parseScenariosHash(window.location.hash).group);
+    }
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   useEffect(() => {
     writeStoredRailCollapsed(collapsed);
@@ -52,27 +69,62 @@ export function LeftRail({
       {aspects.map((a) => {
         const s = staleness?.aspects[a.id];
         const isStale = s?.stale ?? false;
+        const isActive = a.id === activeId;
+        const showSubItems =
+          !collapsed &&
+          isActive &&
+          a.id === 'scenarios' &&
+          (scenarioGroups?.length ?? 0) > 0;
         return (
-          <button
-            key={a.id}
-            role="tab"
-            aria-selected={a.id === activeId}
-            onClick={() => onSelect(a.id)}
-            className="rail__tab"
-            data-testid={`rail-${a.id}`}
-            title={collapsed ? a.title : undefined}
-          >
-            <span aria-hidden className="rail__icon">
-              {a.icon}
-            </span>
-            <span className="rail__label">{a.title}</span>
-            {isStale && (
-              <span
-                className="rail__dot"
-                data-testid={`rail-dot-${a.id}`}
-              />
+          <div key={a.id} className="rail__section">
+            <button
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => {
+                onSelect(a.id);
+                if (a.id === 'scenarios') {
+                  // Clear any group filter when reselecting the top-level tab.
+                  window.location.hash = '#/scenarios';
+                }
+              }}
+              className="rail__tab"
+              data-testid={`rail-${a.id}`}
+              title={collapsed ? a.title : undefined}
+            >
+              <span aria-hidden className="rail__icon">
+                {a.icon}
+              </span>
+              <span className="rail__label">{a.title}</span>
+              {isStale && (
+                <span
+                  className="rail__dot"
+                  data-testid={`rail-dot-${a.id}`}
+                />
+              )}
+            </button>
+            {showSubItems && (
+              <div className="rail__sub" data-testid="rail-subitems-scenarios">
+                {scenarioGroups!.map((g) => (
+                  <button
+                    key={g.slug}
+                    type="button"
+                    className="rail__subitem"
+                    aria-selected={activeGroup === g.slug}
+                    data-testid={`rail-group-${g.slug}`}
+                    onClick={() => {
+                      onSelect('scenarios');
+                      window.location.hash = `#/scenarios?group=${encodeURIComponent(g.slug)}`;
+                    }}
+                  >
+                    {g.label}
+                    <span className="rail__sub-count">
+                      {g.scenarioIds.length}
+                    </span>
+                  </button>
+                ))}
+              </div>
             )}
-          </button>
+          </div>
         );
       })}
     </nav>
