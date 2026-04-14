@@ -11,7 +11,7 @@ function resolveMediaUrl(rel: string | undefined): string | undefined {
   return `/artifacts/scenarios/${rel.replace(/^\.?\//, '')}`;
 }
 
-function validate(doc: unknown): ScenariosManifest {
+export function validate(doc: unknown): ScenariosManifest {
   if (typeof doc !== 'object' || doc === null) {
     throw new ArtifactSchemaError(ARTIFACT_URL, 'root');
   }
