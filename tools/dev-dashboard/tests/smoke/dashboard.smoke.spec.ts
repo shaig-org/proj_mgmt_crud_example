@@ -260,6 +260,34 @@ test('user_ask_5_traces_aspect_renders_real_artifacts', async ({ page }) => {
   await expect(page.getByTestId('folded-content')).toBeVisible();
 });
 
+test('user_ask_2_dark_is_default_and_toggle_persists_across_reload', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: true, traces: true });
+
+  // Fresh session: default is dark.
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+  // Toggle → light, persisted to localStorage.
+  await page.getByTestId('theme-toggle').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  const stored = await page.evaluate(() =>
+    localStorage.getItem('dev-dashboard.theme'),
+  );
+  expect(stored).toBe('light');
+
+  // Reload: still light.
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+  // Toggle back → dark, persists.
+  await page.getByTestId('theme-toggle').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+});
+
 test('repo_root_is_displayed_in_top_bar', async ({ page }) => {
   await withArtifacts({ scenarios: true, capabilities: true, traces: true });
   await page.goto('/');
