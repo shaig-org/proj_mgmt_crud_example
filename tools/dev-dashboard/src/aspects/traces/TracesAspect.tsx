@@ -132,12 +132,20 @@ function MermaidView({ text }: { text: string }) {
       </div>
     );
   }
-  if (!svg) return <pre data-testid="mermaid-loading">{text}</pre>;
+  if (!svg) {
+    return (
+      <div className="trace-mermaid-wrap" data-testid="mermaid-wrap">
+        <pre data-testid="mermaid-loading">{text}</pre>
+      </div>
+    );
+  }
   return (
-    <div
-      data-testid="mermaid-svg"
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
+    <div className="trace-mermaid-wrap" data-testid="mermaid-wrap">
+      <div
+        data-testid="mermaid-svg"
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+    </div>
   );
 }
 
@@ -179,13 +187,20 @@ function SelectedTrace({ entry }: { entry: TraceEntry }) {
       {entry.hasFlame && (
         <>
           <h4>Flame graph</h4>
-          <iframe
-            data-testid="flame-iframe"
-            src={`${BASE}/${entry.id}/flame.html`}
-            sandbox="allow-scripts allow-same-origin"
-            title={`flame graph for ${entry.id}`}
-            className="trace-iframe"
-          />
+          <p className="trace-flame-note" data-testid="flame-search-note">
+            The flame graph&apos;s internal search isn&apos;t wired up — use
+            Cmd-F (or Ctrl-F) in the page to find a frame.
+          </p>
+          <div className="trace-flame-wrap" data-testid="flame-wrap">
+            <iframe
+              data-testid="flame-iframe"
+              src={`${BASE}/${entry.id}/flame.html`}
+              sandbox="allow-scripts allow-same-origin"
+              title={`flame graph for ${entry.id}`}
+              className="trace-iframe"
+              loading="eager"
+            />
+          </div>
           <a
             href={`${BASE}/${entry.id}/flame.html`}
             target="_blank"

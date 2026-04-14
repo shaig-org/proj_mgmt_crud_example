@@ -967,3 +967,72 @@ test('iter3_capabilities_columns_in_new_order', async ({ page }) => {
     'Handler',
   ]);
 });
+
+test('iter3_traces_left_panel_uses_dark_tokens', async ({ page }) => {
+  await withArtifacts({ scenarios: false, capabilities: false, traces: true });
+  await page.goto('/#/traces');
+  const first = page.getByTestId('trace-item-org-create-1776000000000-w0');
+  await expect(first).toBeVisible();
+  await first.click();
+  const styles = await first.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return { bg: cs.backgroundColor, color: cs.color };
+  });
+  // Selected item must use themed tokens — not the browser default white/black.
+  expect(styles.bg).not.toBe('rgba(0, 0, 0, 0)');
+  expect(styles.color).not.toBe('rgb(0, 0, 0)');
+});
+
+test('iter3_traces_mermaid_has_dedicated_background', async ({ page }) => {
+  await withArtifacts({ scenarios: false, capabilities: false, traces: true });
+  await page.goto('/#/traces');
+  await page.getByTestId('trace-item-org-create-1776000000000-w0').click();
+  const wrap = page.getByTestId('mermaid-wrap');
+  await expect(wrap).toBeVisible();
+  const bg = await wrap.evaluate(
+    (el) => getComputedStyle(el).backgroundColor,
+  );
+  // The wrap uses --graph-bg (#f8fafc) regardless of theme.
+  expect(bg).toBe('rgb(248, 250, 252)');
+});
+
+test('iter3_traces_flame_iframe_fills_width', async ({ page }) => {
+  await withArtifacts({ scenarios: false, capabilities: false, traces: true });
+  await page.goto('/#/traces');
+  await page.getByTestId('trace-item-org-create-1776000000000-w0').click();
+  const iframe = page.getByTestId('flame-iframe');
+  await expect(iframe).toBeVisible();
+  const ratio = await iframe.evaluate((el) => {
+    const parent = el.parentElement;
+    if (!parent) return 0;
+    const iw = el.getBoundingClientRect().width;
+    const pw = parent.getBoundingClientRect().width;
+    return pw > 0 ? iw / pw : 0;
+  });
+  expect(ratio).toBeGreaterThanOrEqual(0.9);
+  const minHeight = await iframe.evaluate(
+    (el) => parseFloat(getComputedStyle(el).minHeight) || 0,
+  );
+  expect(minHeight).toBeGreaterThanOrEqual(500);
+});
+
+test('iter3_traces_flame_wrapper_has_graph_bg', async ({ page }) => {
+  await withArtifacts({ scenarios: false, capabilities: false, traces: true });
+  await page.goto('/#/traces');
+  await page.getByTestId('trace-item-org-create-1776000000000-w0').click();
+  const wrap = page.getByTestId('flame-wrap');
+  await expect(wrap).toBeVisible();
+  const bg = await wrap.evaluate(
+    (el) => getComputedStyle(el).backgroundColor,
+  );
+  expect(bg).toBe('rgb(248, 250, 252)');
+});
+
+test('iter3_traces_flame_has_search_limitation_note', async ({ page }) => {
+  await withArtifacts({ scenarios: false, capabilities: false, traces: true });
+  await page.goto('/#/traces');
+  await page.getByTestId('trace-item-org-create-1776000000000-w0').click();
+  const note = page.getByTestId('flame-search-note');
+  await expect(note).toBeVisible();
+  await expect(note).toContainText(/Cmd-F|Ctrl-F/);
+});

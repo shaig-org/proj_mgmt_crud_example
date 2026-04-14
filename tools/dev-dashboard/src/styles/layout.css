@@ -907,6 +907,7 @@ html[data-rail-collapsed='1'] .app {
   border-radius: var(--radius);
   padding: var(--space-2);
   background: var(--bg-panel);
+  color: var(--text);
 }
 
 .trace-list button {
@@ -916,17 +917,50 @@ html[data-rail-collapsed='1'] .app {
   border: none;
   background: transparent;
   text-align: left;
+  color: var(--text);
+  border-radius: 4px;
+}
+
+.trace-list button:hover {
+  background: var(--bg-elevated);
 }
 
 .trace-list button[aria-selected='true'] {
-  background: var(--tab-active-bg);
+  background: var(--surface-accent);
+  color: var(--text);
   font-weight: 600;
+}
+
+.trace-mermaid-wrap {
+  background: var(--graph-bg);
+  color: #18181b;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin: var(--space-3) 0;
+  overflow-x: auto;
+}
+
+.trace-flame-wrap {
+  background: var(--graph-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  margin: var(--space-3) 0;
 }
 
 .trace-iframe {
   width: 100%;
-  height: 480px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg-panel);
+  min-height: 500px;
+  height: 500px;
+  border: none;
+  border-radius: 4px;
+  background: var(--graph-bg);
+  display: block;
+}
+
+.trace-flame-note {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 0 0 var(--space-2);
 }
