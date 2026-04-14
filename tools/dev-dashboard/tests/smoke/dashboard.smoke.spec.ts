@@ -1485,3 +1485,44 @@ test('iter5_strip_frame_hover_changes_visual', async ({ page }) => {
     )
     .not.toBe(`${baseline.bg}|${baseline.outline}`);
 });
+
+test('iter5_strip_row_has_no_inset_card_wrapper', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/scenarios');
+  await page.getByTestId('view-toggle-strip').click();
+  const container = page.getByTestId('scenario-strips');
+  const row = page.getByTestId('scenario-strip-org-create-1776000000000-w0');
+  await expect(container).toBeVisible();
+  await expect(row).toBeVisible();
+
+  // Row is edge-to-edge with the strips container (no horizontal inset).
+  const [containerBox, rowBox] = await Promise.all([
+    container.boundingBox(),
+    row.boundingBox(),
+  ]);
+  expect(containerBox).not.toBeNull();
+  expect(rowBox).not.toBeNull();
+  if (containerBox && rowBox) {
+    expect(Math.round(rowBox.x)).toBe(Math.round(containerBox.x));
+    expect(Math.round(rowBox.x + rowBox.width)).toBe(
+      Math.round(containerBox.x + containerBox.width),
+    );
+  }
+
+  // Computed style: no rounded corners and no border forming an inset card.
+  const style = await row.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return {
+      borderRadius: s.borderTopLeftRadius,
+      borderTopWidth: s.borderTopWidth,
+      borderLeftWidth: s.borderLeftWidth,
+      paddingLeft: s.paddingLeft,
+      paddingRight: s.paddingRight,
+    };
+  });
+  expect(style.borderRadius).toBe('0px');
+  expect(style.borderTopWidth).toBe('0px');
+  expect(style.borderLeftWidth).toBe('0px');
+  expect(style.paddingLeft).toBe('0px');
+  expect(style.paddingRight).toBe('0px');
+});
