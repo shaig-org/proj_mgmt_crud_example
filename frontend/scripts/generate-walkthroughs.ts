@@ -45,6 +45,24 @@ const MOTION_SLOWDOWN = 2.0; // 2x slower than real time (setpts multiplier)
 const FLIPBOOK_HOLD_SECONDS = 1.5;
 const FLIPBOOK_FPS = 5; // output frame rate for palette/render step
 const GIF_WIDTH = 640;
+// Caption + title overlay sizes. Caption was previously rendered too small to
+// read at 640px wide, so we bumped it ~50% (12 -> 18) and added a top header
+// strip carrying the scenario title on every frame for context.
+const FLIPBOOK_CAPTION_FONT_SIZE = 18;
+const FLIPBOOK_TITLE_FONT_SIZE = 24;
+// Pad the strips generously so descenders + multi-line wraps stay inside the
+// strip even when titles or step names get long.
+const FLIPBOOK_TITLE_STRIP_HEIGHT = 44;
+const FLIPBOOK_CAPTION_STRIP_HEIGHT = 36;
+// Resolve a font file once. macOS dev workstations always ship Arial; fall
+// back to common Linux paths so CI and Docker runs still render text.
+const FLIPBOOK_FONT_CANDIDATES = [
+  '/System/Library/Fonts/Supplemental/Arial.ttf',
+  '/Library/Fonts/Arial.ttf',
+  '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+  '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+  '/usr/share/fonts/TTF/DejaVuSans.ttf',
+];
 
 interface StepRecord {
   index: number;
@@ -193,6 +211,36 @@ async function probeVideoDurationSec(videoPath: string): Promise<number | null> 
   }
 }
 
+let cachedFontPath: string | null | undefined;
+async function resolveFlipbookFont(): Promise<string | null> {
+  if (cachedFontPath !== undefined) return cachedFontPath;
+  for (const candidate of FLIPBOOK_FONT_CANDIDATES) {
+    try {
+      await fs.access(candidate);
+      cachedFontPath = candidate;
+      return candidate;
+    } catch {
+      // try next
+    }
+  }
+  cachedFontPath = null;
+  return null;
+}
+
+/**
+ * Escape a string for use as the literal `text` argument inside ffmpeg's
+ * `drawtext` filter. ffmpeg's filter syntax treats `:` as an option separator
+ * and `\` as an escape lead, and the surrounding single-quote in our value
+ * needs guarding too.
+ */
+function escapeDrawtext(value: string): string {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/:/g, '\\:')
+    .replace(/'/g, "\\\\\\'")
+    .replace(/%/g, '\\%');
+}
+
 function handleFfmpegMissing(err: NodeJS.ErrnoException): void {
   if (err.code === 'ENOENT') {
     console.error('[walkthroughs] ffmpeg not found on PATH. Install ffmpeg; this is a dev-only tool.');
@@ -254,33 +302,48 @@ async function renderMotionGif(videoAbsPath: string, gifAbsPath: string, slug: s
  * distinct frame per step as intended.
  */
 async function renderFlipbookGif(
-  screenshotAbsPaths: string[],
+  inputs: Array<{ path: string; stepName: string; index: number }>,
+  scenarioTitle: string,
   gifAbsPath: string,
   slug: string,
 ): Promise<boolean> {
-  if (screenshotAbsPaths.length === 0) return false;
+  if (inputs.length === 0) return false;
 
   // Probe every input so we can compute a common output box.
-  const sizes: Array<{ path: string; width: number; height: number }> = [];
-  for (const p of screenshotAbsPaths) {
-    const s = await probeImageSize(p);
+  const sizes: Array<{ path: string; width: number; height: number; stepName: string; index: number }> = [];
+  for (const inp of inputs) {
+    const s = await probeImageSize(inp.path);
     if (!s) {
-      console.warn(`[walkthroughs] could not probe size of ${p}, skipping flipbook for ${slug}`);
+      console.warn(`[walkthroughs] could not probe size of ${inp.path}, skipping flipbook for ${slug}`);
       return false;
     }
-    sizes.push({ path: p, ...s });
+    sizes.push({ path: inp.path, ...s, stepName: inp.stepName, index: inp.index });
   }
 
   // Target width: GIF_WIDTH. For each input compute its scaled height (width=GIF_WIDTH,
   // preserving aspect). Use the maximum scaled height (rounded to even) as the output
-  // canvas height; pad shorter frames with black bars top/bottom.
+  // image-area height; pad shorter frames with black bars top/bottom. The final GIF
+  // canvas adds a title strip at the top and a caption strip at the bottom so each
+  // frame stands on its own out of context.
   const scaledHeights = sizes.map((s) => Math.round((GIF_WIDTH * s.height) / s.width));
   const rawMaxH = Math.max(...scaledHeights);
-  const outH = rawMaxH % 2 === 0 ? rawMaxH : rawMaxH + 1; // even for GIF/palette filters
+  const imgH = rawMaxH % 2 === 0 ? rawMaxH : rawMaxH + 1; // even for GIF/palette filters
   const outW = GIF_WIDTH;
+  const titleH = FLIPBOOK_TITLE_STRIP_HEIGHT;
+  const captionH = FLIPBOOK_CAPTION_STRIP_HEIGHT;
+  const outH = imgH + titleH + captionH;
+
+  const fontPath = await resolveFlipbookFont();
+  if (!fontPath) {
+    console.warn('[walkthroughs] no usable TTF found for drawtext; flipbook will render without captions');
+  }
+
+  // Pre-escape the scenario title since it appears on every frame.
+  const titleText = escapeDrawtext(scenarioTitle);
 
   // Build a single ffmpeg invocation: one -loop 1 -t DUR -i FILE per screenshot,
-  // then a filter_complex that normalizes each to outW x outH and concats.
+  // then a filter_complex that normalizes each into the layout (title strip on top,
+  // image in the middle, caption strip on the bottom), draws text, and concats.
   const inputArgs: string[] = [];
   for (const s of sizes) {
     inputArgs.push('-loop', '1', '-t', FLIPBOOK_HOLD_SECONDS.toFixed(3), '-i', s.path);
@@ -290,11 +353,31 @@ async function renderFlipbookGif(
   const concatLabels: string[] = [];
   for (let i = 0; i < sizes.length; i++) {
     const label = `v${i}`;
-    // scale to fit outW x outH preserving aspect, then pad to exactly outW x outH centered.
-    normChains.push(
-      `[${i}:v]scale=${outW}:${outH}:force_original_aspect_ratio=decrease:flags=lanczos,` +
-      `pad=${outW}:${outH}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=${FLIPBOOK_FPS},format=rgba[${label}]`,
-    );
+    const s = sizes[i]!;
+    // 1. Scale screenshot into the image-area (outW x imgH) preserving aspect, pad to fit.
+    // 2. Pad the canvas to outW x outH adding `titleH` of dark space on top and `captionH`
+    //    of dark space on the bottom — this is where the title and caption strips render.
+    let chain =
+      `[${i}:v]scale=${outW}:${imgH}:force_original_aspect_ratio=decrease:flags=lanczos,` +
+      `pad=${outW}:${imgH}:(ow-iw)/2:(oh-ih)/2:color=black,` +
+      `pad=${outW}:${outH}:0:${titleH}:color=0x0f172a,setsar=1`;
+
+    if (fontPath) {
+      const captionText = escapeDrawtext(`Step ${s.index}: ${s.stepName}`);
+      // Title strip: scenario title centered at the top.
+      chain +=
+        `,drawtext=fontfile='${fontPath}':text='${titleText}':` +
+        `fontcolor=white:fontsize=${FLIPBOOK_TITLE_FONT_SIZE}:` +
+        `x=(w-text_w)/2:y=(${titleH}-text_h)/2`;
+      // Caption strip: per-step caption centered at the bottom.
+      chain +=
+        `,drawtext=fontfile='${fontPath}':text='${captionText}':` +
+        `fontcolor=white:fontsize=${FLIPBOOK_CAPTION_FONT_SIZE}:` +
+        `x=(w-text_w)/2:y=h-${captionH}+(${captionH}-text_h)/2`;
+    }
+
+    chain += `,fps=${FLIPBOOK_FPS},format=rgba[${label}]`;
+    normChains.push(chain);
     concatLabels.push(`[${label}]`);
   }
   const concatFilter =
@@ -313,7 +396,7 @@ async function renderFlipbookGif(
     const renderedDuration = await probeVideoDurationSec(gifAbsPath);
     console.log(
       `[walkthroughs] flipbook GIF ${slug}: ${FLIPBOOK_FPS} fps, ` +
-      `${screenshotAbsPaths.length} steps × ${FLIPBOOK_HOLD_SECONDS}s, ` +
+      `${inputs.length} steps × ${FLIPBOOK_HOLD_SECONDS}s, ` +
       `canvas=${outW}x${outH}, gif=${renderedDuration ? renderedDuration.toFixed(2) : '?'}s`
     );
     return true;
@@ -409,20 +492,21 @@ async function main(): Promise<void> {
 
     // Flipbook GIF (built from per-step screenshots — primary comprehension aid).
     if (meta.steps && meta.steps.length > 0) {
-      const screenshotAbsPaths = meta.steps.map((st) => path.join(WALKTHROUGHS_DIR, st.screenshot));
-      // Verify all exist; drop those that don't.
-      const existing: string[] = [];
-      for (const p of screenshotAbsPaths) {
+      // Verify each step's screenshot exists; drop any that don't but keep
+      // step name + index alignment so captions match the visible frame.
+      const existing: Array<{ path: string; stepName: string; index: number }> = [];
+      for (const st of meta.steps) {
+        const absPath = path.join(WALKTHROUGHS_DIR, st.screenshot);
         try {
-          await fs.access(p);
-          existing.push(p);
+          await fs.access(absPath);
+          existing.push({ path: absPath, stepName: st.name, index: st.index });
         } catch {
           // skip missing
         }
       }
       if (existing.length > 0) {
         const flipbookAbs = path.join(GALLERY_GIFS_DIR, `${meta.slug}.gif`);
-        if (await renderFlipbookGif(existing, flipbookAbs, meta.slug)) {
+        if (await renderFlipbookGif(existing, meta.name, flipbookAbs, meta.slug)) {
           flipbookRel = path.posix.join('gifs', `${meta.slug}.gif`);
           flipbooksRendered += 1;
         }

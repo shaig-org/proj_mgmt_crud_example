@@ -832,68 +832,70 @@ function StripRow({
       href={`#/scenarios/${entry.id}`}
     >
       <div className="scen-strip__title">{entry.title}</div>
-      <div className="scen-strip__scroller">
-        <button
-          type="button"
-          className="scen-strip__chevron scen-strip__chevron--prev"
-          data-testid={`strip-chevron-prev-${entry.id}`}
-          aria-label="scroll left"
-          hidden={!canScrollLeft}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            scrollByPage(-1);
-          }}
-        >
-          ‹
-        </button>
-        <div className="scen-strip__frames" ref={framesRef}>
-          {frames.map((src, i) => {
-            // Eager-load the first row's first few frames for above-the-fold
-            // rendering; lazy-load everything else so vertical scroll is smooth.
-            const eager = isFirst && i < 6;
-            return (
-              <button
-                key={`${src}-${i}`}
-                type="button"
-                className="scen-strip__frame"
-                data-testid={`strip-frame-${entry.id}-${i}`}
-                onClick={(e) => {
-                  // Frame is inside an <a> row. Prevent the anchor from
-                  // navigating so clicking a screenshot opens the lightbox
-                  // in place rather than jumping to the detail page.
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onOpenAt(entry.id, i);
-                }}
-              >
-                <img
-                  src={src}
-                  alt={`${entry.title} step ${i + 1}`}
-                  loading={eager ? 'eager' : 'lazy'}
-                  decoding="async"
-                  width={320}
-                  height={180}
-                />
-                <span className="strip-n">{i + 1}</span>
-              </button>
-            );
-          })}
+      <div className="scen-strip__body">
+        <div className="scen-strip__scroller">
+          <button
+            type="button"
+            className="scen-strip__chevron scen-strip__chevron--prev"
+            data-testid={`strip-chevron-prev-${entry.id}`}
+            aria-label="scroll left"
+            hidden={!canScrollLeft}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              scrollByPage(-1);
+            }}
+          >
+            ‹
+          </button>
+          <div className="scen-strip__frames" ref={framesRef}>
+            {frames.map((src, i) => {
+              // Eager-load the first row's first few frames for above-the-fold
+              // rendering; lazy-load everything else so vertical scroll is smooth.
+              const eager = isFirst && i < 6;
+              return (
+                <button
+                  key={`${src}-${i}`}
+                  type="button"
+                  className="scen-strip__frame"
+                  data-testid={`strip-frame-${entry.id}-${i}`}
+                  onClick={(e) => {
+                    // Frame is inside an <a> row. Prevent the anchor from
+                    // navigating so clicking a screenshot opens the lightbox
+                    // in place rather than jumping to the detail page.
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onOpenAt(entry.id, i);
+                  }}
+                >
+                  <img
+                    src={src}
+                    alt={`${entry.title} step ${i + 1}`}
+                    loading={eager ? 'eager' : 'lazy'}
+                    decoding="async"
+                    width={320}
+                    height={180}
+                  />
+                  <span className="strip-n">{i + 1}</span>
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            className="scen-strip__chevron scen-strip__chevron--next"
+            data-testid={`strip-chevron-next-${entry.id}`}
+            aria-label="scroll right"
+            hidden={!canScrollRight}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              scrollByPage(1);
+            }}
+          >
+            ›
+          </button>
         </div>
-        <button
-          type="button"
-          className="scen-strip__chevron scen-strip__chevron--next"
-          data-testid={`strip-chevron-next-${entry.id}`}
-          aria-label="scroll right"
-          hidden={!canScrollRight}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            scrollByPage(1);
-          }}
-        >
-          ›
-        </button>
       </div>
     </a>
   );
