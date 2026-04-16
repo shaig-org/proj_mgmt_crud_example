@@ -67,7 +67,10 @@ scenarioTest('PM adds and deletes a comment on a ticket', async ({ page, step })
     await expect(btn).toBeFocused();
   });
 
-  await step('click delete and accept the confirm dialog', async () => {
+  // Merged the prior `click delete and accept` and `comments section returns
+  // to the empty state` steps. Both ended on the same empty-comments DOM,
+  // so the second screenshot was a duplicate of the first.
+  await step('click delete, accept dialog, and return to empty state', async () => {
     page.once('dialog', async (dialog) => {
       await dialog.accept();
     });
@@ -76,9 +79,6 @@ scenarioTest('PM adds and deletes a comment on a ticket', async ({ page, step })
       .getByRole('button', { name: /Delete comment/ })
       .click();
     await expect(page.locator('.comment', { hasText: commentBody })).toHaveCount(0);
-  });
-
-  await step('comments section returns to the empty state', async () => {
     await expect(page.getByText('No comments yet. Be the first to comment!')).toBeVisible();
   });
 });

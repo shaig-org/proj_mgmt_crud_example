@@ -22,24 +22,23 @@ scenarioTest('Super admin auth round trip', async ({ page, step }) => {
     await expect(page.getByRole('textbox', { name: 'Username' })).toHaveValue('admin');
   });
 
-  await step('submit the login form and land on projects', async () => {
+  // Merged the prior `submit the login form` and `confirm authed chrome is
+  // visible` steps: both landed on /projects with no visual change between
+  // them, so the second frame was a duplicate of the first.
+  await step('submit the login form and land on projects with authed chrome', async () => {
     await page.getByRole('button', { name: 'Login' }).click();
     await expect(page).toHaveURL('/projects');
     await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
-  });
-
-  await step('confirm authed chrome is visible', async () => {
     await expect(page.getByRole('link', { name: 'Organizations' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Logout' })).toBeVisible();
   });
 
-  await step('click logout and land back on login', async () => {
+  // Merged the prior `click logout` and `protected route bounces back` steps
+  // since both landed on /login with no visible difference between frames.
+  await step('logout returns to login and protected routes bounce back too', async () => {
     await page.getByRole('button', { name: 'Logout' }).click();
     await expect(page).toHaveURL('/login');
     await expect(page.getByRole('heading', { name: 'Login' })).toBeVisible();
-  });
-
-  await step('protected route bounces back to login again', async () => {
     await page.goto('/projects');
     await expect(page).toHaveURL('/login');
     await expect(page.getByRole('textbox', { name: 'Username' })).toBeVisible();

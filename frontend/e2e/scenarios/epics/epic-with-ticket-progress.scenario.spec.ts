@@ -87,6 +87,10 @@ scenarioTest('Epic with ticket progress', async ({ page, request, step }) => {
   });
 
   await step('see both tickets listed and 0% progress', async () => {
+    // Scroll the tickets section into view so the screenshot differs from the
+    // prior `open the epic details page` frame, which lands at the top of the
+    // epic page where the ticket list isn't necessarily visible yet.
+    await page.locator('.tickets-section').scrollIntoViewIfNeeded();
     for (const t of ctx.tickets) {
       await expect(
         page.locator('.tickets-section').getByRole('link', { name: t.title }),

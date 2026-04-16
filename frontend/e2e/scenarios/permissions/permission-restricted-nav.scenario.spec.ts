@@ -24,22 +24,22 @@ scenarioTest('PM sees a restricted sidebar without Users or Organizations', asyn
     await expect(page).toHaveURL('/projects');
   });
 
-  await step('confirm Projects link IS shown in the sidebar', async () => {
+  // Merged the prior three sidebar-assertion steps (Projects shown, Users
+  // hidden, Organizations hidden). Each landed on the same /projects view
+  // with no DOM mutation, so screenshots were identical to the login frame.
+  // Hovering the Projects link gives the merged frame a distinct visual cue.
+  await step('confirm sidebar shows only Projects (no Users, no Organizations)', async () => {
     const sidebar = page.locator('.sidebar');
+    await sidebar.getByRole('link', { name: 'Projects' }).hover();
     await expect(sidebar.getByRole('link', { name: 'Projects' })).toBeVisible();
-  });
-
-  await step('confirm Users link is NOT present', async () => {
-    const sidebar = page.locator('.sidebar');
     await expect(sidebar.getByRole('link', { name: 'Users' })).toHaveCount(0);
-  });
-
-  await step('confirm Organizations link is NOT present', async () => {
-    const sidebar = page.locator('.sidebar');
     await expect(sidebar.getByRole('link', { name: 'Organizations' })).toHaveCount(0);
   });
 
   await step('user chip in the footer shows the PM role', async () => {
+    // Hover the user chip so the footer area is the visible focus of this
+    // frame and it doesn't blend into the prior sidebar-focused screenshot.
+    await page.locator('.user-role').hover();
     await expect(page.locator('.user-role')).toHaveText(/project manager/i);
   });
 });

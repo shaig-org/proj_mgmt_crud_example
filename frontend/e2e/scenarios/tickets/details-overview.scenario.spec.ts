@@ -39,23 +39,25 @@ scenarioTest('PM reviews full ticket details layout', async ({ page, step }) => 
     await expect(page).toHaveURL('/projects');
   });
 
-  await step('navigate directly to the ticket', async () => {
+  // Merged the prior `navigate directly to the ticket`, `see the ticket
+  // information block`, and `see priority and assignee controls` steps. All
+  // three landed on the same top-of-ticket viewport with no DOM mutation, so
+  // the screenshots were duplicates of each other.
+  await step('navigate to the ticket and review the information block', async () => {
     await page.goto(`/tickets/${ctx.ticketId}`);
     await expect(page.getByRole('heading', { name: ctx.ticketTitle })).toBeVisible();
-  });
-
-  await step('see the ticket information block', async () => {
     await expect(page.getByRole('heading', { name: 'Ticket Information' })).toBeVisible();
     await expect(page.locator('.status-select')).toHaveValue('TODO');
-  });
-
-  await step('see priority and assignee controls', async () => {
     await expect(page.locator('.priority-badge.priority-high')).toBeVisible();
     await expect(page.locator('.assignee-select')).toBeVisible();
     await expect(page.locator('.epic-select')).toBeVisible();
   });
 
-  await step('see the comments section below', async () => {
+  await step('scroll down to see the comments section below', async () => {
+    // Scroll the comments heading into view so this frame is visually
+    // distinct from the prior top-of-ticket frame; without the scroll the
+    // viewport screenshot would be identical.
+    await page.getByRole('heading', { name: /Comments/ }).scrollIntoViewIfNeeded();
     await expect(page.getByRole('heading', { name: /Comments/ })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Add Comment' })).toBeVisible();
   });

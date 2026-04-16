@@ -86,14 +86,12 @@ scenarioTest('PM browses tickets with filters and sort', async ({ page, step }) 
     await expect(page.getByRole('link', { name: ctx.medDoneTitle })).toBeVisible();
   });
 
-  await step('sort tickets by priority', async () => {
+  // Merged the prior `sort tickets by priority` and `verify full
+  // priority-sorted order` steps. Both assertions ran against the same
+  // post-sort DOM, so the second screenshot duplicated the first.
+  await step('sort tickets by priority and verify full order', async () => {
     await page.locator('#sort-by').selectOption('priority');
     await expect(page.locator('#sort-by')).toHaveValue('priority');
-    const rows = page.locator('.tickets-table tbody tr');
-    await expect(rows.first()).toContainText(ctx.critTodoTitle);
-  });
-
-  await step('verify full priority-sorted order', async () => {
     const rows = page.locator('.tickets-table tbody tr');
     await expect(rows.nth(0)).toContainText(ctx.critTodoTitle);
     await expect(rows.nth(1)).toContainText(ctx.highDoneTitle);
