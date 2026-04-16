@@ -312,6 +312,41 @@ export const scenarioTest = base.extend<ScenarioFixtures>({
       (window as unknown as { __CORRELATION_ID: string }).__CORRELATION_ID = cid;
     }, correlationId);
 
+    // Inject a click-ripple effect on every mousedown so synthetic Playwright
+    // clicks are visible in the recorded video and the per-step screenshots.
+    // Uses capture phase + addEventListener so we observe every click,
+    // pointer-events:none and a near-max z-index so the ripple never
+    // intercepts test interactions or hides the click target.
+    await page.addInitScript(() => {
+      document.addEventListener(
+        'mousedown',
+        (e: MouseEvent) => {
+          const r = document.createElement('div');
+          r.style.cssText = [
+            'position:fixed',
+            `left:${e.clientX}px`,
+            `top:${e.clientY}px`,
+            'width:0', 'height:0',
+            'border-radius:50%',
+            'background:rgba(239,68,68,0.55)',
+            'border:2px solid rgba(239,68,68,0.9)',
+            'transform:translate(-50%,-50%)',
+            'pointer-events:none',
+            'z-index:2147483646',
+            'transition:width 0.45s ease-out, height 0.45s ease-out, opacity 0.45s ease-out',
+          ].join(';');
+          document.body.appendChild(r);
+          requestAnimationFrame(() => {
+            r.style.width = '64px';
+            r.style.height = '64px';
+            r.style.opacity = '0';
+          });
+          setTimeout(() => r.remove(), 600);
+        },
+        true,
+      );
+    });
+
     const collector = new StepCollector(page, scenarioSlug);
     const startedAtMs = Date.now();
     const startedAt = new Date(startedAtMs).toISOString();
