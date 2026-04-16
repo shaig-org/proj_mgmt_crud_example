@@ -18,7 +18,8 @@
           "screenshot": "media/org_create.gif",
           "startedAt": "2026-04-14T04:01:58.407Z",
           "durationMs": 258,
-          "status": "passed"
+          "status": "passed",
+          "url": "http://localhost:5173/login"
         },
         {
           "index": 2,
@@ -27,7 +28,8 @@
           "screenshot": "media/org_create.gif",
           "startedAt": "2026-04-14T04:01:58.665Z",
           "durationMs": 128,
-          "status": "passed"
+          "status": "passed",
+          "url": "http://localhost:5173/organizations"
         },
         {
           "index": 3,
@@ -36,7 +38,8 @@
           "screenshot": "media/org_create.gif",
           "startedAt": "2026-04-14T04:01:58.793Z",
           "durationMs": 41,
-          "status": "passed"
+          "status": "passed",
+          "url": "http://localhost:5173/organizations"
         }
       ],
       "videoPath": "media/org_create.webm",
@@ -62,7 +65,8 @@
           "screenshot": "media/project_create.gif",
           "startedAt": "2026-04-14T04:01:59.982Z",
           "durationMs": 636,
-          "status": "passed"
+          "status": "passed",
+          "url": "http://localhost:5173/organizations"
         },
         {
           "index": 2,
@@ -71,7 +75,8 @@
           "screenshot": "media/project_create.gif",
           "startedAt": "2026-04-14T04:02:00.618Z",
           "durationMs": 91,
-          "status": "passed"
+          "status": "passed",
+          "url": "http://localhost:5173/projects/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
         }
       ],
       "videoPath": "media/project_create.webm",

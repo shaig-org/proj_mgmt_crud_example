@@ -8,7 +8,7 @@ const DASHBOARD_DIR = path.resolve(here, '..', '..');
 const FIXTURES = path.resolve(here, '..', 'fixtures');
 const TMP_REPO = path.resolve(here, '..', '.tmp-repo');
 
-export type AspectId = 'scenarios' | 'capabilities' | 'traces' | 'e2e-traces';
+export type AspectId = 'scenarios' | 'capabilities' | 'traces' | 'screens' | 'e2e-traces';
 
 export interface Layout {
   scenarios: boolean;

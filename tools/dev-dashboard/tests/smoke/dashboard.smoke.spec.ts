@@ -2,12 +2,14 @@ import { test, expect, withArtifacts, withRealTraceArtifacts } from './fixtures'
 
 test.describe.configure({ mode: 'serial' });
 
+
 test('dashboard_boots_and_shows_aspect_tabs', async ({ page }) => {
   await withArtifacts({ scenarios: true, capabilities: true, traces: true });
   await page.goto('/');
   await expect(page.getByTestId('rail-scenarios')).toBeVisible();
   await expect(page.getByTestId('rail-capabilities')).toBeVisible();
   await expect(page.getByTestId('rail-traces')).toBeVisible();
+  await expect(page.getByTestId('rail-screens')).toBeVisible();
 });
 
 test('clicking_each_aspect_tab_renders_its_panel_header', async ({ page }) => {
@@ -21,7 +23,7 @@ test('clicking_each_aspect_tab_renders_its_panel_header', async ({ page }) => {
   await withArtifacts({ scenarios: true, capabilities: true, traces: true, e2eTraces: true });
   await page.goto('/', { timeout: 5000 });
 
-  for (const id of ['scenarios', 'capabilities', 'traces'] as const) {
+  for (const id of ['scenarios', 'capabilities', 'traces', 'screens'] as const) {
     await page.getByTestId(`rail-${id}`).click({ timeout: 3000 });
     await expect(
       page.getByTestId(`aspect-${id}`),
@@ -225,7 +227,7 @@ test('top_bar_summarises_aggregate_freshness', async ({ page }) => {
     'capabilities',
   );
   await page.goto('/');
-  await expect(page.getByTestId('freshness-summary')).toContainText('3 aspects');
+  await expect(page.getByTestId('freshness-summary')).toContainText('4 aspects');
   await expect(page.getByTestId('freshness-summary')).toContainText('1 stale');
 });
 
@@ -1526,4 +1528,36 @@ test('iter5_strip_row_has_no_inset_card_wrapper', async ({ page }) => {
   expect(style.borderLeftWidth).toBe('0px');
   expect(style.paddingLeft).toBe('0px');
   expect(style.paddingRight).toBe('0px');
+});
+
+test('screens_panel_renders_index_with_covered_and_uncovered_sections', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/screens');
+
+  // Covered screens: /login (1 visit), /organizations (3 visits), /projects/:projectId (1 visit)
+  await expect(page.getByTestId('screen-card-login')).toBeVisible();
+  await expect(page.getByTestId('screen-card-organizations')).toBeVisible();
+  await expect(page.getByTestId('screen-card-projects-projectId')).toBeVisible();
+
+  // Uncovered section: /projects, /tickets/:ticketId, /epics/:epicId, /users
+  await expect(page.getByTestId('uncovered-screens')).toBeVisible();
+});
+
+test('screens_panel_shows_empty_state_when_manifest_missing', async ({
+  page,
+}) => {
+  await withArtifacts({ scenarios: false, capabilities: false, traces: false });
+  await page.goto('/#/screens');
+  await expect(page.getByTestId('empty-state')).toBeVisible();
+  await expect(page.getByTestId('cmd-block')).toBeVisible();
+});
+
+test('screens_card_click_opens_detail_view', async ({ page }) => {
+  await withArtifacts({ scenarios: true, capabilities: false, traces: false });
+  await page.goto('/#/screens');
+  await page.getByTestId('screen-card-login').click();
+  await expect(page.getByTestId('screen-detail')).toBeVisible();
+  await expect(page.getByTestId('screens-back')).toBeVisible();
 });

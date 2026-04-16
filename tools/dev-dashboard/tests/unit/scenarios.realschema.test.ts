@@ -34,6 +34,7 @@ describe('scenarios manifest — real walkthrough-generator schema', () => {
             startedAt: '2026-04-14T04:01:59.982Z',
             durationMs: 636,
             status: 'passed',
+            url: 'http://localhost:5173/projects',
           },
           {
             index: 2,
@@ -44,6 +45,7 @@ describe('scenarios manifest — real walkthrough-generator schema', () => {
             startedAt: '2026-04-14T04:02:00.618Z',
             durationMs: 91,
             status: 'passed',
+            url: 'http://localhost:5173/projects',
           },
         ],
         videoPath:
@@ -90,6 +92,27 @@ describe('scenarios manifest — real walkthrough-generator schema', () => {
     expect(s.steps![0]!.screenshot).toBe(
       '/artifacts/scenarios/screenshots/create-project-full-flow-1776139319974-w2/01-login-as-project-manager.png',
     );
+  });
+
+  it('step.url_is_forwarded_when_present_in_manifest', () => {
+    const s = validateScenarios(realManifest).scenarios[0]!;
+    expect(s.steps![0]!.url).toBe('http://localhost:5173/projects');
+  });
+
+  it('step.url_is_undefined_when_absent_from_manifest', () => {
+    const internal = {
+      scenarios: [
+        {
+          id: 'org_create',
+          title: 'Create org',
+          gif: 'media/org_create.gif',
+          video: 'media/org_create.webm',
+          steps: [{ index: 1, label: 'Open signup' }],
+        },
+      ],
+    };
+    const out = validateScenarios(internal);
+    expect(out.scenarios[0]!.steps![0]!.url).toBeUndefined();
   });
 
   it('derives a thumbnail from the first step screenshot when no explicit thumbnail is given', () => {

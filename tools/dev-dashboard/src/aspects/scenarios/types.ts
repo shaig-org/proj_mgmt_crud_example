@@ -4,6 +4,7 @@ export interface ScenarioStep {
   screenshot?: string;
   durationMs?: number;
   status?: 'passing' | 'failing';
+  url?: string;
 }
 
 export interface ScenarioEntry {

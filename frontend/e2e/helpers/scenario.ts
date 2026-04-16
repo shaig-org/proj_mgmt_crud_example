@@ -30,6 +30,7 @@ export interface ScenarioStepRecord {
   startedAt: string;
   durationMs: number;
   status: 'passed' | 'failed';
+  url: string;
 }
 
 export interface ScenarioMetadata {
@@ -167,6 +168,12 @@ class StepCollector {
       await base.step(name, fn);
     } catch (err) {
       status = 'failed';
+      let url = '';
+      try {
+        url = this.page.url();
+      } catch {
+        // best effort
+      }
       try {
         await ensureDir(path.dirname(screenshotAbs));
         await this.page.screenshot({ path: screenshotAbs, fullPage: false });
@@ -181,8 +188,15 @@ class StepCollector {
         startedAt,
         durationMs: Date.now() - startedAtMs,
         status,
+        url,
       });
       throw err;
+    }
+    let url = '';
+    try {
+      url = this.page.url();
+    } catch {
+      // best effort
     }
     try {
       await ensureDir(path.dirname(screenshotAbs));
@@ -198,6 +212,7 @@ class StepCollector {
       startedAt,
       durationMs: Date.now() - startedAtMs,
       status,
+      url,
     });
   }
 }

@@ -113,6 +113,7 @@ export function validate(doc: unknown): ScenariosManifest {
             durationMs:
               typeof s.durationMs === 'number' ? s.durationMs : undefined,
             status: normStatus,
+            url: typeof s.url === 'string' ? s.url : undefined,
           };
         })
       : undefined;
