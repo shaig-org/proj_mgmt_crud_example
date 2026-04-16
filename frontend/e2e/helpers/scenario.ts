@@ -117,6 +117,36 @@ class StepCollector {
     const startedAtMs = Date.now();
     const startedAt = new Date(startedAtMs).toISOString();
     let status: 'passed' | 'failed' = 'passed';
+
+    // Inject / update a fixed banner showing the step name. Persists during
+    // the step's actions (so the recorded video shows it) and gets overwritten
+    // by the next step. Tolerate the rare case where the page hasn't loaded a
+    // document yet (e.g. very first step before the first goto) — best effort.
+    try {
+      await this.page.evaluate(
+        ({ index: i, name: n }: { index: number; name: string }) => {
+          let el = document.getElementById('__scenario-step-banner');
+          if (!el) {
+            el = document.createElement('div');
+            el.id = '__scenario-step-banner';
+            el.style.cssText = [
+              'position:fixed', 'top:0', 'left:0', 'right:0',
+              'background:rgba(15,23,42,0.92)', 'color:#fff',
+              'padding:8px 16px', 'font:600 16px/1.35 system-ui,sans-serif',
+              'z-index:2147483647', 'pointer-events:none',
+              'box-shadow:0 1px 4px rgba(0,0,0,0.3)',
+            ].join(';');
+            document.body.appendChild(el);
+          }
+          el.textContent = `Step ${i}: ${n}`;
+        },
+        { index, name },
+      );
+    } catch {
+      // No live document yet (or page closed); not fatal — caption will appear
+      // on subsequent steps once the test navigates.
+    }
+
     try {
       await base.step(name, fn);
     } catch (err) {
