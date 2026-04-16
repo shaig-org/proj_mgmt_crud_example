@@ -5,8 +5,8 @@
  */
 
 import { expect } from '@playwright/test';
-import { scenarioTest } from '../helpers/scenario';
-import { generateTestOrgName, generateTestUserName } from '../utils/test-config';
+import { scenarioTest } from '../../helpers/scenario';
+import { generateTestOrgName, generateTestUserName } from '../../utils/test-config';
 
 scenarioTest('Super admin onboards a new organization and PM', async ({ page, step }) => {
   const orgName = generateTestOrgName('Onboarding');

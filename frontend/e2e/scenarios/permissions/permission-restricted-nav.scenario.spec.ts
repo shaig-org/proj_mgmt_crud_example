@@ -4,8 +4,8 @@
  */
 
 import { expect } from '@playwright/test';
-import { scenarioTest } from '../helpers/scenario';
-import { createOrgAndPM, loginViaUI, type PMContext } from '../helpers/fixtures';
+import { scenarioTest } from '../../helpers/scenario';
+import { createOrgAndPM, loginViaUI, type PMContext } from '../../helpers/fixtures';
 
 let pm: PMContext;
 

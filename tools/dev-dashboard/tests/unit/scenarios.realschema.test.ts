@@ -17,7 +17,7 @@ describe('scenarios manifest — real walkthrough-generator schema', () => {
       {
         name: 'Create project full flow',
         slug: 'create-project-full-flow-1776139319974-w2',
-        specFile: 'e2e/scenarios/create-project.scenario.spec.ts',
+        specFile: 'e2e/scenarios/projects/create-project.scenario.spec.ts',
         correlationId: 'create-project-full-flow-1776139319974-w2',
         startedAt: '2026-04-14T04:01:59.981Z',
         endedAt: '2026-04-14T04:02:01.313Z',

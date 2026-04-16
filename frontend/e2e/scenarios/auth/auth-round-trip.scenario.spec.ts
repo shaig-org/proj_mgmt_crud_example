@@ -7,7 +7,7 @@
  */
 
 import { expect } from '@playwright/test';
-import { scenarioTest } from '../helpers/scenario';
+import { scenarioTest } from '../../helpers/scenario';
 
 scenarioTest('Super admin auth round trip', async ({ page, step }) => {
   await step('unauthed visit bounces to login', async () => {

@@ -5,8 +5,8 @@
  */
 
 import { expect } from '@playwright/test';
-import { scenarioTest } from '../helpers/scenario';
-import { TEST_CONFIG, generateTestOrgName, generateTestUserName } from '../utils/test-config';
+import { scenarioTest } from '../../helpers/scenario';
+import { TEST_CONFIG, generateTestOrgName, generateTestUserName } from '../../utils/test-config';
 
 interface Fixture {
   orgName: string;

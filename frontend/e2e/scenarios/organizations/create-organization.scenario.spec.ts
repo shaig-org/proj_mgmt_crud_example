@@ -4,8 +4,8 @@
  */
 
 import { expect } from '@playwright/test';
-import { scenarioTest } from '../helpers/scenario';
-import { generateTestOrgName } from '../utils/test-config';
+import { scenarioTest } from '../../helpers/scenario';
+import { generateTestOrgName } from '../../utils/test-config';
 
 scenarioTest('Super admin creates an organization', async ({ page, step }) => {
   const orgName = generateTestOrgName('FromUI');

@@ -3,8 +3,8 @@
  */
 
 import { expect } from '@playwright/test';
-import { scenarioTest } from '../helpers/scenario';
-import { TEST_CONFIG, generateTestOrgName, generateTestProjectName } from '../utils/test-config';
+import { scenarioTest } from '../../helpers/scenario';
+import { TEST_CONFIG, generateTestOrgName, generateTestProjectName } from '../../utils/test-config';
 
 interface FixtureUser {
   username: string;
