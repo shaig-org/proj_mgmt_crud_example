@@ -120,25 +120,41 @@ class StepCollector {
 
     // Inject / update a fixed banner showing the step name. Persists during
     // the step's actions (so the recorded video shows it) and gets overwritten
-    // by the next step. Tolerate the rare case where the page hasn't loaded a
-    // document yet (e.g. very first step before the first goto) — best effort.
+    // by the next step. The label is rendered via a `::before` pseudo-element
+    // reading `content: attr(data-label)` rather than as a real text node, so
+    // page.getByText() and other DOM-text selectors used by tests cannot
+    // accidentally match the banner's caption. Tolerate the rare case where
+    // the page hasn't loaded a document yet (very first step before the
+    // first goto) — best effort.
     try {
       await this.page.evaluate(
         ({ index: i, name: n }: { index: number; name: string }) => {
-          let el = document.getElementById('__scenario-step-banner');
+          const BANNER_ID = '__scenario-step-banner';
+          const STYLE_ID = '__scenario-step-banner-style';
+          let style = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
+          if (!style) {
+            style = document.createElement('style');
+            style.id = STYLE_ID;
+            // The pseudo-element renders the data-label, so no text node
+            // exists in the document tree for Playwright text selectors to
+            // hit. The banner div itself stays empty.
+            style.textContent =
+              `#${BANNER_ID}{position:fixed;top:0;left:0;right:0;` +
+              `background:rgba(15,23,42,0.92);color:#fff;` +
+              `padding:8px 16px;font:600 16px/1.35 system-ui,sans-serif;` +
+              `z-index:2147483647;pointer-events:none;` +
+              `box-shadow:0 1px 4px rgba(0,0,0,0.3);}` +
+              `#${BANNER_ID}::before{content:attr(data-label);}`;
+            document.head.appendChild(style);
+          }
+          let el = document.getElementById(BANNER_ID);
           if (!el) {
             el = document.createElement('div');
-            el.id = '__scenario-step-banner';
-            el.style.cssText = [
-              'position:fixed', 'top:0', 'left:0', 'right:0',
-              'background:rgba(15,23,42,0.92)', 'color:#fff',
-              'padding:8px 16px', 'font:600 16px/1.35 system-ui,sans-serif',
-              'z-index:2147483647', 'pointer-events:none',
-              'box-shadow:0 1px 4px rgba(0,0,0,0.3)',
-            ].join(';');
+            el.id = BANNER_ID;
+            el.setAttribute('aria-hidden', 'true');
             document.body.appendChild(el);
           }
-          el.textContent = `Step ${i}: ${n}`;
+          el.setAttribute('data-label', `Step ${i}: ${n}`);
         },
         { index, name },
       );
