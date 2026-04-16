@@ -63,7 +63,9 @@ export function deriveFeature(specFile: string | undefined): string | null {
 }
 
 /**
- * Group scenarios by feature. Explicit `feature` (trimmed) wins over `specFile`.
+ * Group scenarios by feature. Directory-derived label from `specFile` wins,
+ * since file layout is the canonical source of grouping. Explicit `feature`
+ * is a fallback for scenarios with no specFile (synthetic / test data).
  * Scenarios with neither fall into the "uncategorized" bucket.
  *
  * Group order follows first-appearance in the input — stable for tests.
@@ -73,9 +75,10 @@ export function groupByFeature(
 ): FeatureGroup[] {
   const groupsBySlug = new Map<string, FeatureGroup>();
   for (const s of scenarios) {
+    const derived = deriveFeature(s.specFile);
     const explicit =
       typeof s.feature === 'string' ? s.feature.trim() : '';
-    const label = explicit || deriveFeature(s.specFile) || UNCATEGORIZED_LABEL;
+    const label = derived || explicit || UNCATEGORIZED_LABEL;
     const slug = label === UNCATEGORIZED_LABEL ? UNCATEGORIZED_SLUG : slugify(label);
     const existing = groupsBySlug.get(slug);
     if (existing) {
