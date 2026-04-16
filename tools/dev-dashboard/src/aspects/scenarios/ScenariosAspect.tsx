@@ -28,7 +28,7 @@ import {
   type VideoSpeed,
 } from '../../lib/videoSpeed';
 
-const ARTIFACT_URL = '/artifacts/scenarios/manifest.json';
+const ARTIFACT_URL = '/artifacts/scenarios/gallery/manifest.json';
 
 function resolveMediaUrl(rel: string | undefined): string | undefined {
   if (!rel) return undefined;

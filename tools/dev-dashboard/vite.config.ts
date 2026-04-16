@@ -141,7 +141,7 @@ async function buildConfig() {
   const repoRoot = await resolveRepoRoot(dashboardDir);
 
   const mounts: Record<string, string> = {
-    '/scenarios': path.resolve(repoRoot, 'frontend/walkthroughs/gallery'),
+    '/scenarios': path.resolve(repoRoot, 'frontend/walkthroughs'),
     '/capabilities': path.resolve(repoRoot, 'backend/evidence/capabilities'),
     '/traces': path.resolve(repoRoot, 'backend/.trace-artifacts'),
     '/e2e-traces': path.resolve(repoRoot, 'backend/e2e-traces'),

@@ -29,7 +29,7 @@ export const aspectsConfig = [
     sourceRoots: ['frontend/e2e/scenarios'],
     artifacts: [
       {
-        url: '/artifacts/scenarios/manifest.json',
+        url: '/artifacts/scenarios/gallery/manifest.json',
         label: 'manifest.json',
         repoPath: 'frontend/walkthroughs/gallery/manifest.json',
         fsPath: 'frontend/walkthroughs/gallery/manifest.json',

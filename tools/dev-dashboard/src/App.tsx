@@ -22,7 +22,7 @@ export function App() {
 
   useEffect(() => {
     let cancelled = false;
-    void fetch('/artifacts/scenarios/manifest.json')
+    void fetch('/artifacts/scenarios/gallery/manifest.json')
       .then(async (r) => (r.ok ? (r.json() as Promise<unknown>) : null))
       .then((doc) => {
         if (cancelled || !doc) return;
