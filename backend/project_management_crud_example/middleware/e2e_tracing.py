@@ -140,7 +140,8 @@ class E2eTracingMiddleware(BaseHTTPMiddleware):
     _seq_counters: dict[str, int] = {}
 
     def _get_output_dir(self) -> Path:
-        default = Path(__file__).resolve().parents[3] / "e2e-traces"
+        # parents[2] of middleware/e2e_tracing.py = backend/
+        default = Path(__file__).resolve().parents[2] / "e2e-traces"
         return Path(os.environ.get("E2E_TRACES_DIR", str(default)))
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
