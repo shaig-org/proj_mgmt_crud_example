@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import type { Aspect } from '../types';
 import { ArtifactMissingError, loadArtifact } from '../../lib/loadArtifact';
 import type {
-  CallEvent,
   E2eRequestTrace,
   E2eScenarioTraces,
   E2eTracesData,
 } from './types';
+import { RequestFlameChart } from '../../components/RequestFlameChart';
 
 const BASE = '/artifacts/e2e-traces';
 
@@ -61,48 +61,12 @@ async function loadE2eTraces(): Promise<E2eTracesData> {
   return { scenarios };
 }
 
-function CallEventRow({ event }: { event: CallEvent }) {
-  return (
-    <div style={{ paddingLeft: `${event.depth * 16}px`, fontFamily: 'monospace', fontSize: '12px', padding: `2px 0 2px ${event.depth * 16}px` }}>
-      {event.event}: {event.file}:{event.function} (line {event.line})
-    </div>
-  );
-}
 
-function RequestDetail({ request }: { request: E2eRequestTrace }) {
-  const [showReturns, setShowReturns] = useState(false);
-
-  const visibleEvents = showReturns
-    ? request.call_events
-    : request.call_events.filter((e) => e.event === 'call');
-
-  return (
-    <div>
-      <h4>
-        {request.method} {request.path} &rarr; {request.status_code} ({request.duration_ms}ms)
-      </h4>
-      <div style={{ marginBottom: '8px' }}>
-        <label style={{ fontSize: '13px', cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={showReturns}
-            onChange={(e) => setShowReturns(e.currentTarget.checked)}
-            style={{ marginRight: '4px' }}
-          />
-          Show return events
-        </label>
-      </div>
-      <div data-testid="e2e-call-events">
-        {visibleEvents.length === 0 ? (
-          <div style={{ color: '#888', fontSize: '13px' }}>No call events.</div>
-        ) : (
-          visibleEvents.map((evt, i) => (
-            <CallEventRow key={i} event={evt} />
-          ))
-        )}
-      </div>
-    </div>
-  );
+function statusClass(code: number): string {
+  if (code >= 500) return 'flame-status-5xx';
+  if (code >= 400) return 'flame-status-4xx';
+  if (code >= 300) return 'flame-status-3xx';
+  return 'flame-status-2xx';
 }
 
 function E2eTracesBody({ data }: { data: E2eTracesData }) {
@@ -125,7 +89,9 @@ function E2eTracesBody({ data }: { data: E2eTracesData }) {
     data.scenarios.find((s) => s.correlationId === selectedScenarioId) ?? null;
 
   const selectedRequest =
-    selectedScenario?.requests.find((r) => r.seq === selectedSeq) ?? null;
+    selectedScenario?.requests.find((r) => r.seq === selectedSeq) ??
+    selectedScenario?.requests[0] ??
+    null;
 
   function selectScenario(id: string) {
     setSelectedScenarioId(id);
@@ -156,26 +122,32 @@ function E2eTracesBody({ data }: { data: E2eTracesData }) {
         {selectedScenario ? (
           <div>
             <h3>{selectedScenario.correlationId}</h3>
-            <div data-testid="e2e-requests-list">
-              {selectedScenario.requests.length === 0 ? (
-                <div className="empty">No requests recorded.</div>
-              ) : (
-                selectedScenario.requests.map((req) => (
-                  <button
-                    key={req.seq}
-                    type="button"
-                    aria-selected={req.seq === selectedSeq}
-                    data-testid={`e2e-request-${req.seq}`}
-                    onClick={() => setSelectedSeq(req.seq === selectedSeq ? null : req.seq)}
-                    style={{ display: 'block', width: '100%', textAlign: 'left', marginBottom: '4px' }}
-                  >
-                    {req.method} {req.path} &rarr; {req.status_code} ({req.duration_ms}ms)
-                  </button>
-                ))
-              )}
-            </div>
-            {selectedRequest && (
-              <RequestDetail request={selectedRequest} />
+            {selectedScenario.requests.length === 0 ? (
+              <div className="empty">No requests recorded.</div>
+            ) : (
+              <>
+                <div
+                  className="flame-req-tabs"
+                  data-testid="e2e-requests-list"
+                >
+                  {selectedScenario.requests.map((req) => (
+                    <button
+                      key={req.seq}
+                      type="button"
+                      className="flame-req-tab"
+                      aria-selected={req.seq === (selectedSeq ?? selectedScenario.requests[0]?.seq)}
+                      data-testid={`e2e-request-${req.seq}`}
+                      onClick={() => setSelectedSeq(req.seq)}
+                    >
+                      <span className={statusClass(req.status_code)}>{req.status_code}</span>{' '}
+                      {req.seq}: {req.method} {req.path}
+                    </button>
+                  ))}
+                </div>
+                {selectedRequest && (
+                  <RequestFlameChart request={selectedRequest} />
+                )}
+              </>
             )}
           </div>
         ) : (

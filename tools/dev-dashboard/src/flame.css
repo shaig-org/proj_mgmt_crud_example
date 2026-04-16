@@ -1,0 +1,80 @@
+/* Flame chart */
+.flame-chart-wrap {
+  margin: var(--space-2) 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.flame-header {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.flame-method { font-weight: 600; }
+.flame-status-2xx { color: var(--fresh); }
+.flame-status-4xx,
+.flame-status-5xx { color: var(--stale); }
+.flame-status-3xx { color: var(--accent); }
+.flame-area {
+  position: relative;
+  width: 100%;
+  background: #1a1a2e; /* dark track — fixed, not theme-variable, like flame.html */
+  cursor: crosshair;
+}
+.flame-empty { padding: var(--space-3); color: var(--text-muted); font-size: 13px; }
+.flame-stack {
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.flame-stack-empty { color: var(--text-muted); font-style: italic; }
+.flame-stack-frame {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  padding: 1px 0;
+}
+.flame-stack-depth {
+  color: var(--text-muted);
+  font-size: 10px;
+  min-width: 16px;
+  text-align: right;
+}
+.flame-stack-fn { font-weight: 500; }
+.flame-stack-loc { color: var(--text-muted); font-size: 11px; }
+.flame-loading { padding: var(--space-3); color: var(--text-muted); font-size: 13px; }
+
+/* Request tabs (for E2E Traces aspect and ScenarioTracePanel) */
+.flame-req-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.flame-req-tab {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  cursor: pointer;
+  color: var(--text);
+}
+.flame-req-tab[aria-selected='true'] {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* Scenario detail trace section */
+.detail__traces { margin-top: var(--space-4); }
+.detail__traces h4 { margin: 0 0 var(--space-2); font-size: 14px; color: var(--text-muted); }

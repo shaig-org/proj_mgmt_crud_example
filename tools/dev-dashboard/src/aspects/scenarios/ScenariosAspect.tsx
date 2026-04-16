@@ -7,6 +7,7 @@ import {
   parseScenariosHash,
   type FeatureGroup,
 } from './grouping';
+import { ScenarioTracePanel } from './ScenarioTracePanel';
 import {
   GALLERY_VIEW_DEFAULT,
   TILE_SIZE_DEFAULT,
@@ -747,6 +748,13 @@ function Detail({
       </div>
 
       <StepList entry={entry} />
+
+      {entry.correlationId && (
+        <section className="detail__traces" data-testid="detail-traces">
+          <h4>Backend Requests</h4>
+          <ScenarioTracePanel correlationId={entry.correlationId} />
+        </section>
+      )}
 
       {hasTrace && (
         <button
