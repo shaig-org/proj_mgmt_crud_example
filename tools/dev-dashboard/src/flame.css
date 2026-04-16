@@ -78,3 +78,28 @@
 /* Scenario detail trace section */
 .detail__traces { margin-top: var(--space-4); }
 .detail__traces h4 { margin: 0 0 var(--space-2); font-size: 14px; color: var(--text-muted); }
+
+/* Vertical accordion for requests in ScenarioTracePanel */
+.trace-request { border-bottom: 1px solid var(--border); }
+.trace-request-header {
+  display: flex; align-items: center; gap: var(--space-3);
+  width: 100%; padding: var(--space-2) var(--space-3);
+  background: none; border: none; cursor: pointer;
+  color: var(--text); font-family: var(--mono); font-size: 12px;
+  text-align: left;
+}
+.trace-request-header:hover { background: var(--bg-elevated); }
+.trace-req-timestamp { color: var(--text-muted); min-width: 64px; }
+.trace-req-method { font-weight: 600; min-width: 44px; }
+.trace-req-path { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trace-req-duration { color: var(--text-muted); }
+.trace-req-chevron { color: var(--text-muted); }
+
+/* Flame chart zoom controls */
+.flame-reset-zoom {
+  font-size: 11px; padding: 2px var(--space-2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: none; cursor: pointer; color: var(--text-muted);
+  font-family: var(--mono);
+}
+.flame-reset-zoom:hover { background: var(--bg-elevated); color: var(--text); }

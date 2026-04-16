@@ -8,7 +8,6 @@ test('dashboard_boots_and_shows_aspect_tabs', async ({ page }) => {
   await expect(page.getByTestId('rail-scenarios')).toBeVisible();
   await expect(page.getByTestId('rail-capabilities')).toBeVisible();
   await expect(page.getByTestId('rail-traces')).toBeVisible();
-  await expect(page.getByTestId('rail-e2e-traces')).toBeVisible();
 });
 
 test('clicking_each_aspect_tab_renders_its_panel_header', async ({ page }) => {
@@ -22,7 +21,7 @@ test('clicking_each_aspect_tab_renders_its_panel_header', async ({ page }) => {
   await withArtifacts({ scenarios: true, capabilities: true, traces: true, e2eTraces: true });
   await page.goto('/', { timeout: 5000 });
 
-  for (const id of ['scenarios', 'capabilities', 'traces', 'e2e-traces'] as const) {
+  for (const id of ['scenarios', 'capabilities', 'traces'] as const) {
     await page.getByTestId(`rail-${id}`).click({ timeout: 3000 });
     await expect(
       page.getByTestId(`aspect-${id}`),
@@ -200,23 +199,6 @@ test('traces_search_covering_file_filters_scenarios', async ({ page }) => {
   );
 });
 
-test('e2e_traces_tab_shows_refresh_hint_when_missing', async ({ page }) => {
-  await withArtifacts({ scenarios: false, capabilities: false, traces: false, e2eTraces: false });
-  await page.goto('/#/e2e-traces');
-  await expect(page.getByTestId('empty-state')).toBeVisible();
-  await expect(page.getByTestId('cmd-block')).toBeVisible();
-});
-
-test('e2e_traces_tab_shows_scenario_list_when_data_present', async ({ page }) => {
-  await withArtifacts({ scenarios: false, capabilities: false, traces: false, e2eTraces: true });
-  await page.goto('/#/e2e-traces');
-  await expect(page.getByTestId('e2e-traces-list')).toBeVisible();
-  await expect(page.getByTestId('e2e-scenario-test-scenario-123')).toBeVisible();
-  await page.getByTestId('e2e-scenario-test-scenario-123').click();
-  await expect(page.getByTestId('e2e-requests-list')).toBeVisible();
-  await expect(page.getByTestId('e2e-request-1')).toBeVisible();
-  await expect(page.getByTestId('e2e-request-2')).toBeVisible();
-});
 
 test('cross_link_scenario_to_trace_appears_only_when_trace_exists', async ({
   page,
@@ -243,7 +225,7 @@ test('top_bar_summarises_aggregate_freshness', async ({ page }) => {
     'capabilities',
   );
   await page.goto('/');
-  await expect(page.getByTestId('freshness-summary')).toContainText('4 aspects');
+  await expect(page.getByTestId('freshness-summary')).toContainText('3 aspects');
   await expect(page.getByTestId('freshness-summary')).toContainText('1 stale');
 });
 

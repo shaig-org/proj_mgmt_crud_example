@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { E2eRequestTrace } from '../aspects/e2e-traces/types';
 import { buildSpans, colorForFunction, getStackAtTime } from '../lib/traceUtils';
 
@@ -16,7 +16,9 @@ function statusClass(code: number): string {
 }
 
 export function RequestFlameChart({ request }: RequestFlameChartProps) {
-  const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const [hoverNs, setHoverNs] = useState<number | null>(null);
+  const [view, setView] = useState<{ start: number; end: number } | null>(null);
+  const flameRef = useRef<HTMLDivElement>(null);
 
   const spans = buildSpans(request.call_events);
 
@@ -24,20 +26,46 @@ export function RequestFlameChart({ request }: RequestFlameChartProps) {
   const maxNs = spans.length > 0 ? Math.max(...spans.map((s) => s.end_ns)) : 0;
   const totalDuration = maxNs - minNs;
 
+  const effectiveStart = view?.start ?? 0;
+  const effectiveEnd = view?.end ?? totalDuration;
+  const viewDuration = effectiveEnd - effectiveStart;
+
   const maxDepth = spans.length > 0 ? Math.max(...spans.map((s) => s.depth)) : 0;
+
+  // Use a ref to hold latest view values to avoid stale closures in the wheel handler
+  const viewRef = useRef({ effectiveStart, viewDuration, totalDuration });
+  viewRef.current = { effectiveStart, viewDuration, totalDuration };
+
+  useEffect(() => {
+    const el = flameRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      const { effectiveStart: es, viewDuration: vd, totalDuration: td } = viewRef.current;
+      const rect = el.getBoundingClientRect();
+      const mouseX = (e.clientX - rect.left) / rect.width;
+      const focalNs = es + mouseX * vd;
+      const factor = e.deltaY > 0 ? 1.35 : 0.74;
+      const newDuration = Math.max(td * 0.01, Math.min(td, vd * factor));
+      const newStart = Math.max(0, Math.min(td - newDuration, focalNs - mouseX * newDuration));
+      setView({ start: newStart, end: newStart + newDuration });
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, []); // empty deps — uses ref for current values
 
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
     const fraction = (e.clientX - rect.left) / rect.width;
-    setHoverTime(fraction * totalDuration);
+    setHoverNs(effectiveStart + fraction * viewDuration);
   }
 
   function handleMouseLeave() {
-    setHoverTime(null);
+    setHoverNs(null);
   }
 
   const currentStack =
-    hoverTime !== null ? getStackAtTime(spans, hoverTime + minNs) : [];
+    hoverNs !== null ? getStackAtTime(spans, hoverNs + minNs) : [];
 
   const hasSpans = spans.length > 0 && totalDuration > 0;
 
@@ -49,10 +77,21 @@ export function RequestFlameChart({ request }: RequestFlameChartProps) {
         <span>&rarr;</span>
         <span className={statusClass(request.status_code)}>{request.status_code}</span>
         <span>({request.duration_ms}ms)</span>
+        {view !== null && (
+          <button
+            className="flame-reset-zoom"
+            onClick={() => setView(null)}
+            data-testid="flame-reset-zoom"
+            type="button"
+          >
+            reset zoom
+          </button>
+        )}
       </div>
 
       {hasSpans ? (
         <div
+          ref={flameRef}
           data-testid="flame-chart"
           className="flame-area"
           style={{ height: `${(maxDepth + 1) * ROW_HEIGHT}px` }}
@@ -60,11 +99,17 @@ export function RequestFlameChart({ request }: RequestFlameChartProps) {
           onMouseLeave={handleMouseLeave}
         >
           {spans.map((span, i) => {
-            const left = ((span.start_ns - minNs) / totalDuration) * 100;
-            const width = Math.max(
-              0.2,
-              ((span.end_ns - span.start_ns) / totalDuration) * 100,
-            );
+            // Skip spans entirely outside the view
+            const spanStartRel = span.start_ns - minNs;
+            const spanEndRel = span.end_ns - minNs;
+            if (spanEndRel <= effectiveStart || spanStartRel >= effectiveEnd) return null;
+
+            // Clip to view bounds
+            const clippedStart = Math.max(spanStartRel, effectiveStart);
+            const clippedEnd = Math.min(spanEndRel, effectiveEnd);
+
+            const left = (clippedStart - effectiveStart) / viewDuration * 100;
+            const width = Math.max(0.2, (clippedEnd - clippedStart) / viewDuration * 100);
             const top = span.depth * ROW_HEIGHT;
             return (
               <div
@@ -94,11 +139,11 @@ export function RequestFlameChart({ request }: RequestFlameChartProps) {
               </div>
             );
           })}
-          {hoverTime !== null && (
+          {hoverNs !== null && (
             <div
               style={{
                 position: 'absolute',
-                left: `${(hoverTime / totalDuration) * 100}%`,
+                left: `${(hoverNs - effectiveStart) / viewDuration * 100}%`,
                 top: 0,
                 bottom: 0,
                 width: 1,
@@ -115,7 +160,7 @@ export function RequestFlameChart({ request }: RequestFlameChartProps) {
       <div className="flame-stack" data-testid="flame-stack">
         {currentStack.length === 0 ? (
           <span className="flame-stack-empty">
-            {hoverTime !== null ? 'idle' : 'hover chart to explore stack'}
+            {hoverNs !== null ? 'idle' : 'hover chart to explore stack'}
           </span>
         ) : (
           currentStack.map((frame, i) => (

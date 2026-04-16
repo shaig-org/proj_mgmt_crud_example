@@ -26,7 +26,7 @@ interface ScenarioTracePanelProps {
 
 export function ScenarioTracePanel({ correlationId }: ScenarioTracePanelProps) {
   const [state, setState] = useState<PanelState>('loading');
-  const [selectedSeq, setSelectedSeq] = useState<number | null>(null);
+  const [openSeqs, setOpenSeqs] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -59,7 +59,10 @@ export function ScenarioTracePanel({ correlationId }: ScenarioTracePanelProps) {
         if (!cancelled) {
           const sorted = requests.sort((a, b) => a.seq - b.seq);
           setState({ correlationId, requests: sorted });
-          setSelectedSeq(sorted[0]?.seq ?? null);
+          // First request starts expanded
+          if (sorted.length > 0) {
+            setOpenSeqs(new Set([sorted[0]!.seq]));
+          }
         }
       } catch {
         if (!cancelled) setState('empty');
@@ -80,26 +83,45 @@ export function ScenarioTracePanel({ correlationId }: ScenarioTracePanelProps) {
   }
 
   const traceData = state as E2eScenarioTraces;
-  const selectedRequest =
-    traceData.requests.find((r) => r.seq === selectedSeq) ?? null;
+  const firstTimestamp = traceData.requests[0]?.timestamp_ms ?? 0;
+
+  function toggleSeq(seq: number) {
+    setOpenSeqs((prev) => {
+      const next = new Set(prev);
+      if (next.has(seq)) {
+        next.delete(seq);
+      } else {
+        next.add(seq);
+      }
+      return next;
+    });
+  }
 
   return (
     <div>
-      <div className="flame-req-tabs">
-        {traceData.requests.map((req) => (
-          <button
-            key={req.seq}
-            type="button"
-            className="flame-req-tab"
-            aria-selected={req.seq === selectedSeq}
-            onClick={() => setSelectedSeq(req.seq)}
-          >
-            <span className={statusClass(req.status_code)}>{req.status_code}</span>{' '}
-            {req.seq}: {req.method} {req.path}
-          </button>
-        ))}
-      </div>
-      {selectedRequest && <RequestFlameChart request={selectedRequest} />}
+      {traceData.requests.map((req) => {
+        const isOpen = openSeqs.has(req.seq);
+        const delta = req.timestamp_ms - firstTimestamp;
+        return (
+          <div className="trace-request" key={req.seq}>
+            <button
+              className="trace-request-header"
+              aria-expanded={isOpen}
+              onClick={() => toggleSeq(req.seq)}
+              data-testid={`trace-req-header-${req.seq}`}
+              type="button"
+            >
+              <span className="trace-req-timestamp">t+{delta}ms</span>
+              <span className={`trace-req-method trace-req-method--${req.method.toLowerCase()}`}>{req.method}</span>
+              <span className="trace-req-path">{req.path}</span>
+              <span className={`trace-req-status ${statusClass(req.status_code)}`}>{req.status_code}</span>
+              <span className="trace-req-duration">{req.duration_ms}ms</span>
+              <span className="trace-req-chevron">{isOpen ? '▾' : '▸'}</span>
+            </button>
+            {isOpen && <RequestFlameChart request={req} />}
+          </div>
+        );
+      })}
     </div>
   );
 }

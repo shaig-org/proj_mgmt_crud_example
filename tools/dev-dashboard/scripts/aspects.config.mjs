@@ -81,21 +81,4 @@ export const aspectsConfig = [
     refreshDescription:
       're-runs scenario tests; pytest-tracer writes per-scenario trace artifacts under backend/.trace-artifacts/.',
   },
-  {
-    id: 'e2e-traces',
-    title: 'E2E Traces',
-    sourceRoots: ['frontend/e2e/scenarios'],
-    artifacts: [
-      {
-        url: '/artifacts/e2e-traces/',
-        label: 'e2e-traces/',
-        repoPath: 'backend/e2e-traces/',
-        fsPath: 'backend/e2e-traces',
-      },
-    ],
-    refreshCommand: 'npm --prefix frontend run e2e:scenarios',
-    refreshCwd: '<repo-root>',
-    refreshDescription:
-      're-runs E2E scenario tests; backend E2E tracing middleware writes per-request call traces under backend/e2e-traces/.',
-  },
 ];
