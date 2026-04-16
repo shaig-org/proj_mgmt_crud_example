@@ -18,6 +18,7 @@ All commands are run with `npm --prefix tools/dev-dashboard` (no `cd`).
 |---|---|
 | `npm --prefix tools/dev-dashboard install` | Install dependencies. |
 | `npm --prefix tools/dev-dashboard run dashboard` | Boot the dashboard on 127.0.0.1:5179. Runs `check-staleness` first. |
+| `npm --prefix tools/dev-dashboard run dashboard:refresh` | **One command, all tabs** — regenerate every artifact the dashboard reads (capabilities report + baseline, capabilities git-diff, e2e-traces, walkthrough GIFs/screenshots/manifest, pytest-tracer `.trace-artifacts`, staleness). Non-fatal per-step. Wraps `devtools/refresh-dashboard-artifacts.sh` — see that script's header for the full artifact → tab map and flags. |
 | `npm --prefix tools/dev-dashboard run dashboard:check` | Re-run only the staleness check. |
 | `npm --prefix tools/dev-dashboard run lint` | Lint. |
 | `npm --prefix tools/dev-dashboard run typecheck` | TS strict check. |

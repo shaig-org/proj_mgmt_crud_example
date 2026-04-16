@@ -8,7 +8,7 @@ import { KNOWN_ROUTES } from './normalizeUrl';
 import { ScreensIndexView } from './ScreensIndexView';
 import { ScreenDetailView } from './ScreenDetailView';
 
-const ARTIFACT_URL = '/artifacts/scenarios/manifest.json';
+const ARTIFACT_URL = '/artifacts/scenarios/gallery/manifest.json';
 
 function parseScreensHash(hash: string): { route: string | null } {
   // #/screens/<encoded-route> → detail view

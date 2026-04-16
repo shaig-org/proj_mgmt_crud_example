@@ -4,6 +4,10 @@ import { createReadStream, promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 const thisFile = fileURLToPath(import.meta.url);
 const dashboardDir = path.dirname(thisFile);
@@ -136,6 +140,95 @@ async function serveArtifact(
   createReadStream(absolutePath).pipe(res);
 }
 
+// ---------------------------------------------------------------------------
+// Run-diff plugin — POST /api/run-diff/capabilities
+// ---------------------------------------------------------------------------
+
+/** Git ref characters that are safe to pass as CLI arguments, plus the WORKING sentinel. */
+const SAFE_REF_RE = /^[a-zA-Z0-9._\-/~^@{}:]+$/;
+const WORKING_TREE_REF = 'WORKING';
+
+function readBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (chunk: Buffer) => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+    req.on('error', reject);
+  });
+}
+
+function jsonResponse(res: ServerResponse, status: number, body: unknown): void {
+  const payload = JSON.stringify(body);
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Length', Buffer.byteLength(payload));
+  res.end(payload);
+}
+
+export function runDiffPlugin(repoRoot: string): Plugin {
+  return {
+    name: 'dev-dashboard-run-diff',
+    configureServer(server) {
+      server.middlewares.use(
+        '/api/run-diff/capabilities',
+        (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+          if (req.method !== 'POST') {
+            next();
+            return;
+          }
+          void handleRunDiff(req, res, repoRoot);
+        },
+      );
+    },
+  };
+}
+
+async function handleRunDiff(
+  req: IncomingMessage,
+  res: ServerResponse,
+  repoRoot: string,
+): Promise<void> {
+  let body: { from?: unknown; to?: unknown };
+  try {
+    body = JSON.parse(await readBody(req)) as { from?: unknown; to?: unknown };
+  } catch {
+    jsonResponse(res, 400, { ok: false, error: 'Invalid JSON body' });
+    return;
+  }
+
+  const fromRef = String(body.from ?? 'main');
+  const toRef = String(body.to ?? 'HEAD');
+
+  const isValidRef = (r: string) => r === WORKING_TREE_REF || SAFE_REF_RE.test(r);
+  if (!isValidRef(fromRef) || !isValidRef(toRef)) {
+    jsonResponse(res, 400, { ok: false, error: 'Invalid git ref — only alphanumeric, ., -, _, /, ~, ^, @ allowed (or "WORKING" for working tree)' });
+    return;
+  }
+
+  const backendDir = path.resolve(repoRoot, 'backend');
+
+  try {
+    const { stdout, stderr } = await execFileAsync(
+      'uv',
+      [
+        'run', 'python', '-m',
+        'project_management_crud_example.tools.diff_capabilities',
+        '--from', fromRef,
+        '--to', toRef,
+      ],
+      { cwd: backendDir, timeout: 30_000 },
+    );
+    jsonResponse(res, 200, { ok: true, stdout: stdout.trim(), stderr: stderr.trim() });
+  } catch (err) {
+    const e = err as { stdout?: string; stderr?: string; message?: string };
+    jsonResponse(res, 500, {
+      ok: false,
+      error: e.stderr?.trim() || e.message || 'Unknown error',
+      stdout: e.stdout?.trim() ?? '',
+    });
+  }
+}
+
 // Also expose /artifacts/staleness.json mapped to .staleness.json in this dir.
 async function buildConfig() {
   const repoRoot = await resolveRepoRoot(dashboardDir);
@@ -150,7 +243,7 @@ async function buildConfig() {
 
   return defineConfig({
     root: dashboardDir,
-    plugins: [react(), repoArtifactsPlugin({ repoRoot, mounts })],
+    plugins: [react(), repoArtifactsPlugin({ repoRoot, mounts }), runDiffPlugin(repoRoot)],
     define: {
       'import.meta.env.VITE_REPO_ROOT': JSON.stringify(repoRoot),
     },

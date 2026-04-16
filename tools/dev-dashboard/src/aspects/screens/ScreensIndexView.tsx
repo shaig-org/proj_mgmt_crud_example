@@ -7,6 +7,7 @@ import {
   clampTileSize,
 } from '../../lib/gallery';
 import type { ScreenIndex } from './screenIndex';
+import { resolveMediaUrl } from '../scenarios/ScenariosAspect';
 
 const SCREENS_TILE_KEY = 'dev-dashboard.screensTileSize';
 
@@ -109,7 +110,7 @@ export function ScreensIndexView({ screenIndex, uncovered }: ScreensIndexViewPro
                 <div className="screen-card__media">
                   {firstThumb ? (
                     <img
-                      src={firstThumb}
+                      src={resolveMediaUrl(firstThumb)}
                       alt={route}
                       className="screen-card__thumb"
                       loading="lazy"

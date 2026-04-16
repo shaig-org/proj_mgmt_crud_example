@@ -30,10 +30,10 @@ import {
 
 const ARTIFACT_URL = '/artifacts/scenarios/gallery/manifest.json';
 
-function resolveMediaUrl(rel: string | undefined): string | undefined {
+export function resolveMediaUrl(rel: string | undefined): string | undefined {
   if (!rel) return undefined;
   if (rel.startsWith('/') || rel.startsWith('http')) return rel;
-  return `/artifacts/scenarios/${rel.replace(/^\.?\//, '')}`;
+  return `/artifacts/scenarios/gallery/${rel.replace(/^\.?\//, '')}`;
 }
 
 export function validate(doc: unknown): ScenariosManifest {

@@ -16,6 +16,10 @@ export function EmptyState({ aspect }: { aspect: AnyAspect }) {
         description={aspect.refreshDescription}
         output={aspect.artifacts[0].repoPath}
       />
+      <p className="empty__all-hint" data-testid="empty-refresh-all-hint">
+        Or regenerate every tab's artifacts in one go:{' '}
+        <code>npm --prefix tools/dev-dashboard run dashboard:refresh</code>
+      </p>
     </div>
   );
 }

@@ -75,13 +75,13 @@ describe('scenarios manifest — real walkthrough-generator schema', () => {
     expect(s.status).toBe('passing');
   });
 
-  it('maps gifPath/videoPath to gif/video (URL-resolved under /artifacts/scenarios/)', () => {
+  it('maps gifPath/videoPath to gif/video (URL-resolved under /artifacts/scenarios/gallery/)', () => {
     const s = validateScenarios(realManifest).scenarios[0]!;
     expect(s.gif).toBe(
-      '/artifacts/scenarios/gifs/create-project-full-flow-1776139319974-w2.gif',
+      '/artifacts/scenarios/gallery/gifs/create-project-full-flow-1776139319974-w2.gif',
     );
     expect(s.video).toBe(
-      '/artifacts/scenarios/videos/create-project-full-flow-1776139319974-w2.webm',
+      '/artifacts/scenarios/gallery/videos/create-project-full-flow-1776139319974-w2.webm',
     );
   });
 
@@ -90,7 +90,7 @@ describe('scenarios manifest — real walkthrough-generator schema', () => {
     expect(s.steps).toHaveLength(2);
     expect(s.steps![0]!.label).toBe('login as project manager');
     expect(s.steps![0]!.screenshot).toBe(
-      '/artifacts/scenarios/screenshots/create-project-full-flow-1776139319974-w2/01-login-as-project-manager.png',
+      '/artifacts/scenarios/gallery/screenshots/create-project-full-flow-1776139319974-w2/01-login-as-project-manager.png',
     );
   });
 
@@ -118,7 +118,7 @@ describe('scenarios manifest — real walkthrough-generator schema', () => {
   it('derives a thumbnail from the first step screenshot when no explicit thumbnail is given', () => {
     const s = validateScenarios(realManifest).scenarios[0]!;
     expect(s.thumbnail).toBe(
-      '/artifacts/scenarios/screenshots/create-project-full-flow-1776139319974-w2/01-login-as-project-manager.png',
+      '/artifacts/scenarios/gallery/screenshots/create-project-full-flow-1776139319974-w2/01-login-as-project-manager.png',
     );
   });
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ScreenVisit } from './screenIndex';
+import { resolveMediaUrl } from '../scenarios/ScenariosAspect';
 
 interface ScreenDetailViewProps {
   route: string;
@@ -46,7 +47,7 @@ export function ScreenDetailView({ route, visits }: ScreenDetailViewProps): Reac
               {visit.screenshot ? (
                 <div className="screen-visit__thumb-wrap">
                   <img
-                    src={visit.screenshot}
+                    src={resolveMediaUrl(visit.screenshot)}
                     alt={`${visit.scenarioTitle} step ${visit.stepIndex}`}
                     className="screen-visit__thumb"
                     loading="lazy"

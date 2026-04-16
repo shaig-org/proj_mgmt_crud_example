@@ -49,6 +49,8 @@ Run `./devtools/install-git-hooks.sh` once per clone/worktree to wire up the rep
 ## Dev dashboard (tools/dev-dashboard/)
 Standalone Vite + React + TS app that consolidates the Scenarios walkthroughs, Capabilities analyzer report, and pytest-tracer artifacts behind per-aspect tabs. View-only: each panel shows a copyable refresh command, last-generated mtime, and a stale indicator. The aspect-plugin contract (`Aspect<TData>` in `src/aspects/types.ts`) is the extension point — add a new angle on the project by registering a new aspect. Real-producer schemas are locked in by `tests/unit/scenarios.realschema.test.ts`; extend that file whenever a producer's artifact shape changes.
 
+**Refresh all dashboard artifacts (one command):** `./devtools/refresh-dashboard-artifacts.sh` (or `npm --prefix tools/dev-dashboard run dashboard:refresh`). Regenerates every input every tab depends on — capabilities report + baseline, capability git-diff, e2e-traces, walkthrough GIFs/screenshots/manifest, pytest-tracer `.trace-artifacts` (if the plugin is installed), and dashboard staleness. Each step is independent; failures don't abort the rest. See the header of the script for the full artifact → tab map and flags (`--skip-e2e`, `--diff-from REF`). **Use this instead of chasing per-panel refresh commands when the dashboard looks stale or empty.**
+
 ## Capability layer
 Backend route handlers depend on narrow **Capability** objects, not on the full `Repository`. See `docs/architecture/principles.md` §Capability layer for the rule. When a change alters a route's capability set:
 1. Run `cd backend && ./devtools/run_with_env.sh uv run python -m project_management_crud_example.tools.analyze_capabilities` — exit 0 means unchanged/reduced; exit 1 means expansion vs baseline.

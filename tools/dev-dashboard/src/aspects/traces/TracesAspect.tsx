@@ -344,10 +344,10 @@ export const tracesAspect: Aspect<TracesData> = {
       repoPath: 'backend/.trace-artifacts/',
     },
   ],
-  refreshCommand: 'npm --prefix frontend run e2e:scenarios',
+  refreshCommand: 'cd backend && ./devtools/build_trace_artifacts.sh',
   refreshCwd: '<repo-root>',
   refreshDescription:
-    're-runs scenario tests; pytest-tracer writes per-scenario trace artifacts under backend/.trace-artifacts/.',
+    'collects scenario metadata, traces scenario-marked tests, and packs per-scenario artifacts (folded-compact, mermaid, flame) into backend/.trace-artifacts/.',
   load: loadTraces,
   render: (data) => <TracesBody data={data} />,
 };

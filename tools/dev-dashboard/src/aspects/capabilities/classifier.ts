@@ -3,6 +3,8 @@ import type {
   CapabilityRoute,
   CapabilityRow,
   CapabilityStatus,
+  GitDiffDocument,
+  GitDiffData,
 } from './types';
 
 function routeKey(r: Pick<CapabilityRoute, 'method' | 'path'>): string {
@@ -114,4 +116,32 @@ export function buildRows(
     return a.method.localeCompare(b.method);
   });
   return rows;
+}
+
+/**
+ * Convert a parsed git-diff.json document into the CapabilityRow format used
+ * by the capabilities table. Each git diff route maps directly: from_capabilities
+ * → baseline, to_capabilities → current.
+ */
+export function parseGitDiff(doc: GitDiffDocument): GitDiffData {
+  const rows: CapabilityRow[] = doc.routes.map((r) => ({
+    method: r.method,
+    path: r.path,
+    handler: r.handler,
+    baseline: r.from_capabilities ? sortedUnique(r.from_capabilities) : null,
+    current: r.to_capabilities ? sortedUnique(r.to_capabilities) : null,
+    status: r.status,
+    added: sortedUnique(r.added),
+    removed: sortedUnique(r.removed),
+  }));
+
+  return {
+    rows,
+    fromRef: doc.from_ref,
+    toRef: doc.to_ref,
+    fromCommit: doc.from_commit,
+    toCommit: doc.to_commit,
+    generatedAt: doc.generated_at,
+    summary: doc.summary,
+  };
 }
