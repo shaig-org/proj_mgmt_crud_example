@@ -27,12 +27,16 @@ port generator via postinstall — no manual setup step needed. From then on,
 |---|---|
 | Any multi-file feature work (new entity, cross-stack change, non-trivial addition) | **feature-planner** FIRST → then engineer(s) |
 | Spec edits (`docs/spec/**`) | **spec-author** |
-| Backend-only implementation of an approved plan | **backend-engineer** |
-| Frontend-only implementation of an approved plan | **frontend-engineer** |
+| Backend-only implementation of an approved plan | **backend-engineer** (Sonnet default) |
+| Frontend-only implementation of an approved plan | **frontend-engineer** (Sonnet default) |
+| Backend implementation escalation — Sonnet run failed, or plan flags architectural difficulty, or change touches migrations/concurrency/auth/cross-org isolation | **backend-engineer-opus** |
+| Frontend implementation escalation — Sonnet run failed, or non-trivial state machine / perf-sensitive rendering / accessibility-critical UI | **frontend-engineer-opus** |
 | Reviewing completed work before declaring done | **code-reviewer** |
 | Open-ended codebase exploration (cross-stack understanding) | **Explore** (built-in) |
 
-**Default behavior**: for any feature request, call `feature-planner` first. The planner produces the plan and test matrix. Then dispatch engineers against the plan. Finally run `code-reviewer`.
+**Model assignments**: `feature-planner` runs on Opus (planning rewards strong reasoning). `backend-engineer` and `frontend-engineer` run on Sonnet (fast, cheap, fine for executing an approved plan). `-opus` variants exist for escalation — same rules as their Sonnet counterparts, stronger model. `code-reviewer` and `spec-author` inherit the orchestrator's model.
+
+**Default behavior**: for any feature request, call `feature-planner` first. The planner produces the plan and test matrix. Then dispatch the Sonnet engineer(s) against the plan. Escalate to `-opus` variants only when warranted (see routing table). Finally run `code-reviewer`.
 
 For cross-stack features:
 1. `Explore` agent gathers current state across FE + BE.
