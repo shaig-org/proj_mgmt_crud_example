@@ -1,9 +1,22 @@
 import axios, { AxiosInstance } from 'axios';
 
-// Use E2E port during E2E testing, dev port otherwise
-const API_BASE_URL = import.meta.env.VITE_E2E_TESTING === 'true'
-  ? 'http://localhost:18000'
-  : 'http://localhost:8000';
+// Per-worktree port wiring (see docs/tasks/per-worktree-ports/plan.md §3.7).
+// Precedence:
+//   1. VITE_E2E_TESTING=true → fixed E2E backend (18000). Untouched by the plan.
+//   2. VITE_BACKEND_URL set and non-empty → use it verbatim (explicit override).
+//   3. otherwise → '' (relative, same-origin, proxied by Vite dev-server).
+export function resolveBaseUrl(): string {
+  if (import.meta.env.VITE_E2E_TESTING === 'true') {
+    return 'http://localhost:18000';
+  }
+  const explicit = import.meta.env.VITE_BACKEND_URL;
+  if (typeof explicit === 'string' && explicit.length > 0) {
+    return explicit;
+  }
+  return '';
+}
+
+export const API_BASE_URL = resolveBaseUrl();
 
 interface HealthResponse {
   status: string;

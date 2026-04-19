@@ -4,19 +4,21 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 3000",
+    "dev": "vite",
     "dev:e2e": "vite --config vite.config.e2e.ts",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
+    "test": "vitest run",
     "e2e": "playwright test --reporter=list",
     "e2e:scenarios": "playwright test --project=scenarios --reporter=list",
     "e2e:headed": "playwright test --headed --reporter=list",
     "e2e:ui": "playwright test --ui",
     "e2e:debug": "playwright test --debug",
     "walkthroughs:generate": "tsx scripts/generate-walkthroughs.ts",
-    "walkthroughs:serve": "npx --yes serve walkthroughs/gallery -l 4173"
+    "walkthroughs:serve": "npx --yes serve walkthroughs/gallery -l 4173",
+    "postinstall": "node -e \"const { spawnSync } = require('node:child_process'); ['../devtools/install-git-hooks.sh', '../devtools/setup-worktree-ports.sh'].forEach(s => spawnSync('bash', [s], { stdio: 'inherit' }))\""
   },
   "dependencies": {
     "axios": "^1.7.9",
@@ -39,6 +41,9 @@
     "tsx": "^4.21.0",
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.18.2",
-    "vite": "^6.0.5"
+    "vite": "^6.0.5",
+    "vitest": "^2.1.0",
+    "@vitest/ui": "^2.1.0",
+    "jsdom": "^25.0.0"
   }
 }

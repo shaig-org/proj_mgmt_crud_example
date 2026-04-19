@@ -8,12 +8,13 @@ description: Full frontend validation suite. Run before declaring a task done. Z
 From `frontend/`:
 
 ```bash
-cd frontend && npm run lint && npm run typecheck && npm run e2e
+cd frontend && npm run lint && npm run typecheck && npm test && npm run e2e
 ```
 
 ## Acceptance bar
 - `npm run lint` — ZERO errors, ZERO warnings.
 - `npm run typecheck` — ZERO TS errors.
+- `npm test` — 100% pass (Vitest unit tests).
 - `npm run e2e` — 100% pass, ZERO failures, ZERO skips (except documented infra flakes).
 
 ## Rules

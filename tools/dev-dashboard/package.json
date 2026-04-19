@@ -5,15 +5,16 @@
   "type": "module",
   "scripts": {
     "predashboard": "node scripts/check-staleness.mjs",
-    "dashboard": "vite --host 127.0.0.1 --port 5179",
+    "dashboard": "vite --host 127.0.0.1",
     "dashboard:check": "node scripts/check-staleness.mjs",
     "dashboard:refresh": "bash ../../devtools/refresh-dashboard-artifacts.sh",
     "build": "tsc -b && vite build",
-    "preview": "vite preview --host 127.0.0.1 --port 5179",
+    "preview": "vite preview --host 127.0.0.1",
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
-    "smoke": "playwright test"
+    "smoke": "playwright test",
+    "postinstall": "node -e \"const { spawnSync } = require('node:child_process'); ['../../devtools/install-git-hooks.sh', '../../devtools/setup-worktree-ports.sh'].forEach(s => spawnSync('bash', [s], { stdio: 'inherit' }))\""
   },
   "dependencies": {
     "mermaid": "^11.4.1",

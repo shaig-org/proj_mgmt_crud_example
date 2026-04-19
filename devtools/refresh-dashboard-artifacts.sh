@@ -127,7 +127,7 @@ else
   if (cd frontend && npm run e2e:scenarios -- --reporter=line); then
     ok "e2e:scenarios"
   else
-    fail "e2e:scenarios (requires backend on :8000 AND frontend on :5173/:3000)"
+    fail "e2e:scenarios (requires backend on \$BACKEND_PORT AND frontend on \$FRONTEND_PORT; see .claude/env.ports)"
   fi
 
   # -----------------------------------------------------------------------------

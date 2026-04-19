@@ -370,6 +370,7 @@ dev = [
     { name = "hypothesis" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "pytest-subprocess" },
     { name = "pytest-testmon" },
     { name = "pytest-tracer" },
     { name = "pytest-watch" },
@@ -397,6 +398,7 @@ dev = [
     { name = "hypothesis", specifier = ">=6.142.4" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
+    { name = "pytest-subprocess", specifier = ">=1.5.0" },
     { name = "pytest-testmon", specifier = ">=2.1.3" },
     { name = "pytest-tracer", directory = "../../../../../../../agent_tracer/projects/pytest_tracer_python" },
     { name = "pytest-watch", specifier = ">=4.2.0" },
@@ -504,6 +506,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b1/51/a849f96e117386044471c8ec2bd6cfebacda285da9525c9106aeb28da671/pytest_cov-7.1.0.tar.gz", hash = "sha256:30674f2b5f6351aa09702a9c8c364f6a01c27aae0c1366ae8016160d1efc56b2", size = 55592, upload-time = "2026-03-21T20:11:16.284Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9d/7a/d968e294073affff457b041c2be9868a40c1c71f4a35fcc1e45e5493067b/pytest_cov-7.1.0-py3-none-any.whl", hash = "sha256:a0461110b7865f9a271aa1b51e516c9a95de9d696734a2f71e3e78f46e1d4678", size = 22876, upload-time = "2026-03-21T20:11:14.438Z" },
+]
+
+[[package]]
+name = "pytest-subprocess"
+version = "1.5.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/df/8d/963aa75dafbd8e601e5d8f8ba586f64792a18257a7d6eb74ce346ce1aa64/pytest_subprocess-1.5.4.tar.gz", hash = "sha256:889e6618e3b2f8425deec15d0e9c2d846aa22ba352ab5764b633b3ab0d612ae8", size = 44908, upload-time = "2026-03-21T07:24:51.85Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5d/e1/52aa41c22cc353ec4c05ba20c1c9683f6c693cf2ee1264c2bbc9918e12bd/pytest_subprocess-1.5.4-py3-none-any.whl", hash = "sha256:8cf7c1245433afcda31b5bdf47bc386d573cee4787a6edafdd35cf04535e6bf6", size = 22521, upload-time = "2026-03-21T07:24:50.207Z" },
 ]
 
 [[package]]

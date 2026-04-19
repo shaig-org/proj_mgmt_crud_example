@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { createReadStream, promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -230,8 +230,20 @@ async function handleRunDiff(
 }
 
 // Also expose /artifacts/staleness.json mapped to .staleness.json in this dir.
+// Per-worktree port wiring (see docs/tasks/per-worktree-ports/plan.md §3.7):
+// DASHBOARD_PORT (non-VITE_-prefixed, server-side only) comes from
+// `tools/dev-dashboard/.env.local`, written by devtools/setup-worktree-ports.sh.
+// Falls back to 5179 when unset.
+function resolveDashboardPort(): number {
+  const env = { ...loadEnv('development', dashboardDir, ''), ...process.env };
+  const raw = Number(env.DASHBOARD_PORT);
+  if (Number.isFinite(raw) && raw > 0) return raw;
+  return 5179;
+}
+
 async function buildConfig() {
   const repoRoot = await resolveRepoRoot(dashboardDir);
+  const dashboardPort = resolveDashboardPort();
 
   const mounts: Record<string, string> = {
     '/scenarios': path.resolve(repoRoot, 'frontend/walkthroughs'),
@@ -249,7 +261,7 @@ async function buildConfig() {
     },
     server: {
       host: '127.0.0.1',
-      port: 5179,
+      port: dashboardPort,
       strictPort: false,
       fs: {
         allow: [

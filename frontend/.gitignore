@@ -36,3 +36,4 @@ test-results
 
 # Scenario walkthroughs (generated)
 walkthroughs/
+tsconfig.test.tsbuildinfo

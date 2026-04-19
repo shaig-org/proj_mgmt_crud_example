@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Repo-level post-checkout hook.
+#
+# Fires on:
+#   - `git checkout` / `git checkout <branch>` (args: old_head new_head 1|0)
+#   - `git worktree add <path>` (invoked inside the new worktree; args: 0000... new_head 1)
+#   - `git clone` (after core.hooksPath is configured; see install-git-hooks.sh)
+#
+# Runs devtools/setup-worktree-ports.sh for the current worktree. The generator
+# is idempotent, so a no-op checkout in an already-bootstrapped worktree is
+# cheap (file-existence check; ~5ms).
+#
+# Intentionally does NOT `set -e`: a generator failure must not block git
+# itself. If the generator is missing (e.g. during a rebase to a commit
+# predating this feature), we silently no-op.
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+if [ -z "$REPO_ROOT" ]; then
+  exit 0
+fi
+
+GENERATOR="$REPO_ROOT/devtools/setup-worktree-ports.sh"
+if [ ! -x "$GENERATOR" ]; then
+  # Generator not present on this ref; nothing to do.
+  exit 0
+fi
+
+"$GENERATOR" --worktree-root "$REPO_ROOT" || {
+  echo "[post-checkout] setup-worktree-ports failed (exit $?); checkout proceeds anyway." >&2
+}
+
+exit 0

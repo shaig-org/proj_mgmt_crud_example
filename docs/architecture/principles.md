@@ -50,7 +50,7 @@ API (FastAPI routers) → Domain (Pydantic models + commands) → Repository (DA
 
 ## Zero-tolerance validation
 - Backend: `cd backend && ./devtools/run_all_agent_validations.sh` — zero errors, zero warnings.
-- Frontend: `npm run lint && npm run typecheck && npm run e2e` — zero errors, zero warnings, zero skips.
+- Frontend: `npm run lint && npm run typecheck && npm test && npm run e2e` — zero errors, zero warnings, zero skips.
 - Failing validation is never acceptable at task completion. Two acceptable outcomes: all pass, or you've tried and explicitly reported blockage.
 - When tests fail: check spec first. Code wrong → fix code. Test wrong → verify against spec, then fix test. NEVER change tests just to make them green.
 
