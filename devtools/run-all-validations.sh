@@ -13,6 +13,13 @@
 # E2E (Playwright, ~2 min) and dashboard smoke tests are opt-in because
 # they need the dev servers running and are much slower.
 #
+# When --with-e2e is passed, E2E runs AFTER the parallel fast checks
+# finish — not alongside them. Running E2E concurrently with backend
+# pytest (8 xdist workers + 4 Playwright workers both hitting the same
+# machine) causes cascading login timeouts on the shared backend due to
+# bcrypt CPU contention. Serializing costs ~30s but keeps E2E stable at
+# its 4-worker baseline flakiness.
+#
 # Usage (from repo root or anywhere):
 #   ./devtools/run-all-validations.sh            # backend + frontend + dashboard fast checks
 #   ./devtools/run-all-validations.sh --with-e2e # additionally run frontend Playwright
@@ -121,12 +128,6 @@ launch db_lint           "dashboard: lint"                 do_dashboard_lint
 launch db_tc             "dashboard: typecheck"            do_dashboard_typecheck
 launch db_test           "dashboard: test"                 do_dashboard_test
 
-if [[ "$WITH_E2E" -eq 1 ]]; then
-  launch fe_e2e          "frontend: e2e (Playwright)"      do_frontend_e2e
-else
-  skip "frontend: e2e (Playwright) — pass --with-e2e to include"
-fi
-
 RC=0
 await fe_lint    || RC=1
 await fe_tc      || RC=1
@@ -134,7 +135,16 @@ await db_lint    || RC=1
 await db_tc      || RC=1
 await db_test    || RC=1
 await backend    || RC=1
-[[ "$WITH_E2E" -eq 1 ]] && { await fe_e2e || RC=1; }
+
+# E2E runs AFTER the fast checks. Running it concurrently with backend
+# pytest hammers the machine's CPU (bcrypt), causing cascading login
+# timeouts. See header comment.
+if [[ "$WITH_E2E" -eq 1 ]]; then
+  launch fe_e2e          "frontend: e2e (Playwright)"      do_frontend_e2e
+  await fe_e2e || RC=1
+else
+  skip "frontend: e2e (Playwright) — pass --with-e2e to include"
+fi
 
 ELAPSED=$(( SECONDS - SECONDS_START ))
 if [[ $RC -eq 0 ]]; then
