@@ -76,7 +76,12 @@ def _should_trace(filename: str) -> bool:
 
 
 def _on_py_start(code: types.CodeType, _instruction_offset: int) -> None:
-    buf = _current_buffer.get()
+    # During interpreter shutdown the module's ContextVar reference may already
+    # be None; sys.monitoring callbacks still fire. Guard defensively.
+    try:
+        buf = _current_buffer.get()
+    except AttributeError:
+        return
     if buf is None:
         return
     filename: str = code.co_filename
@@ -97,7 +102,10 @@ def _on_py_start(code: types.CodeType, _instruction_offset: int) -> None:
 
 
 def _on_py_return(code: types.CodeType, _instruction_offset: int, _retval: object) -> None:
-    buf = _current_buffer.get()
+    try:
+        buf = _current_buffer.get()
+    except AttributeError:
+        return
     if buf is None:
         return
     filename: str = code.co_filename

@@ -45,9 +45,14 @@ run_or_dump() {
     fi
 }
 
-echo "==> 1/4  pytest with per-test coverage"
+echo "==> 1/4  pytest with per-test coverage (parallel, memory DB)"
+# -n auto --dist loadfile: parallel via xdist; loadfile keeps PBT state machines
+# on one worker. --db-mode=memory is the conftest default but pass it explicitly
+# so this script remains correct regardless of pytest.ini / conftest defaults.
+# pytest-cov + xdist: coverage data is merged automatically by pytest-cov.
 run_or_dump "pytest" \
-    uv run pytest --cov=project_management_crud_example --cov-context=test
+    uv run pytest -n auto --dist loadfile --db-mode=memory \
+        --cov=project_management_crud_example --cov-context=test
 
 echo "==> 2/4  collect scenario metadata + call traces"
 run_or_dump "pytest-tracer collect" uv run pytest-tracer collect . -o scenarios.json
@@ -61,34 +66,42 @@ run_or_dump "trace build" \
         --call-traces call_traces.json \
         --output .trace-index
 
-echo "==> 4/4  generate per-scenario artifacts under ${ART_DIR}"
+echo "==> 4/4  generate per-scenario artifacts under ${ART_DIR} (parallel)"
 rm -rf "${ART_DIR}"
 mkdir -p "${ART_DIR}"
 
-# Iterate over every scenario id in the index. Redirect the whole loop to the
-# tempfile — one "- <id>" progress line per scenario would flood agent context.
+# Render one scenario's worth of artifacts (6 formats). Invoked in parallel
+# via xargs -P below. Exported so the xargs sub-shell can find it.
+render_scenario() {
+    local ID="$1"
+    # Sanitize: replace / and :: with _
+    local SAFE="${ID//\//_}"
+    SAFE="${SAFE//::/__}"
+    local OUT="${ART_DIR}/${SAFE}"
+    mkdir -p "${OUT}"
+    echo "    - ${ID}"
+    "${TRACE_BIN}" flamegraph "${ID}" --format summary        --index .trace-index > "${OUT}/summary.json"
+    "${TRACE_BIN}" flamegraph "${ID}" --format folded-compact --index .trace-index > "${OUT}/folded-compact.txt"
+    {
+        echo '# '"${ID}"
+        echo
+        echo '```mermaid'
+        "${TRACE_BIN}" flamegraph "${ID}" --format mermaid --index .trace-index
+        echo '```'
+    } > "${OUT}/mermaid.md"
+    "${TRACE_BIN}" flamegraph "${ID}" --format png  --index .trace-index > "${OUT}/flame.png"
+    "${TRACE_BIN}" flamegraph "${ID}" --format html --index .trace-index > "${OUT}/flame.html"
+}
+export -f render_scenario
+export TRACE_BIN ART_DIR
+
+# Iterate over every scenario id in the index — parallel fan-out (xargs -P).
+# Whole fan-out's stdout goes to tempfile so per-scenario progress doesn't flood
+# agent context; we only dump on failure.
 {
     "${TRACE_BIN}" list --index .trace-index \
         | python3 -c 'import json,sys; print("\n".join(s["id"] for s in json.load(sys.stdin)))' \
-        | while IFS= read -r ID; do
-            # Sanitize: replace / and :: with _
-            SAFE="${ID//\//_}"
-            SAFE="${SAFE//::/__}"
-            OUT="${ART_DIR}/${SAFE}"
-            mkdir -p "${OUT}"
-            echo "    - ${ID}"
-            "${TRACE_BIN}" flamegraph "${ID}" --format summary        --index .trace-index > "${OUT}/summary.json"
-            "${TRACE_BIN}" flamegraph "${ID}" --format folded-compact --index .trace-index > "${OUT}/folded-compact.txt"
-            {
-                echo '# '"${ID}"
-                echo
-                echo '```mermaid'
-                "${TRACE_BIN}" flamegraph "${ID}" --format mermaid --index .trace-index
-                echo '```'
-            } > "${OUT}/mermaid.md"
-            "${TRACE_BIN}" flamegraph "${ID}" --format png  --index .trace-index > "${OUT}/flame.png"
-            "${TRACE_BIN}" flamegraph "${ID}" --format html --index .trace-index > "${OUT}/flame.html"
-        done
+        | xargs -n1 -P 8 -I{} bash -c 'render_scenario "$@"' _ {}
 } > "$TEMP_OUTPUT" 2>&1 || {
     echo "❌ per-scenario artifact generation failed:"
     cat "$TEMP_OUTPUT"

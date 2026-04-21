@@ -28,9 +28,9 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--db-mode",
         action="store",
-        default="disk",
+        default="memory",
         choices=["memory", "disk"],
-        help="Database mode: 'memory' for in-memory SQLite, 'disk' for file-based (default: disk)",
+        help="Database mode: 'memory' for in-memory SQLite (default), 'disk' for file-based",
     )
 
 

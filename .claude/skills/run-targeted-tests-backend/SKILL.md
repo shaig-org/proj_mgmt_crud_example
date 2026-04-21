@@ -46,8 +46,8 @@ cd backend && uv run pytest tests/property_based/stateful/test_user_api.py -x
 - `--lf` — last-failed only.
 - `--ff` — failed-first then the rest.
 - `-s` — don't capture stdout (useful when you added `print` to debug).
-- `--db-mode=memory` — switch to in-memory SQLite when iterating fast (disk is default and catches more real bugs).
-- `-n auto` — parallel runners via pytest-xdist (only if installed; don't use with PBT state machines).
+- `--db-mode=disk` — switch to file-based SQLite (memory is default; disk can catch driver/migration bugs you only see against a real file).
+- `-n auto --dist loadfile` — parallel runners via pytest-xdist. NOT on by default: xdist worker startup adds ~2s of overhead, which hurts single-file iteration. Use it only for suite-sized runs (hundreds of tests). `--dist loadfile` keeps stateful PBT machines together on one worker.
 
 ## When to escalate
 - All targeted tests green for the capability → run `validate-backend` to confirm nothing else regressed.

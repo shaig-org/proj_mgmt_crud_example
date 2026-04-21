@@ -1,6 +1,7 @@
 #!/usr/bin/env zsh
 
-# -rP - display extra information on all non-passing tests. See:
-#   https://docs.pytest.org/en/6.2.x/reference.html#command-line-flags
+# Full test suite, parallel. See pytest.ini for why xdist isn't the pytest default.
+# -rP — extra info on non-passing tests. See pytest docs.
+# -n auto --dist loadfile — xdist parallelism, grouped by file (safe for PBT state machines).
 
-uv run pytest -rP
+uv run pytest -rP -n auto --dist loadfile "$@"
