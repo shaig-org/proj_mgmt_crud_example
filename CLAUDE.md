@@ -58,6 +58,8 @@ Backend tests marked with `@pytest.mark.scenario` are indexed into `backend/.tra
 ## Validations
 Any completed backend work must pass `cd backend && ./devtools/run_all_agent_validations.sh`. Any completed frontend work must pass `npm run lint && npm run typecheck && npm run e2e`. Any completed `tools/dev-dashboard/` work must pass `npm --prefix tools/dev-dashboard run typecheck && npm --prefix tools/dev-dashboard run lint && npm --prefix tools/dev-dashboard run test -- --run && npm --prefix tools/dev-dashboard run smoke`. Zero errors, zero warnings. See principles.md for the full contract.
 
+**Cross-stack all-at-once**: `./devtools/run-all-validations.sh` runs backend + frontend + dashboard fast checks in parallel (~38s, backend dominates). Pass `--with-e2e` to additionally include Playwright (~2 min). Useful when you've touched multiple modules and want one command for the whole repo.
+
 ## Git hooks
 Repo-tracked hooks live in `githooks/` (currently `pre-commit` and `post-checkout`). The first `npm ci` auto-runs `./devtools/install-git-hooks.sh` via postinstall, which sets `core.hooksPath=githooks` and sweeps any stale worktree-local `core.hookspath` overrides. Re-running `install-git-hooks.sh` by hand is safe (idempotent) but not required.
 

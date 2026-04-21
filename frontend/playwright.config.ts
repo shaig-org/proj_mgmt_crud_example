@@ -15,6 +15,10 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
+  // Locally: 4 workers is the ceiling. Bumping to 6 causes cascading login
+  // timeouts — bcrypt CPU contention + SQLite single-writer contention in the
+  // shared backend. To go higher would require per-worker backend/DB
+  // isolation, which is a bigger change than a worker-count bump.
   workers: process.env.CI ? 2 : 4,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',

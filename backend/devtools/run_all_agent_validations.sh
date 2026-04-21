@@ -15,6 +15,10 @@
 
 set -e  # Exit on first error
 
+# Always operate from backend/ so ruff/pytest don't walk the repo root (docs/, etc).
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
 TEMP_OUTPUT=$(mktemp)
 trap "rm -f $TEMP_OUTPUT" EXIT
 
