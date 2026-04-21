@@ -12,8 +12,8 @@
     "preview": "vite preview --host 127.0.0.1",
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",
-    "test": "vitest run",
-    "smoke": "playwright test",
+    "test": "vitest run --reporter=dot",
+    "smoke": "playwright test --reporter=line",
     "postinstall": "node -e \"const { spawnSync } = require('node:child_process'); ['../../devtools/install-git-hooks.sh', '../../devtools/setup-worktree-ports.sh'].forEach(s => spawnSync('bash', [s], { stdio: 'inherit' }))\""
   },
   "dependencies": {

@@ -150,11 +150,17 @@ fi
 # -----------------------------------------------------------------------------
 step "build_trace_artifacts.sh — backend/.trace-artifacts/ (Traces tab)"
 if [[ -x backend/devtools/build_trace_artifacts.sh ]]; then
-  if (cd backend && ./devtools/build_trace_artifacts.sh >/dev/null 2>&1); then
+  # Capture output so pass stays silent but failures surface the real error
+  # (instead of asking the user to "re-run manually to see stderr"). The
+  # inner script is already concise-on-pass via its own run_or_dump wrapper.
+  TMP_TRACE=$(mktemp)
+  if (cd backend && ./devtools/build_trace_artifacts.sh) > "$TMP_TRACE" 2>&1; then
     ok "build_trace_artifacts.sh"
   else
-    fail "build_trace_artifacts.sh (re-run manually to see stderr: cd backend && ./devtools/build_trace_artifacts.sh)"
+    fail "build_trace_artifacts.sh"
+    cat "$TMP_TRACE"
   fi
+  rm -f "$TMP_TRACE"
 else
   warn "build_trace_artifacts.sh missing — Traces tab will stay empty"
 fi

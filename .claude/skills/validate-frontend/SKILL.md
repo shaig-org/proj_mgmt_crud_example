@@ -18,7 +18,7 @@ cd frontend && npm run lint && npm run typecheck && npm test && npm run e2e
 - `npm run e2e` — 100% pass, ZERO failures, ZERO skips (except documented infra flakes).
 
 ## Rules
-- Headless only. `npm run e2e` uses `--reporter=list`. Never invoke `e2e:headed` or `e2e:ui` in automation.
+- Headless only. `npm run e2e` uses `--reporter=line` (concise; failures still surface). Never invoke `e2e:headed` or `e2e:ui` in automation.
 - If E2E flakes: inspect trace (`npx playwright show-trace ...`). Don't paper over with `waitForTimeout` — wait on concrete conditions.
 - If a test reveals a real bug in the backend contract, hand back to `backend-engineer` with a minimal repro.
 

@@ -15,6 +15,11 @@
 #       flame.png            static flame graph (3600px wide)
 #       flame.html           interactive flame graph (open in any browser)
 #
+# Output contract: concise on pass (one banner per step), dumps the failing
+# step's captured stdout+stderr on any error. Mirrors the pattern in
+# run_all_agent_validations.sh so agent context isn't flooded with pytest /
+# pytest-tracer / trace CLI progress.
+#
 # Usage:
 #   backend/devtools/build_trace_artifacts.sh
 set -euo pipefail
@@ -26,46 +31,68 @@ ART_DIR="${BACKEND_DIR}/.trace-artifacts"
 
 cd "${BACKEND_DIR}"
 
+TEMP_OUTPUT=$(mktemp)
+trap 'rm -f "$TEMP_OUTPUT"' EXIT
+
+run_or_dump() {
+    # Run "$@", capture stdout+stderr. On success: silent. On failure: dump + exit 1.
+    local label="$1"
+    shift
+    if ! "$@" > "$TEMP_OUTPUT" 2>&1; then
+        echo "❌ ${label} failed:"
+        cat "$TEMP_OUTPUT"
+        exit 1
+    fi
+}
+
 echo "==> 1/4  pytest with per-test coverage"
-uv run pytest --cov=project_management_crud_example --cov-context=test -q
+run_or_dump "pytest" \
+    uv run pytest --cov=project_management_crud_example --cov-context=test
 
 echo "==> 2/4  collect scenario metadata + call traces"
-uv run pytest-tracer collect . -o scenarios.json
-uv run pytest-tracer trace   . -o call_traces.json
+run_or_dump "pytest-tracer collect" uv run pytest-tracer collect . -o scenarios.json
+run_or_dump "pytest-tracer trace"   uv run pytest-tracer trace   . -o call_traces.json
 
 echo "==> 3/4  build trace index"
-"${TRACE_BIN}" build \
-    --coverage .coverage \
-    --scenarios scenarios.json \
-    --call-traces call_traces.json \
-    --output .trace-index
+run_or_dump "trace build" \
+    "${TRACE_BIN}" build \
+        --coverage .coverage \
+        --scenarios scenarios.json \
+        --call-traces call_traces.json \
+        --output .trace-index
 
 echo "==> 4/4  generate per-scenario artifacts under ${ART_DIR}"
 rm -rf "${ART_DIR}"
 mkdir -p "${ART_DIR}"
 
-# Iterate over every scenario id in the index.
-"${TRACE_BIN}" list --index .trace-index \
-    | python3 -c 'import json,sys; print("\n".join(s["id"] for s in json.load(sys.stdin)))' \
-    | while IFS= read -r ID; do
-        # Sanitize: replace / and :: with _
-        SAFE="${ID//\//_}"
-        SAFE="${SAFE//::/__}"
-        OUT="${ART_DIR}/${SAFE}"
-        mkdir -p "${OUT}"
-        echo "    - ${ID}"
-        "${TRACE_BIN}" flamegraph "${ID}" --format summary        --index .trace-index > "${OUT}/summary.json"
-        "${TRACE_BIN}" flamegraph "${ID}" --format folded-compact --index .trace-index > "${OUT}/folded-compact.txt"
-        {
-            echo '# '"${ID}"
-            echo
-            echo '```mermaid'
-            "${TRACE_BIN}" flamegraph "${ID}" --format mermaid --index .trace-index
-            echo '```'
-        } > "${OUT}/mermaid.md"
-        "${TRACE_BIN}" flamegraph "${ID}" --format png  --index .trace-index > "${OUT}/flame.png"
-        "${TRACE_BIN}" flamegraph "${ID}" --format html --index .trace-index > "${OUT}/flame.html"
-    done
+# Iterate over every scenario id in the index. Redirect the whole loop to the
+# tempfile — one "- <id>" progress line per scenario would flood agent context.
+{
+    "${TRACE_BIN}" list --index .trace-index \
+        | python3 -c 'import json,sys; print("\n".join(s["id"] for s in json.load(sys.stdin)))' \
+        | while IFS= read -r ID; do
+            # Sanitize: replace / and :: with _
+            SAFE="${ID//\//_}"
+            SAFE="${SAFE//::/__}"
+            OUT="${ART_DIR}/${SAFE}"
+            mkdir -p "${OUT}"
+            echo "    - ${ID}"
+            "${TRACE_BIN}" flamegraph "${ID}" --format summary        --index .trace-index > "${OUT}/summary.json"
+            "${TRACE_BIN}" flamegraph "${ID}" --format folded-compact --index .trace-index > "${OUT}/folded-compact.txt"
+            {
+                echo '# '"${ID}"
+                echo
+                echo '```mermaid'
+                "${TRACE_BIN}" flamegraph "${ID}" --format mermaid --index .trace-index
+                echo '```'
+            } > "${OUT}/mermaid.md"
+            "${TRACE_BIN}" flamegraph "${ID}" --format png  --index .trace-index > "${OUT}/flame.png"
+            "${TRACE_BIN}" flamegraph "${ID}" --format html --index .trace-index > "${OUT}/flame.html"
+        done
+} > "$TEMP_OUTPUT" 2>&1 || {
+    echo "❌ per-scenario artifact generation failed:"
+    cat "$TEMP_OUTPUT"
+    exit 1
+}
 
-echo
 echo "Done. Open ${ART_DIR} to browse per-scenario artifacts."

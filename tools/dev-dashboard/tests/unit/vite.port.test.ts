@@ -1,66 +1,37 @@
-// @vitest-environment node
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import path from 'node:path';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { describe, it, expect } from 'vitest';
+import { pickDashboardPort, DASHBOARD_PORT_DEFAULT } from '../../vite.port';
 
-// Tests for the DASHBOARD_PORT env wiring in tools/dev-dashboard/vite.config.ts
-// per docs/tasks/per-worktree-ports/plan.md §4.5.
+// Unit tests for the pure port-resolution function used by vite.config.ts
+// (per-worktree ports, docs/tasks/per-worktree-ports/plan.md §4.5).
 //
-// The dashboard's vite.config.ts default-exports a Promise (the resolved config)
-// rather than a factory. To test different env values we bust the module cache
-// with vi.resetModules() between tests, and run under the node environment so
-// esbuild/rolldown (transitively imported by `vite`) works.
+// These tests deliberately avoid importing vite.config.ts — doing so would
+// trigger `loadEnv` against the worktree's real .env.local at module-load
+// time, producing false failures whenever DASHBOARD_PORT is set in the
+// environment. The seam between "read the env" and "decide the port" lives
+// at the vite.config.ts callsite; this file tests only the decision half.
 
-interface ResolvedConfig {
-  server: { port: number };
-}
-
-async function loadConfig(): Promise<ResolvedConfig> {
-  vi.resetModules();
-  const mod = (await import('../../vite.config')) as { default: Promise<ResolvedConfig> };
-  return mod.default;
-}
-
-const ORIGINAL_CWD = process.cwd();
-let sandboxDir: string | undefined;
-
-beforeEach(() => {
-  delete process.env.DASHBOARD_PORT;
-  sandboxDir = mkdtempSync(path.join(tmpdir(), 'dashboard-vite-port-'));
-  process.chdir(sandboxDir);
-});
-
-afterEach(() => {
-  process.chdir(ORIGINAL_CWD);
-  if (sandboxDir) {
-    rmSync(sandboxDir, { recursive: true, force: true });
-    sandboxDir = undefined;
-  }
-  delete process.env.DASHBOARD_PORT;
-});
-
-describe('dev-dashboard vite.config.ts — server.port', () => {
-  it('test_dashboard_vite_port_defaults_to_5179_when_env_unset', async () => {
-    const cfg = await loadConfig();
-    expect(cfg.server.port).toBe(5179);
+describe('pickDashboardPort', () => {
+  it('test_picks_default_when_input_is_undefined', () => {
+    expect(pickDashboardPort(undefined)).toBe(DASHBOARD_PORT_DEFAULT);
   });
 
-  it('test_dashboard_vite_port_reads_dashboard_port_env', async () => {
-    process.env.DASHBOARD_PORT = '5189';
-    const cfg = await loadConfig();
-    expect(cfg.server.port).toBe(5189);
+  it('test_picks_default_when_input_is_empty_string', () => {
+    expect(pickDashboardPort('')).toBe(DASHBOARD_PORT_DEFAULT);
   });
 
-  it('test_dashboard_vite_port_falls_back_on_non_numeric_env', async () => {
-    process.env.DASHBOARD_PORT = 'abc';
-    const cfg = await loadConfig();
-    expect(cfg.server.port).toBe(5179);
+  it('test_picks_numeric_env_value', () => {
+    expect(pickDashboardPort('5189')).toBe(5189);
   });
 
-  it('test_dashboard_vite_port_falls_back_on_zero_env', async () => {
-    process.env.DASHBOARD_PORT = '0';
-    const cfg = await loadConfig();
-    expect(cfg.server.port).toBe(5179);
+  it('test_falls_back_on_non_numeric', () => {
+    expect(pickDashboardPort('abc')).toBe(DASHBOARD_PORT_DEFAULT);
+  });
+
+  it('test_falls_back_on_zero', () => {
+    expect(pickDashboardPort('0')).toBe(DASHBOARD_PORT_DEFAULT);
+  });
+
+  it('test_falls_back_on_negative', () => {
+    expect(pickDashboardPort('-42')).toBe(DASHBOARD_PORT_DEFAULT);
   });
 });

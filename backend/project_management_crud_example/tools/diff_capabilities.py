@@ -297,13 +297,21 @@ def run_cli(
 
     from_routes = load_routes_at_ref(args.from_ref, root)
     if from_routes is None:
-        hint = "Ensure the ref exists and baseline.json is committed there." if args.from_ref != WORKING_TREE_REF else "On-disk baseline.json not found."
+        hint = (
+            "Ensure the ref exists and baseline.json is committed there."
+            if args.from_ref != WORKING_TREE_REF
+            else "On-disk baseline.json not found."
+        )
         print(f"Error: cannot read {BASELINE_REPO_PATH!r} at ref '{args.from_ref}'.\n{hint}", file=sys.stderr)
         return 1
 
     to_routes = load_routes_at_ref(args.to_ref, root)
     if to_routes is None:
-        hint = "Ensure the ref exists and baseline.json is committed there." if args.to_ref != WORKING_TREE_REF else "On-disk baseline.json not found."
+        hint = (
+            "Ensure the ref exists and baseline.json is committed there."
+            if args.to_ref != WORKING_TREE_REF
+            else "On-disk baseline.json not found."
+        )
         print(f"Error: cannot read {BASELINE_REPO_PATH!r} at ref '{args.to_ref}'.\n{hint}", file=sys.stderr)
         return 1
 

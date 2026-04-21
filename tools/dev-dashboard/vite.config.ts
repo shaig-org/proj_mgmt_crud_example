@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { pickDashboardPort } from './vite.port';
 
 const execFileAsync = promisify(execFile);
 
@@ -229,21 +230,16 @@ async function handleRunDiff(
   }
 }
 
-// Also expose /artifacts/staleness.json mapped to .staleness.json in this dir.
 // Per-worktree port wiring (see docs/tasks/per-worktree-ports/plan.md §3.7):
 // DASHBOARD_PORT (non-VITE_-prefixed, server-side only) comes from
 // `tools/dev-dashboard/.env.local`, written by devtools/setup-worktree-ports.sh.
-// Falls back to 5179 when unset.
-function resolveDashboardPort(): number {
-  const env = { ...loadEnv('development', dashboardDir, ''), ...process.env };
-  const raw = Number(env.DASHBOARD_PORT);
-  if (Number.isFinite(raw) && raw > 0) return raw;
-  return 5179;
-}
+// Parsing/fallback logic lives in vite.port.ts so it can be unit-tested
+// without triggering Vite's filesystem env loader.
 
 async function buildConfig() {
   const repoRoot = await resolveRepoRoot(dashboardDir);
-  const dashboardPort = resolveDashboardPort();
+  const env = { ...loadEnv('development', dashboardDir, ''), ...process.env };
+  const dashboardPort = pickDashboardPort(env.DASHBOARD_PORT);
 
   const mounts: Record<string, string> = {
     '/scenarios': path.resolve(repoRoot, 'frontend/walkthroughs'),
