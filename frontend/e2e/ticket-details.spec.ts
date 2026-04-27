@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { TEST_CONFIG } from './utils/test-config';
+import {
+  TEST_CONFIG,
+  generateTestOrgName,
+  generateTestProjectName,
+  generateTestUserName,
+} from './utils/test-config';
+import { loginViaApi } from './utils/auth';
 
 /**
  * E2E tests for the Ticket Details page and comment system.
@@ -35,13 +41,12 @@ test.describe('Ticket Details and Comments', () => {
         Authorization: `Bearer ${access_token}`,
         'Content-Type': 'application/json',
       },
-      data: { name: `Test Org ${Date.now()}`, description: 'E2E test organization' },
+      data: { name: generateTestOrgName('TicketDetails'), description: 'E2E test organization' },
     });
     const org = await orgResponse.json();
 
-    // Create a user with project_manager role in the organization
-    const timestamp = Date.now();
-    username = `pmtest${timestamp}`;
+    // Create a user with project_manager role (worker-namespaced).
+    username = generateTestUserName('pmtest');
 
     const userResponse = await page.request.post(
       `${TEST_CONFIG.API_BASE_URL}/api/users?organization_id=${org.id}&role=project_manager`,
@@ -85,7 +90,7 @@ test.describe('Ticket Details and Comments', () => {
           Authorization: `Bearer ${pmToken}`,
           'Content-Type': 'application/json',
         },
-        data: { name: `Test Project ${Date.now()}`, description: 'E2E test project' },
+        data: { name: generateTestProjectName('TicketDetails'), description: 'E2E test project' },
       }
     );
 
@@ -126,11 +131,9 @@ test.describe('Ticket Details and Comments', () => {
   });
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
-    await page.getByRole('textbox', { name: 'Username' }).fill(username);
-    await page.getByRole('textbox', { name: 'Password' }).fill(password);
-    await page.getByRole('button', { name: 'Login' }).click();
-    await expect(page).toHaveURL('/projects');
+    // Seed auth state via API (one bcrypt per worker, cached) — no UI login.
+    await loginViaApi(page, username, password);
+    await page.goto('/projects');
   });
 
   test('displays all ticket information', async ({ page }) => {

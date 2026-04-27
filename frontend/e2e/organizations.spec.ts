@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
+import { loginViaApi } from './utils/auth';
 
 test.describe('Organizations Page', () => {
   test.beforeEach(async ({ page }) => {
-    // Login as super admin for each test
-    await page.goto('/login');
-    await page.getByRole('textbox', { name: 'Username' }).fill('admin');
-    await page.getByRole('textbox', { name: 'Password' }).fill('SuperAdmin123!');
-    await page.getByRole('button', { name: 'Login' }).click();
-    await expect(page).toHaveURL('/projects');
+    // Seed auth state via API (one bcrypt per worker, cached) — no UI login.
+    await loginViaApi(page, 'admin', 'SuperAdmin123!');
+    // Land on the same page the old UI-login flow left us at, so tests that
+    // assume "I'm logged in and on /projects" still work.
+    await page.goto('/projects');
   });
 
   test('can navigate to organizations page', async ({ page }) => {
@@ -83,10 +83,15 @@ test.describe('Organizations Page', () => {
   });
 
   test('shows loading state while fetching organizations', async ({ page }) => {
-    // Navigate to organizations page
+    // Self-contained: create an org first so the table renders regardless of
+    // what other tests have done.
     await page.goto('/organizations');
+    await page.getByRole('button', { name: 'New Organization' }).click();
+    await page.getByLabel('Organization Name *').fill(`Loading State ${Date.now()}`);
+    await page.getByRole('button', { name: 'Create Organization' }).click();
+    await expect(page.locator('.modal-overlay')).not.toBeVisible();
 
-    // Loading state might be very fast, but we can check that the table eventually appears
+    // The table should now be visible (proves the loading state resolved).
     await expect(page.locator('.organizations-table')).toBeVisible();
   });
 

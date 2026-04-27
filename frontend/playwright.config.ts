@@ -15,11 +15,14 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
-  // Locally: 4 workers is the ceiling. Bumping to 6 causes cascading login
-  // timeouts — bcrypt CPU contention + SQLite single-writer contention in the
-  // shared backend. To go higher would require per-worker backend/DB
-  // isolation, which is a bigger change than a worker-count bump.
-  workers: process.env.CI ? 2 : 4,
+  // Locally: 6 workers. The previously-suspected "ambient flakiness" past
+  // 4 workers turned out to be three concrete bugs (cross-session
+  // visibility race in StaticPool, Date.now() name collisions, username
+  // generator overflow), all fixed in this branch. With NullPool + WAL +
+  // worker-namespaced fixture names, 6 workers measured 5/5 runs at
+  // ~44s wall, all 114 tests green. See docs/tasks/e2e-flake-followups/
+  // for what was deferred (category-level tests, push beyond 6 workers).
+  workers: process.env.CI ? 2 : 6,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
 

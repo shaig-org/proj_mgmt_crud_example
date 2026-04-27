@@ -10,15 +10,15 @@
 # captured and only printed on failure — concise on pass, verbose on fail
 # (same contract the other orchestrators in this repo use).
 #
-# E2E (Playwright, ~2 min) and dashboard smoke tests are opt-in because
-# they need the dev servers running and are much slower.
+# E2E (Playwright, ~75s after the auth-seeding refactor in
+# frontend/e2e/utils/auth.ts) and dashboard smoke tests are opt-in
+# because they need the dev servers running and are slower.
 #
 # When --with-e2e is passed, E2E runs AFTER the parallel fast checks
 # finish — not alongside them. Running E2E concurrently with backend
 # pytest (8 xdist workers + 4 Playwright workers both hitting the same
 # machine) causes cascading login timeouts on the shared backend due to
-# bcrypt CPU contention. Serializing costs ~30s but keeps E2E stable at
-# its 4-worker baseline flakiness.
+# bcrypt CPU contention. Serializing keeps E2E stable.
 #
 # Usage (from repo root or anywhere):
 #   ./devtools/run-all-validations.sh            # backend + frontend + dashboard fast checks

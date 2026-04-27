@@ -1,115 +1,75 @@
 import { test, expect } from '@playwright/test';
-import { TEST_CONFIG } from './utils/test-config';
+import {
+  TEST_CONFIG,
+  generateTestOrgName,
+  generateTestProjectName,
+  generateTestUserName,
+} from './utils/test-config';
+import { loginViaApi } from './utils/auth';
 
 test.describe('Project Details Page', () => {
   let projectId: string;
   let projectName: string;
 
   test.beforeEach(async ({ page }) => {
-    // Login as super admin
-    await page.goto('/login');
-    await page.getByRole('textbox', { name: 'Username' }).fill('admin');
-    await page.getByRole('textbox', { name: 'Password' }).fill('SuperAdmin123!');
-    await page.getByRole('button', { name: 'Login' }).click();
-    await expect(page).toHaveURL('/projects');
+    // Admin login (cached per worker — one bcrypt total) to provision data.
+    const adminToken = await loginViaApi(page, 'admin', 'SuperAdmin123!');
 
-    // Wait for logout button to be visible (confirms auth state is fully loaded)
-    await expect(page.getByRole('button', { name: 'Logout' })).toBeVisible();
-
-    // Get a fresh token via API login (page.request needs its own auth context)
-    const loginResponse = await page.request.post(`${TEST_CONFIG.API_BASE_URL}/auth/login`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      data: {
-        username: 'admin',
-        password: 'SuperAdmin123!',
-      },
-    });
-
-    if (!loginResponse.ok()) {
-      const errorText = await loginResponse.text();
-      throw new Error(`Failed to login via API: ${loginResponse.status()} - ${errorText}`);
-    }
-
-    const loginData = await loginResponse.json();
-    const token = loginData.access_token;
-
-    if (!token) {
-      throw new Error(`No access_token in login response. Response: ${JSON.stringify(loginData)}`);
-    }
-
-    // Create an organization via API
+    // Create an organization via API. Worker-namespaced name to avoid
+    // collisions with concurrent workers (Date.now() alone is NOT enough).
     const orgResponse = await page.request.post(`${TEST_CONFIG.API_BASE_URL}/api/organizations`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${adminToken}` },
       data: {
-        name: `Test Org ${Date.now()}`,
+        name: generateTestOrgName('ProjDetails'),
         description: 'E2E test organization',
       },
     });
-
     if (!orgResponse.ok()) {
-      const errorText = await orgResponse.text();
-      throw new Error(`Failed to create organization: ${orgResponse.status()} - ${errorText}`);
+      throw new Error(`Failed to create organization: ${orgResponse.status()} - ${await orgResponse.text()}`);
     }
-
     const org = await orgResponse.json();
 
-    // Create a user with project_manager role
-    const timestamp = Date.now();
-    const username = `pm${timestamp}`;
-
+    // Create a project_manager user via API. Worker-namespaced name.
+    const pmUsername = generateTestUserName('pm');
     const userResponse = await page.request.post(
       `${TEST_CONFIG.API_BASE_URL}/api/users?organization_id=${org.id}&role=project_manager`,
       {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${adminToken}` },
         data: {
-          username,
-          email: `${username}@example.com`,
+          username: pmUsername,
+          email: `${pmUsername}@example.com`,
           full_name: 'PM User',
         },
       }
     );
-
     if (!userResponse.ok()) {
-      const errorText = await userResponse.text();
-      throw new Error(`Failed to create user: ${userResponse.status()} - ${errorText}`);
+      throw new Error(`Failed to create user: ${userResponse.status()} - ${await userResponse.text()}`);
+    }
+    const { generated_password: pmPassword } = await userResponse.json();
+    if (!pmPassword) {
+      throw new Error('No generated_password in user response');
     }
 
-    const userData = await userResponse.json();
-    const password = userData.generated_password;
+    // Re-seed auth state as the PM user (also cached per worker per username).
+    const pmToken = await loginViaApi(page, pmUsername, pmPassword);
 
-    if (!password) {
-      throw new Error(
-        `Failed to get generated password from API response. Response: ${JSON.stringify(userData)}`
-      );
+    // Create a project for this test via API. Worker-namespaced name.
+    projectName = generateTestProjectName('ProjDetails');
+    const projectResponse = await page.request.post(`${TEST_CONFIG.API_BASE_URL}/api/projects`, {
+      headers: { Authorization: `Bearer ${pmToken}` },
+      data: {
+        name: projectName,
+        description: 'Test project description',
+      },
+    });
+    if (!projectResponse.ok()) {
+      throw new Error(`Failed to create project: ${projectResponse.status()} - ${await projectResponse.text()}`);
     }
+    const project = await projectResponse.json();
+    projectId = project.id;
 
-    // Logout super admin
-    await page.getByRole('button', { name: 'Logout' }).click();
-    await expect(page).toHaveURL('/login');
-
-    // Login as project manager
-    await page.getByRole('textbox', { name: 'Username' }).fill(username);
-    await page.getByRole('textbox', { name: 'Password' }).fill(password);
-    await page.getByRole('button', { name: 'Login' }).click();
-    await expect(page).toHaveURL('/projects');
-
-    // Create a project
-    await page.getByRole('button', { name: 'New Project' }).click();
-    projectName = `Test Project ${Date.now()}`;
-    await page.getByLabel('Project Name *').fill(projectName);
-    await page.getByLabel('Description').fill('Test project description');
-    await page.getByRole('button', { name: 'Create Project' }).click();
-
-    // Wait for modal to close and project to appear
-    await expect(page.getByRole('heading', { name: 'Create New Project' })).not.toBeVisible();
-    await expect(page.getByText(projectName)).toBeVisible();
-
-    // Extract project ID from the link
-    const projectLink = page.locator('.project-link').filter({ hasText: projectName });
-    const href = await projectLink.getAttribute('href');
-    projectId = href?.split('/').pop() || '';
+    // Land on /projects so tests that click the project link from the list still work.
+    await page.goto('/projects');
   });
 
   test('can navigate to project details by clicking project name', async ({ page }) => {

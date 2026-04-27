@@ -41,6 +41,17 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Manage application lifespan events."""
+    # Wipe the E2E DB on startup so the bootstrap admin gets re-seeded with
+    # the fast TestPasswordHasher (otherwise a stale bcrypt-hashed admin from
+    # a prior non-E2E run would fail to verify against SHA256). Production
+    # paths untouched.
+    if os.getenv("E2E_TESTING") == "true":
+        from project_management_crud_example.dependencies import _get_db_path
+        e2e_db_path = _get_db_path()
+        if os.path.exists(e2e_db_path):
+            logger.info(f"E2E mode: removing stale DB at {e2e_db_path}")
+            os.remove(e2e_db_path)
+
     # Initialize database on startup
     logger.info("Initializing database")
     db = get_database()

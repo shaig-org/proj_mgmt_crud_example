@@ -36,8 +36,10 @@ node_modules/
 # Don't accidentally leak API keys
 .cursor/mcp.json 
 
-# don't include the sqlite database
+# don't include the sqlite database (and WAL-mode side files)
 *.db
+*.db-wal
+*.db-shm
 
 # Hypothesis cache directory
 .hypothesis/

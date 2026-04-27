@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { TEST_CONFIG } from './utils/test-config';
+import {
+  TEST_CONFIG,
+  generateTestOrgName,
+  generateTestProjectName,
+  generateTestUserName,
+} from './utils/test-config';
+import { loginViaApi } from './utils/auth';
 
 test.describe('Ticket Advanced Features', () => {
   // Configure this test suite to run serially so beforeAll works correctly
@@ -50,7 +56,7 @@ test.describe('Ticket Advanced Features', () => {
     const orgResponse = await page.request.post(`${TEST_CONFIG.API_BASE_URL}/api/organizations`, {
       headers: { Authorization: `Bearer ${token}` },
       data: {
-        name: `Test Org ${Date.now()}`,
+        name: generateTestOrgName('TicketAdv'),
         description: 'E2E test organization',
       },
     });
@@ -62,9 +68,8 @@ test.describe('Ticket Advanced Features', () => {
 
     const org = await orgResponse.json();
 
-    // Create a user with project_manager role
-    const timestamp = Date.now();
-    username = `pm${timestamp}`;
+    // Create a user with project_manager role (worker-namespaced).
+    username = generateTestUserName('pm');
 
     const userResponse = await page.request.post(
       `${TEST_CONFIG.API_BASE_URL}/api/users?organization_id=${org.id}&role=project_manager`,
@@ -102,9 +107,9 @@ test.describe('Ticket Advanced Features', () => {
     await page.getByRole('button', { name: 'Login' }).click();
     await expect(page).toHaveURL('/projects');
 
-    // Create a project
+    // Create a project (worker-namespaced).
     await page.getByRole('button', { name: 'New Project' }).click();
-    const projectName = `Test Project ${Date.now()}`;
+    const projectName = generateTestProjectName('TicketAdv');
     await page.locator('#project-name').fill(projectName);
     await page.locator('#project-description').fill('Test project description');
     await page.getByRole('button', { name: 'Create Project' }).click();
@@ -123,13 +128,8 @@ test.describe('Ticket Advanced Features', () => {
 
   // Before each test, login and navigate to the project
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
-    await page.getByRole('textbox', { name: 'Username' }).fill(username);
-    await page.getByRole('textbox', { name: 'Password' }).fill(password);
-    await page.getByRole('button', { name: 'Login' }).click();
-    await expect(page).toHaveURL('/projects');
-
-    // Navigate to project details
+    // Seed auth state via API (one bcrypt per worker, cached) — no UI login.
+    await loginViaApi(page, username, password);
     await page.goto(`/projects/${projectId}`);
     await expect(page).toHaveURL(`/projects/${projectId}`);
   });

@@ -23,6 +23,7 @@ from project_management_crud_example.exceptions import (
     TokenExpiredException,
 )
 from project_management_crud_example.utils.jwt import decode_access_token
+from project_management_crud_example.utils.password import PasswordHasher, TestPasswordHasher
 
 # Global database instance
 _db_instance: Database | None = None
@@ -54,7 +55,12 @@ def get_database(db_path: str | None = None) -> Database:
     global _db_instance
     if _db_instance is None:
         actual_path = db_path if db_path is not None else _get_db_path()
-        _db_instance = Database(actual_path)
+        # Mark the Database as testing under E2E so bootstrap_data uses the
+        # fast password hasher (SHA256, ~0.001ms vs bcrypt's ~300ms). Combined
+        # with TestPasswordHasher in get_repository(), this removes the
+        # bcrypt bottleneck under high E2E parallelism.
+        is_testing = os.getenv("E2E_TESTING") == "true" or os.getenv("TESTING") == "true"
+        _db_instance = Database(actual_path, is_testing=is_testing)
     return _db_instance
 
 
@@ -65,9 +71,17 @@ def get_db_session() -> Iterator[Session]:
         yield session
 
 
+# Module-level so we hash-once-decide-once instead of re-checking the env per request.
+# Production: secure 12-round bcrypt. E2E: SHA256 (~0.001ms vs ~300ms) — see
+# utils/password.py TestPasswordHasher for why this is safe in test contexts only.
+_PASSWORD_HASHER: PasswordHasher | TestPasswordHasher = (
+    TestPasswordHasher() if os.getenv("E2E_TESTING") == "true" else PasswordHasher(is_secure=True)
+)
+
+
 def get_repository(session: Session = Depends(get_db_session)) -> Repository:  # noqa: B008
     """Dependency to get the main repository instance."""
-    return Repository(session)
+    return Repository(session, password_hasher=_PASSWORD_HASHER)
 
 
 async def get_current_user(

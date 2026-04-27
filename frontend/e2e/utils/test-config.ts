@@ -53,20 +53,29 @@ export function generateTestProjectName(baseName: string): string {
 }
 
 /**
- * Generate a worker-specific unique test user name for parallel execution.
+ * Generate a worker-specific unique test username for parallel execution.
  *
- * @param baseName - Human-readable base name for the user
- * @returns Unique username including worker ID and entropy
- * @example generateTestUserName('john-doe') => 'E2E-User-W0-P1a2b3-john-doe-1735689123456-1735689123456123-abc123xy'
+ * IMPORTANT: usernames are constrained to 50 chars by the backend
+ * (UserData.username `max_length=50`), so this generator is deliberately
+ * compact. We use:
+ *   - "u"   (1)
+ *   - workerId (1-2)
+ *   - "-" + baseName (1 + base.length, must be <= ~20)
+ *   - "-" + 12 base36 random chars (13)
+ * That's ~17 + baseName.length, well under the 50-char cap for any base
+ * up to 30 chars. (The bigger generators we use for orgs/projects/etc. all
+ * fit the 255-char cap on their respective fields, but tripped this one.)
+ *
+ * Worker-uniqueness comes from the workerId prefix; cross-run uniqueness
+ * comes from 12 base36 random chars (≈ 4×10^18 keyspace, collision-safe).
+ *
+ * @param baseName - Human-readable base name; keep <= 20 chars.
+ * @example generateTestUserName('pm') => 'u0-pm-k3xp7q9w2vlm'
  */
 export function generateTestUserName(baseName: string): string {
   const workerId = process.env.TEST_WORKER_INDEX || '0';
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 10);
-  const processId = process.pid.toString(36);
-  const nanoTime = performance.now().toString().replace('.', '');
-
-  return `${TEST_CONFIG.TEST_USER_PREFIX}W${workerId}-P${processId}-${baseName}-${timestamp}-${nanoTime}-${random}`;
+  const random = Math.random().toString(36).substring(2, 14).padEnd(12, '0');
+  return `u${workerId}-${baseName}-${random}`;
 }
 
 /**

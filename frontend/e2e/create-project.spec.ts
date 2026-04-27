@@ -1,15 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { loginViaApi } from './utils/auth';
 
 test.describe('Create Project Flow', () => {
   test.beforeEach(async ({ page }) => {
-    // Login as super admin
-    await page.goto('/login');
-    await page.getByRole('textbox', { name: 'Username' }).fill('admin');
-    await page.getByRole('textbox', { name: 'Password' }).fill('SuperAdmin123!');
-    await page.getByRole('button', { name: 'Login' }).click();
-
-    // Wait for redirect to projects page
-    await expect(page).toHaveURL('/projects');
+    // Seed auth state via API (one bcrypt per worker, cached) — no UI login.
+    await loginViaApi(page, 'admin', 'SuperAdmin123!');
+    await page.goto('/projects');
   });
 
   test('should show New Project button', async ({ page }) => {

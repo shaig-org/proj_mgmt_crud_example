@@ -24,6 +24,9 @@ React 19 + TypeScript (strict) · Vite · Axios · Playwright · ESLint
 - Parallel-safe (4 workers). Each test creates its own data.
 - Tests have descriptive names.
 
+## E2E auth — use `loginViaApi`, not the UI
+For setup, **always** use `e2e/utils/auth.ts → loginViaApi(page, username, password)` instead of typing into the login form. It calls `/auth/login` once per worker per username (cached) and seeds `localStorage.auth_state` via `addInitScript` so the page boots already authenticated. UI login in `beforeEach` was the suite-wide bcrypt bottleneck — don't reintroduce it. The only spec that should still drive the UI login form is `login-flow.spec.ts` (which tests the login/logout flow itself).
+
 ## Scenario tests (walkthroughs + Dev Dashboard)
 **Every major user-facing feature requires at least one scenario test.** Full authoring guide and dashboard workflow: `docs/testing/scenario_walkthroughs.md`.
 

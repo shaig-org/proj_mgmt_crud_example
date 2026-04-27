@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { TEST_CONFIG } from './utils/test-config';
+import {
+  TEST_CONFIG,
+  generateTestOrgName,
+  generateTestProjectName,
+  generateTestUserName,
+} from './utils/test-config';
+import { loginViaApi } from './utils/auth';
 
 test.describe('Epic Details Page', () => {
   let projectId: string;
@@ -33,7 +39,7 @@ test.describe('Epic Details Page', () => {
         'Content-Type': 'application/json',
       },
       data: {
-        name: `Test Org ${Date.now()}`,
+        name: generateTestOrgName('EpicDetails'),
         description: 'Epic Details Test Org',
       },
     });
@@ -41,7 +47,7 @@ test.describe('Epic Details Page', () => {
     const organizationId = org.id;
 
     // Create project manager user
-    pmUsername = `pm${Date.now()}`;
+    pmUsername = generateTestUserName('pm');
     const userResponse = await page.request.post(
       `${TEST_CONFIG.API_BASE_URL}/api/users?organization_id=${organizationId}&role=project_manager`,
       {
@@ -84,7 +90,7 @@ test.describe('Epic Details Page', () => {
         'Content-Type': 'application/json',
       },
       data: {
-        name: `Test Project ${Date.now()}`,
+        name: generateTestProjectName('EpicDetails'),
         description: 'Epic Details Test Project',
       },
     });
@@ -121,12 +127,9 @@ test.describe('Epic Details Page', () => {
   });
 
   test.beforeEach(async ({ page }) => {
-    // Login as PM user for each test
-    await page.goto('/login');
-    await page.getByRole('textbox', { name: 'Username' }).fill(pmUsername);
-    await page.getByRole('textbox', { name: 'Password' }).fill(pmPassword);
-    await page.getByRole('button', { name: 'Login' }).click();
-    await expect(page).toHaveURL('/projects');
+    // Seed auth state via API (one bcrypt per worker, cached) — no UI login.
+    await loginViaApi(page, pmUsername, pmPassword);
+    await page.goto('/projects');
   });
 
   test('can navigate to epic details from project page', async ({ page }) => {
@@ -154,7 +157,19 @@ test.describe('Epic Details Page', () => {
   });
 
   test('shows 0% progress when epic has no tickets', async ({ page }) => {
-    await page.goto(`/epics/${epicId}`);
+    // Create a dedicated epic for this test — the shared beforeAll epic gets
+    // tickets added to it by other tests in the same worker, so we can't rely
+    // on it being empty.
+    const ownEpicResponse = await page.request.post(`${TEST_CONFIG.API_BASE_URL}/api/epics`, {
+      headers: { Authorization: `Bearer ${pmToken}`, 'Content-Type': 'application/json' },
+      data: { name: `Empty Epic ${Date.now()}-${Math.random().toString(36).slice(2, 8)}` },
+    });
+    if (!ownEpicResponse.ok()) {
+      throw new Error(`Failed to create epic: ${ownEpicResponse.status()} - ${await ownEpicResponse.text()}`);
+    }
+    const ownEpic = await ownEpicResponse.json();
+
+    await page.goto(`/epics/${ownEpic.id}`);
 
     // Check progress shows 0 of 0
     await expect(page.locator('.progress-text')).toContainText('0 of 0 tickets');
@@ -167,7 +182,19 @@ test.describe('Epic Details Page', () => {
   });
 
   test('displays tickets section initially empty', async ({ page }) => {
-    await page.goto(`/epics/${epicId}`);
+    // Create a dedicated epic — shared beforeAll epic gets tickets added by
+    // sibling tests, so we can't rely on its emptiness. Avoid the word
+    // "Tickets" in the name so the page's "Tickets" h2 stays unambiguous.
+    const ownEpicResponse = await page.request.post(`${TEST_CONFIG.API_BASE_URL}/api/epics`, {
+      headers: { Authorization: `Bearer ${pmToken}`, 'Content-Type': 'application/json' },
+      data: { name: `Empty Story Epic ${Date.now()}-${Math.random().toString(36).slice(2, 8)}` },
+    });
+    if (!ownEpicResponse.ok()) {
+      throw new Error(`Failed to create epic: ${ownEpicResponse.status()} - ${await ownEpicResponse.text()}`);
+    }
+    const ownEpic = await ownEpicResponse.json();
+
+    await page.goto(`/epics/${ownEpic.id}`);
 
     // Check tickets section header
     await expect(page.getByRole('heading', { name: /Tickets/ })).toBeVisible();
@@ -236,43 +263,60 @@ test.describe('Epic Details Page', () => {
   });
 
   test('allows sorting tickets by different criteria', async ({ page }) => {
+    // Create a dedicated epic so the sort assertions don't get confused by
+    // tickets that other tests on the same worker added to the shared epic.
+    const ownEpicResponse = await page.request.post(`${TEST_CONFIG.API_BASE_URL}/api/epics`, {
+      headers: { Authorization: `Bearer ${pmToken}`, 'Content-Type': 'application/json' },
+      data: { name: `Sort Epic ${Date.now()}-${Math.random().toString(36).slice(2, 8)}` },
+    });
+    if (!ownEpicResponse.ok()) {
+      throw new Error(`Failed to create epic: ${ownEpicResponse.status()} - ${await ownEpicResponse.text()}`);
+    }
+    const ownEpic = await ownEpicResponse.json();
+
     // Create tickets with different names through UI
     await page.goto(`/projects/${projectId}`);
 
-    const ticketZ = `Z Epic Ticket ${Date.now()}`;
+    // Unique suffix per ticket title (not just Date.now() — that resolves at
+    // load time, not at click time, so both literals would share the same
+    // millisecond and we'd have title collisions across parallel workers).
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const ticketZ = `Z Epic Ticket ${suffix}`;
     await page.getByRole('button', { name: 'New Ticket' }).click();
     await page.getByLabel('Title *').fill(ticketZ);
-    await page.locator('#ticket-epic').selectOption(epicId);
+    await page.locator('#ticket-epic').selectOption(ownEpic.id);
     await page.getByRole('button', { name: 'Create Ticket' }).click();
     await expect(page.locator('.modal-overlay')).not.toBeVisible();
 
-    const ticketA = `A Epic Ticket ${Date.now()}`;
+    const ticketA = `A Epic Ticket ${suffix}`;
     await page.getByRole('button', { name: 'New Ticket' }).click();
     await page.getByLabel('Title *').fill(ticketA);
-    await page.locator('#ticket-epic').selectOption(epicId);
+    await page.locator('#ticket-epic').selectOption(ownEpic.id);
     await page.getByRole('button', { name: 'Create Ticket' }).click();
     await expect(page.locator('.modal-overlay')).not.toBeVisible();
 
     // Navigate to epic details
-    await page.goto(`/epics/${epicId}`);
+    await page.goto(`/epics/${ownEpic.id}`);
 
     // Sort by title
     await page.locator('#sort-by').selectOption('title');
     const titleOrder = await page.locator('tbody tr td:first-child a').allTextContents();
 
     // Find indices of our test tickets
-    const indexA = titleOrder.findIndex(t => t.includes('A Epic Ticket'));
-    const indexZ = titleOrder.findIndex(t => t.includes('Z Epic Ticket'));
+    const indexA = titleOrder.findIndex(t => t.includes(`A Epic Ticket ${suffix}`));
+    const indexZ = titleOrder.findIndex(t => t.includes(`Z Epic Ticket ${suffix}`));
 
     // A should come before Z when sorted alphabetically
     expect(indexA).toBeLessThan(indexZ);
 
-    // Sort by created_at (most recent first)
+    // Sort by created_at — assert relative order (A more recent than Z)
+    // rather than absolute "first", which is robust if the dedicated epic
+    // somehow ends up with extra tickets later.
     await page.locator('#sort-by').selectOption('created_at');
     const createdOrder = await page.locator('tbody tr td:first-child a').allTextContents();
-
-    // Most recently created (ticketA) should be first
-    expect(createdOrder[0]).toContain('A Epic Ticket');
+    const createdIndexA = createdOrder.findIndex(t => t.includes(`A Epic Ticket ${suffix}`));
+    const createdIndexZ = createdOrder.findIndex(t => t.includes(`Z Epic Ticket ${suffix}`));
+    expect(createdIndexA).toBeLessThan(createdIndexZ);
   });
 
   test('can click ticket to navigate to details', async ({ page }) => {
