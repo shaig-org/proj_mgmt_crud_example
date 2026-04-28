@@ -195,6 +195,7 @@ def get_stub_entity_repo(session: Session = Depends(get_db_session)) -> StubEnti
 
 from project_management_crud_example.capabilities import (  # noqa: E402
     ActivityLogReadCapability,
+    BoundProjectWriteCapability,
     CommentReadCapability,
     EpicReadCapability,
     GlobalOrganizationWriteCapability,
@@ -234,6 +235,19 @@ def get_org_project_write_capability(
     user: User = Depends(get_current_user),  # noqa: B008
 ) -> OrgProjectWriteCapability:
     return OrgProjectWriteCapability(repo, user)
+
+
+def get_bound_project_write_capability(
+    project_id: str,
+    cap: OrgProjectWriteCapability = Depends(get_org_project_write_capability),  # noqa: B008
+) -> BoundProjectWriteCapability:
+    """Resolve auth + existence for {project_id} and return a bound capability.
+
+    `project_id` is read from the route path automatically — FastAPI matches dep
+    parameter names to path parameters. Routes operating on /{project_id} get a
+    capability whose verbs cannot be redirected to a different project.
+    """
+    return cap.bind(project_id)
 
 
 def get_user_read_capability(

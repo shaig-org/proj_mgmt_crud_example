@@ -176,7 +176,8 @@
       "Bash(agent-browser eval *)",
       "Bash(agent-browser screenshot *)",
       "Bash(agent-browser eval ' *)",
-      "Bash(./devtools/refresh-dashboard-artifacts.sh --skip-e2e)"
+      "Bash(./devtools/refresh-dashboard-artifacts.sh --skip-e2e)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": [],

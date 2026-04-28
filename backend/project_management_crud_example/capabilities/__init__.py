@@ -16,7 +16,10 @@ from project_management_crud_example.capabilities.comments_capability import (
     OwnCommentWriteCapability,
 )
 from project_management_crud_example.capabilities.epics_capability import EpicReadCapability, OrgEpicWriteCapability
-from project_management_crud_example.capabilities.errors import CapabilityPermissionError
+from project_management_crud_example.capabilities.errors import (
+    CapabilityNotFoundError,
+    CapabilityPermissionError,
+)
 from project_management_crud_example.capabilities.organizations_capability import (
     GlobalOrganizationWriteCapability,
     OrganizationReadCapability,
@@ -26,6 +29,7 @@ from project_management_crud_example.capabilities.password_capability import (
     PasswordChangeError,
 )
 from project_management_crud_example.capabilities.projects_capability import (
+    BoundProjectWriteCapability,
     OrgProjectWriteCapability,
     ProjectReadCapability,
 )
@@ -45,6 +49,7 @@ from project_management_crud_example.capabilities.workflows_capability import (
 
 __all__ = [
     "ActivityLogReadCapability",
+    "CapabilityNotFoundError",
     "CapabilityPermissionError",
     "CommentReadCapability",
     "OrgCommentModerationCapability",
@@ -57,6 +62,7 @@ __all__ = [
     "PasswordChangeError",
     "ProjectReadCapability",
     "OrgProjectWriteCapability",
+    "BoundProjectWriteCapability",
     "TicketReadCapability",
     "OrgTicketWriteCapability",
     "OrgUserWriteCapability",

@@ -1,5 +1,7 @@
 """Tests for system bootstrap functionality."""
 
+from pathlib import Path
+
 import pytest
 
 from project_management_crud_example.bootstrap_data import (
@@ -119,6 +121,75 @@ class TestBootstrapSuperAdmin:
 
         # Cleanup: restore settings
         config.get_settings.cache_clear()
+
+    def test_bootstrap_is_race_safe_under_concurrent_callers(self, tmp_path: Path) -> None:
+        """Concurrent ensure_super_admin() calls must not raise.
+
+        Regression for the parallel-test seeding flake: under xdist, multiple
+        FastAPI lifespan invocations would call ensure_super_admin() against the
+        same DB file simultaneously. Both would pass the get_all() check before
+        either committed, then race on the username UNIQUE constraint and one
+        would crash with IntegrityError. The fix catches that and treats
+        "another bootstrapper won the race" as already-exists.
+
+        The category this test prevents: any check-then-act idempotent
+        bootstrap that crashes when two callers race the act phase.
+
+        Each worker thread builds its OWN `Database` instance against the
+        shared file — that mirrors xdist's separate-process model (separate
+        engines, separate connections, shared SQLite file) much more closely
+        than a single shared engine with `StaticPool` would.
+        """
+        import threading
+
+        db_path = str(tmp_path / "bootstrap_race.db")
+        # Bootstrap the schema once, then dispose so each worker opens cleanly.
+        bootstrap_db = Database(db_path, is_testing=True)
+        bootstrap_db.create_tables()
+        bootstrap_db.dispose()
+
+        N = 8
+        barrier = threading.Barrier(N)
+        results: list[tuple[bool, str | None]] = []
+        errors: list[BaseException] = []
+        results_lock = threading.Lock()
+
+        def worker() -> None:
+            try:
+                # Each thread gets its own engine — same file, separate
+                # connections, just like xdist workers.
+                worker_db = Database(db_path, is_testing=True)
+                try:
+                    barrier.wait(timeout=5)
+                    created, user_id = ensure_super_admin(worker_db)
+                    with results_lock:
+                        results.append((created, user_id))
+                finally:
+                    worker_db.dispose()
+            except BaseException as exc:  # noqa: BLE001 — capture for assertion
+                with results_lock:
+                    errors.append(exc)
+
+        threads = [threading.Thread(target=worker) for _ in range(N)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=15)
+
+        assert errors == [], f"Concurrent ensure_super_admin raised: {errors}"
+        assert len(results) == N
+
+        created_count = sum(1 for created, _ in results if created)
+        assert created_count == 1, f"Expected exactly 1 creator, got {created_count}: {results}"
+
+        verify_db = Database(db_path, is_testing=True)
+        try:
+            with verify_db.get_session() as session:
+                repo = Repository(session, password_hasher=TestPasswordHasher())
+                super_admins = [u for u in repo.users.get_all() if u.role == UserRole.SUPER_ADMIN]
+                assert len(super_admins) == 1
+        finally:
+            verify_db.dispose()
 
     def test_bootstrap_skips_if_any_super_admin_exists(self, test_db: Database) -> None:
         """Test that bootstrap skips creation if any Super Admin exists."""

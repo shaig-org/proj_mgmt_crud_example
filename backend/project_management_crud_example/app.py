@@ -14,7 +14,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from project_management_crud_example.capabilities import CapabilityPermissionError, PasswordChangeError
+from project_management_crud_example.capabilities import (
+    CapabilityNotFoundError,
+    CapabilityPermissionError,
+    PasswordChangeError,
+)
 from project_management_crud_example.dependencies import get_database
 from project_management_crud_example.exceptions import AuthHTTPException
 from project_management_crud_example.middleware.e2e_tracing import E2eTracingMiddleware
@@ -171,6 +175,13 @@ async def capability_permission_handler(request: Request, exc: CapabilityPermiss
     """Map CapabilityPermissionError to HTTP 403 with standard envelope."""
     logger.warning(f"Capability permission denied on {request.method} {request.url}: {exc.detail}")
     return JSONResponse(status_code=403, content={"detail": exc.detail})
+
+
+@app.exception_handler(CapabilityNotFoundError)
+async def capability_not_found_handler(request: Request, exc: CapabilityNotFoundError) -> JSONResponse:
+    """Map CapabilityNotFoundError to HTTP 404 with standard envelope."""
+    logger.info(f"Capability target not found on {request.method} {request.url}: {exc.detail}")
+    return JSONResponse(status_code=404, content={"detail": exc.detail})
 
 
 @app.exception_handler(PasswordChangeError)

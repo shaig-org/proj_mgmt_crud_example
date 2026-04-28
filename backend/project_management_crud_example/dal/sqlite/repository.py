@@ -412,7 +412,16 @@ class Repository:
                 role=UserRole.SUPER_ADMIN,
             )
 
-            user = self.create(command)
+            try:
+                user = self.create(command)
+            except IntegrityError:
+                # Another worker / process won the bootstrap race between our
+                # get_all() check above and this insert. Treat it as already-exists
+                # — the contract is "ensure", not "create exclusively". Same fix
+                # also makes a multi-worker production bootstrap race-safe.
+                self.session.rollback()
+                logger.info("Super Admin already exists (lost bootstrap race), skipping creation")
+                return False, None
             logger.info(f"Super Admin created successfully: {user.id}")
 
             return True, user

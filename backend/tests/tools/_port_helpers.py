@@ -40,22 +40,33 @@ def bind_listener(port: int) -> Iterator[socket.socket]:
         sock.close()
 
 
-def reserve_free_port_base(step: int = 10, window: int = 100) -> int:
-    """Return a high port base B such that B, B+step, B+2*step, ... B+window*step are all free.
+def reserve_free_port_base(step: int = 10, total_ports: int = 3001) -> int:
+    """Return a high port base B such that B, B+step, ..., B+total_ports-1 are all bind-free.
 
-    Simpler approach: ask the OS for one ephemeral free port via
-    socket.bind(('', 0)), round up to the next multiple of 1000, then probe
-    a grid of candidate offsets to confirm they're all free. Tries a few
-    random starts before giving up.
+    `total_ports` is the FULL range the caller needs probed — by default 3001,
+    which covers the three port groups used by `reserved_port_bases`
+    (frontend [0..1000], dashboard [1000..2000], backend [2000..3000]) PLUS
+    the generator's probe window at each. Earlier this only probed the first
+    1000 ports starting at `base`, leaving the dashboard's upper half and the
+    entire backend range unverified — which produced a flaky failure under
+    parallel test load when an ephemeral connection happened to live inside
+    one of the unverified slices.
+
+    Stays out of the macOS / Linux ephemeral-port ranges (49152+ on macOS,
+    32768+ on Linux) by capping bases at 30000.
     """
     import random
 
-    # Try up to 10 random high bases. Each attempt probes window+1 ports.
+    # Try up to 10 random high bases. Each attempt probes `total_ports` ports.
     for _ in range(10):
-        # Pick a base in [20000, 60000] aligned to 1000 so offsets stay pretty.
-        base = random.randrange(20000, 60000, 1000)
+        # Pick a base in [10000, 30000] aligned to 1000. This avoids:
+        #   - <10000: well-known service collisions
+        #   - >30000: Linux's default ephemeral range (32768-60999)
+        #   - >49152: macOS's default ephemeral range (49152-65535)
+        # so the probed window is always outside any host's ephemeral range.
+        base = random.randrange(10000, 30000, 1000)
         ok = True
-        for n in range(0, (window + 1) * step, step):
+        for n in range(0, total_ports, step):
             candidate = base + n
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
@@ -74,10 +85,13 @@ def reserve_free_port_base(step: int = 10, window: int = 100) -> int:
 @contextlib.contextmanager
 def reserved_port_bases() -> Iterator[tuple[int, int, int]]:
     """Yield three disjoint high port bases (frontend, dashboard, backend)
-    guaranteed-free on this host, suitable for WORKTREE_PORTS_*_BASE overrides.
+    guaranteed bind-free across the full 3000-port window the generator scans.
 
     Bases are spaced 1000 apart so tests can reason about offset arithmetic
-    (e.g. base+10 for "offset 10") without port-range collisions.
+    (e.g. base+10 for "offset 10") without port-range collisions. The
+    generator probes 100 offsets per group, so the underlying reserve covers
+    all 3 * 1001 = 3003 candidate ports (rounded up to 3001 for cleanliness;
+    the extra one ensures `frontend + 2000 + 990` is included).
     """
     frontend = reserve_free_port_base()
     dashboard = frontend + 1000

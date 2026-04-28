@@ -12,3 +12,14 @@ class CapabilityPermissionError(Exception):
         super().__init__(detail)
         self.detail = detail
         self.code = code
+
+
+class CapabilityNotFoundError(Exception):
+    """Raised by capability factories when the bound entity does not exist.
+
+    Mapped to HTTP 404 by a FastAPI exception handler registered in app.py.
+    """
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+        self.detail = detail

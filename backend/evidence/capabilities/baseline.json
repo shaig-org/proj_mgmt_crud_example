@@ -162,6 +162,7 @@
     },
     {
       "capabilities": [
+        "BoundProjectWriteCapability",
         "OrgProjectWriteCapability"
       ],
       "handler": "project_api.delete_project",
@@ -178,6 +179,7 @@
     },
     {
       "capabilities": [
+        "BoundProjectWriteCapability",
         "OrgProjectWriteCapability"
       ],
       "handler": "project_api.update_project",
@@ -186,6 +188,7 @@
     },
     {
       "capabilities": [
+        "BoundProjectWriteCapability",
         "OrgProjectWriteCapability"
       ],
       "handler": "project_api.archive_project",
@@ -194,6 +197,7 @@
     },
     {
       "capabilities": [
+        "BoundProjectWriteCapability",
         "OrgProjectWriteCapability"
       ],
       "handler": "project_api.unarchive_project",
